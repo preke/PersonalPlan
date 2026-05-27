@@ -37,7 +37,7 @@ plans.
 ## Quick start
 
 ```bash
-git clone https://github.com/preke/maple.git
+git clone https://github.com/preke/PersonalPlan.git
 cd maple
 
 # Python ≥ 3.10 recommended
