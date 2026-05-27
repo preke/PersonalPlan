@@ -1,0 +1,162 @@
+{
+  "input": {
+    "query": "How do I set up structured logging in a Python service?\n\nMy team has been using scattered print() statements and we want to move to real logging so we can search by request ID in our log aggregator. I have read about the logging module but the configuration is confusing — do I use basicConfig, a dictConfig, or set up handlers manually? I would like a complete reusable config I can drop into a service.",
+    "learner": {
+      "self_description": "DevOps-leaning Python developer, eight years experience. Comfortable with JSON, structured data, and Splunk queries. Have always avoided the logging module because of how complex the configuration looks.",
+      "skills": ["python", "logging", "json", "splunk", "observability"]
+    }
+  },
+  "output": {
+    "agents": [
+      {
+        "agent_role": "logging_config_tutor",
+        "goal": "Guide the learner from print-debugging habits to a dictConfig-based structured-logging setup that emits JSON lines suited to Splunk ingestion, drawing on their existing JSON / structured-data fluency.",
+        "description": "You are a senior Python observability engineer. You frame logging concepts in terms the learner already owns — JSON shape, queryable fields, structured records — and you steer firmly past basicConfig toward dictConfig because the learner needs a reusable artifact, not a one-liner.",
+        "tools": []
+      },
+      {
+        "agent_role": "logging_docs_retriever",
+        "goal": "Retrieve the exact dictConfig schema and the names of relevant handlers and formatters from the official Python logging docs.",
+        "description": "You are a precise documentation specialist for Python's logging.config module. You retrieve the dictConfig schema, the handler class names, and confirm the parameters needed for JSON-style formatting.",
+        "tools": ["CodeDocsSearchTool"]
+      },
+      {
+        "agent_role": "python_logging_validator",
+        "goal": "Execute the learner's logging configuration and confirm it produces parseable JSON lines including the expected request-id field.",
+        "description": "You are a Python code runner. You apply submitted dictConfig structures using CodeInterpreterTool, emit a sample log record with a request-id in extra, and verify the resulting output parses as JSON with the expected keys.",
+        "tools": ["CodeInterpreterTool"]
+      },
+      {
+        "agent_role": "config_file_author",
+        "goal": "Write the final approved logging configuration into a reusable logging_config.py file the learner can drop into a service.",
+        "description": "You are a deliberate file authoring agent. You only persist a configuration after it has been validated by the runtime. You name the file exactly as requested and include a one-line module docstring describing where to import it from.",
+        "tools": ["FileWriterTool"]
+      }
+    ],
+    "subtasks": [
+      {
+        "id": "S1",
+        "name": "Reframe the basicConfig vs dictConfig choice",
+        "subtask_objective": "Learner can state why dictConfig is the right tool for a reusable service config, in terms of multiple handlers and JSON formatting.",
+        "steps": [
+          {
+            "id": "S1-1",
+            "agent": "logging_config_tutor",
+            "objective": "Surface what the learner actually needs structurally.",
+            "instruction": "Ask the learner: for Splunk to be useful, what fields must every log record carry — timestamp, level, message, request_id, anything else? Have them list the fields they would want to search by. This list will shape the formatter design later.",
+            "tool": null,
+            "requires_human_input": true,
+            "expected_output": "Learner's field list (typically: timestamp, level, logger name, request_id, message, optionally service name).",
+            "depends_on": []
+          },
+          {
+            "id": "S1-2",
+            "agent": "logging_config_tutor",
+            "objective": "Steer the learner past basicConfig.",
+            "instruction": "Tell the learner that basicConfig sets up exactly one handler and one formatter — fine for a script, but unable to express the structured JSON output they need. dictConfig is a single dictionary describing handlers, formatters, and loggers; it is the artifact the team should commit. Confirm the learner understands the distinction before moving on.",
+            "tool": null,
+            "requires_human_input": true,
+            "expected_output": "Learner's acknowledgement of the dictConfig vs basicConfig distinction, in their own words.",
+            "depends_on": ["S1-1"]
+          }
+        ]
+      },
+      {
+        "id": "S2",
+        "name": "Anchor the dictConfig schema in the official docs",
+        "subtask_objective": "Learner knows the exact schema keys (version, formatters, handlers, loggers) and the StreamHandler class path.",
+        "steps": [
+          {
+            "id": "S2-1",
+            "agent": "logging_docs_retriever",
+            "objective": "Retrieve the dictConfig schema from the docs.",
+            "instruction": "Look up the official Python documentation for logging.config.dictConfig. Retrieve the top-level schema keys (version, disable_existing_loggers, formatters, handlers, loggers, root) and the canonical reference example. Also confirm the dotted path logging.StreamHandler used in handlers.\"...\".class.",
+            "tool": "CodeDocsSearchTool",
+            "requires_human_input": false,
+            "expected_output": "dictConfig schema description and the canonical example structure, with confirmed class path logging.StreamHandler.",
+            "depends_on": []
+          }
+        ]
+      },
+      {
+        "id": "S3",
+        "name": "Iterate on the learner's dictConfig until it produces valid JSON lines",
+        "subtask_objective": "Learner produces a dictConfig that, when applied, emits a JSON-formatted log line containing all the fields listed in S1-1, including request_id from extra.",
+        "steps": [
+          {
+            "id": "S3-1",
+            "agent": "logging_config_tutor",
+            "objective": "Ask for a first draft of the dictConfig.",
+            "instruction": "Ask the learner to write a complete dictConfig dictionary that defines: (a) one formatter producing JSON with the fields from S1-1, (b) one StreamHandler using that formatter, (c) a root logger at INFO using that handler. They may use python-json-logger.JsonFormatter or write a custom Formatter — either is acceptable. On retry iterations, use S3-3's feedback from the previous round to ask only for the specific change needed, not a fresh rewrite.",
+            "tool": null,
+            "requires_human_input": true,
+            "expected_output": "Learner's draft dictConfig dictionary for this iteration.",
+            "depends_on": ["S1-2", "S2-1"]
+          },
+          {
+            "id": "S3-2",
+            "agent": "python_logging_validator",
+            "objective": "Apply the dictConfig and emit a sample record with request_id in extra.",
+            "instruction": "Take the learner's dictConfig from S3-1 and execute the following test harness: call logging.config.dictConfig(<config>); get a logger; log one INFO message with extra={'request_id': 'r-abc-123'}; capture the emitted line. Parse the captured line with json.loads and confirm it has all fields from S1-1 — especially request_id. Print the parsed dict. Set config_valid=true if parsing succeeds and request_id is present, false otherwise.",
+            "tool": "CodeInterpreterTool",
+            "requires_human_input": false,
+            "expected_output": "Parsed log record showing all expected fields, and config_valid=true if the line is JSON-parseable with request_id, config_valid=false otherwise.",
+            "depends_on": ["S3-1"]
+          },
+          {
+            "id": "S3-3",
+            "agent": "logging_config_tutor",
+            "objective": "Give targeted feedback for the next iteration.",
+            "instruction": "Using S3-2's output: if the line failed to parse as JSON, point to the specific formatter line that produced plain text and ask the learner to fix it. If request_id was missing, explain that the formatter must include extra fields (e.g., use python-json-logger or write a Formatter subclass that pulls record.__dict__). Identify exactly one fix and ask the learner to revise; do not rewrite the config for them.",
+            "tool": null,
+            "requires_human_input": false,
+            "expected_output": "Targeted feedback message identifying the single fix needed in the dictConfig.",
+            "depends_on": ["S3-2"]
+          },
+          {
+            "id": "S3-4",
+            "agent": "logging_config_tutor",
+            "objective": "Resolve the iteration loop.",
+            "instruction": "Using S3-2's final config_valid value: if true, confirm explicitly what the learner got right — JSON output with request_id flowing through extra, ready for Splunk. If max iterations exhausted, provide a canonical dictConfig using python-json-logger.JsonFormatter with format '%(asctime)s %(levelname)s %(name)s %(request_id)s %(message)s', a single StreamHandler, and an INFO-level root logger; explain each piece.",
+            "tool": null,
+            "requires_human_input": false,
+            "expected_output": "Resolution statement: confirmation of the working dictConfig or the canonical version with explanation.",
+            "depends_on": ["S3-2"]
+          }
+        ]
+      },
+      {
+        "id": "S4",
+        "name": "Persist the working config as a reusable file",
+        "subtask_objective": "Learner has a logging_config.py file containing the validated dictConfig ready to import in a service.",
+        "steps": [
+          {
+            "id": "S4-1",
+            "agent": "config_file_author",
+            "objective": "Write the final approved dictConfig to disk.",
+            "instruction": "Take the dictConfig from the resolution in S3-4 (whichever version was approved). Write it to a file named logging_config.py with this structure: a one-line module docstring, then a single module-level constant LOGGING = { ... } containing the validated dictConfig. The file must be importable as 'from logging_config import LOGGING; logging.config.dictConfig(LOGGING)'. Do not add unused handlers or speculative loggers.",
+            "tool": "FileWriterTool",
+            "requires_human_input": false,
+            "expected_output": "Confirmation that logging_config.py has been written, with its content showing the approved LOGGING constant.",
+            "depends_on": ["S3-4"]
+          }
+        ]
+      }
+    ],
+    "execution_order": [
+      "S1-1",
+      "S1-2",
+      "S2-1",
+      {
+        "loop": {
+          "steps": ["S3-1", "S3-2", "S3-3"],
+          "condition": "S3-2.config_valid == false",
+          "max_iterations": 3
+        }
+      },
+      "S3-4",
+      "S4-1"
+    ]
+  }
+},
+{"answer":"Use logging.config.dictConfig with a single dictionary describing formatters, handlers, and loggers. For Splunk-style structured output, install python-json-logger and use pythonjsonlogger.jsonlogger.JsonFormatter as the formatter class, with format '%(asctime)s %(levelname)s %(name)s %(request_id)s %(message)s'. Define a StreamHandler using that formatter and a root logger at INFO using the handler. Pass extra={'request_id': ...} on each log call to inject the request ID into the JSON record. basicConfig is too limited for multi-field JSON output; dictConfig is the standard reusable approach."}

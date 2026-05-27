@@ -1,0 +1,117 @@
+{
+  "input": {
+    "query": "What is the difference between processes and threads?\n\nI keep reading about both in operating systems material and I am not sure when one is preferred over the other. Are threads just lightweight processes? Why do some languages discourage them?",
+    "learner": {
+      "self_description": "Math major in my third year, picked up Python last summer to run simulations for a fluid-dynamics class. No formal CS background.",
+      "skills": ["python", "concurrency", "numpy", "matplotlib", "simulation"]
+    }
+  },
+  "output": {
+    "agents": [
+      {
+        "agent_role": "concurrency_concept_tutor",
+        "goal": "Bridge the learner's mathematical-simulation intuition (independent vs shared state) to the OS-level distinction between processes and threads, and to the trade-off that motivates when to use each.",
+        "description": "You are a Socratic CS tutor who frames OS concepts through the lens of simulation work the learner already does. You build the process-vs-thread distinction up from the question of shared mutable state, not from textbook definitions. You accept an explanation only when the learner can name a concrete simulation scenario for each choice.",
+        "tools": []
+      },
+      {
+        "agent_role": "os_docs_retriever",
+        "goal": "Surface authoritative wording for the GIL and for memory-isolation guarantees so the tutor's claims are grounded in current Python documentation.",
+        "description": "You are a precise documentation specialist. You retrieve official CPython documentation snippets on the GIL and on multiprocessing's process isolation, and flag any discrepancy between common explanations and what the docs actually say.",
+        "tools": ["CodeDocsSearchTool"]
+      }
+    ],
+    "subtasks": [
+      {
+        "id": "S1",
+        "name": "Ground the distinction in shared vs isolated state",
+        "subtask_objective": "Learner can articulate that processes do not share memory by default while threads do, and connect this to one of their own simulation scenarios.",
+        "steps": [
+          {
+            "id": "S1-1",
+            "agent": "concurrency_concept_tutor",
+            "objective": "Activate the learner's existing intuition about independent vs coupled simulation runs.",
+            "instruction": "Ask the learner: in their fluid-dynamics simulations, if they wanted to run twenty independent parameter sweeps on a single laptop, would each run need to see the others' intermediate state, or could they be entirely independent? Have them describe one scenario where independence is fine and one where the runs would have to share data mid-computation.",
+            "tool": null,
+            "requires_human_input": true,
+            "expected_output": "Learner's two scenarios — one independent, one shared-state — drawn from their simulation work.",
+            "depends_on": []
+          },
+          {
+            "id": "S1-2",
+            "agent": "concurrency_concept_tutor",
+            "objective": "Map the two scenarios onto processes (isolated) vs threads (shared memory).",
+            "instruction": "Using the two scenarios from S1-1, tell the learner the core distinction: each process gets its own memory address space, so two processes cannot accidentally corrupt each other's arrays — exactly matching their independent parameter-sweep scenario. Threads share one address space, so they can read and write the same numpy array directly — matching their shared-state scenario. Ask the learner to assign each of their two scenarios to processes or threads and explain why.",
+            "tool": null,
+            "requires_human_input": true,
+            "expected_output": "Learner's assignment of each scenario to processes or threads with their reasoning about shared vs isolated memory.",
+            "depends_on": ["S1-1"]
+          }
+        ]
+      },
+      {
+        "id": "S2",
+        "name": "Introduce the GIL as the reason Python threading has limits",
+        "subtask_objective": "Learner can explain why CPython threads do not give parallel speedup for CPU-bound numpy loops, and what the GIL actually guards.",
+        "steps": [
+          {
+            "id": "S2-1",
+            "agent": "os_docs_retriever",
+            "objective": "Retrieve the official CPython documentation on the Global Interpreter Lock.",
+            "instruction": "Look up the official CPython documentation describing the GIL — specifically the wording about it being a mutex that protects access to Python objects and prevents multiple native threads from executing Python bytecode at once. Retrieve the canonical paragraph that will be quoted in S2-2.",
+            "tool": "CodeDocsSearchTool",
+            "requires_human_input": false,
+            "expected_output": "Official CPython documentation paragraph defining the GIL and its effect on threaded bytecode execution.",
+            "depends_on": []
+          },
+          {
+            "id": "S2-2",
+            "agent": "concurrency_concept_tutor",
+            "objective": "Explain why threads do not help CPU-bound simulations in CPython.",
+            "instruction": "Present the documentation paragraph from S2-1 and explain the consequence in simulation terms: if the learner ran their shared-state scenario from S1-2 with Python threads, only one thread would execute numpy-using bytecode at a time, so they would get no wall-clock speedup on CPU-bound work — even on a multicore machine. Multiprocessing dodges this because each process has its own interpreter and its own GIL. Ask the learner: given this, in what case would Python threads still be useful for a simulation pipeline?",
+            "tool": null,
+            "requires_human_input": true,
+            "expected_output": "Learner's example of a useful threading case — typically I/O-bound work such as downloading datasets, reading many files, or waiting on network responses.",
+            "depends_on": ["S1-2", "S2-1"]
+          }
+        ]
+      },
+      {
+        "id": "S3",
+        "name": "Crystallise a decision rule the learner can apply",
+        "subtask_objective": "Learner can state a one-line rule for choosing between multiprocessing and threading for their simulation work.",
+        "steps": [
+          {
+            "id": "S3-1",
+            "agent": "concurrency_concept_tutor",
+            "objective": "Have the learner state the rule in their own words.",
+            "instruction": "Ask the learner to give a single sentence rule for their own work: when would they reach for multiprocessing, and when for threading? Their answer should reference both the memory-isolation distinction from S1 and the GIL consequence from S2. If the rule omits one of those two factors, ask one targeted follow-up to fold it in.",
+            "tool": null,
+            "requires_human_input": true,
+            "expected_output": "Learner's decision rule citing memory isolation and the GIL constraint.",
+            "depends_on": ["S1-2", "S2-2"]
+          },
+          {
+            "id": "S3-2",
+            "agent": "concurrency_concept_tutor",
+            "objective": "Confirm the rule and note the language-discouragement nuance from the original query.",
+            "instruction": "Confirm the learner's rule and explain why some Python material discourages threads — it is not that threads are bad in general, but that for CPU-bound numerical work in CPython they offer no parallelism. In languages without a GIL (Java, C++, Go), threads parallelise CPU work fine; the discouragement is specifically about CPython's runtime, not threads as a concept.",
+            "tool": null,
+            "requires_human_input": false,
+            "expected_output": "Confirmation statement clarifying that GIL-related thread discouragement is CPython-specific, not universal.",
+            "depends_on": ["S3-1"]
+          }
+        ]
+      }
+    ],
+    "execution_order": [
+      "S1-1",
+      "S1-2",
+      "S2-1",
+      "S2-2",
+      "S3-1",
+      "S3-2"
+    ]
+  }
+},
+{"answer":"Processes have their own memory address space; threads share one address space with their siblings. This means threads can communicate by reading and writing the same in-memory data, but they can also corrupt each other's state. Processes are safer for independent work but require explicit serialisation (pickling, shared memory, queues) to exchange data. In CPython the Global Interpreter Lock prevents multiple threads from executing Python bytecode simultaneously, so threads do not provide CPU-bound parallelism — multiprocessing does. Threads remain useful for I/O-bound work where most time is spent waiting. In languages without a GIL (Java, C++, Go) threads parallelise CPU work fine."}

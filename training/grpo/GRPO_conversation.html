@@ -1,0 +1,1030 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>GRPO 设计讨论 — PersonalPlan 论文会话存档</title>
+<script>
+MathJax = {
+  tex: {
+    inlineMath: [['$', '$'], ['\\(', '\\)']],
+    displayMath: [['$$', '$$'], ['\\[', '\\]']],
+    processEscapes: true
+  },
+  svg: { fontCache: 'global' }
+};
+</script>
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+<style>
+  :root {
+    --bg: #fafafa;
+    --fg: #1a1a1a;
+    --muted: #666;
+    --border: #e0e0e0;
+    --q-bg: #eef5ff;
+    --q-border: #4a7cc8;
+    --a-bg: #ffffff;
+    --a-border: #ccc;
+    --code-bg: #f4f4f8;
+    --accent: #6b46c1;
+  }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Helvetica Neue", "Microsoft YaHei", sans-serif;
+    background: var(--bg);
+    color: var(--fg);
+    line-height: 1.7;
+    max-width: 920px;
+    margin: 0 auto;
+    padding: 40px 24px;
+  }
+  header {
+    border-bottom: 2px solid var(--accent);
+    padding-bottom: 18px;
+    margin-bottom: 36px;
+  }
+  header h1 { margin: 0 0 6px; font-size: 26px; }
+  header .sub { color: var(--muted); font-size: 14px; }
+  nav.toc {
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px 20px;
+    margin-bottom: 36px;
+  }
+  nav.toc h3 { margin: 0 0 8px; font-size: 16px; }
+  nav.toc ol { margin: 0; padding-left: 20px; }
+  nav.toc a { color: var(--accent); text-decoration: none; }
+  nav.toc a:hover { text-decoration: underline; }
+
+  .qa {
+    margin-bottom: 48px;
+    scroll-margin-top: 20px;
+  }
+  .question {
+    background: var(--q-bg);
+    border-left: 4px solid var(--q-border);
+    padding: 14px 18px;
+    border-radius: 0 6px 6px 0;
+    margin-bottom: 16px;
+    font-weight: 500;
+  }
+  .question .label {
+    display: inline-block;
+    background: var(--q-border);
+    color: #fff;
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 10px;
+    margin-right: 8px;
+    vertical-align: middle;
+    font-weight: 700;
+  }
+  .answer {
+    background: var(--a-bg);
+    border: 1px solid var(--a-border);
+    border-radius: 6px;
+    padding: 18px 24px;
+  }
+  .answer h2 { font-size: 20px; margin-top: 24px; color: var(--accent); border-bottom: 1px solid var(--border); padding-bottom: 6px; }
+  .answer h3 { font-size: 17px; margin-top: 20px; }
+  .answer h4 { font-size: 15px; margin-top: 16px; }
+  .answer h2:first-child, .answer h3:first-child { margin-top: 0; }
+
+  pre {
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 12px 14px;
+    overflow-x: auto;
+    font-size: 13px;
+    line-height: 1.5;
+  }
+  code {
+    background: var(--code-bg);
+    padding: 1px 5px;
+    border-radius: 3px;
+    font-size: 90%;
+    font-family: "SF Mono", Menlo, Consolas, monospace;
+  }
+  pre code { background: none; padding: 0; font-size: inherit; }
+
+  blockquote {
+    border-left: 3px solid var(--accent);
+    background: #f6f1ff;
+    margin: 12px 0;
+    padding: 10px 16px;
+    color: #333;
+    border-radius: 0 4px 4px 0;
+  }
+
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 14px 0;
+    font-size: 14px;
+  }
+  th, td {
+    border: 1px solid var(--border);
+    padding: 8px 10px;
+    text-align: left;
+    vertical-align: top;
+  }
+  th { background: #f0f0f5; font-weight: 600; }
+  tr:nth-child(even) td { background: #fafaff; }
+
+  ul, ol { padding-left: 22px; }
+  li { margin-bottom: 4px; }
+  strong { color: #000; }
+
+  hr.section-divider {
+    border: none;
+    border-top: 1px dashed var(--border);
+    margin: 40px 0;
+  }
+  footer {
+    margin-top: 60px;
+    padding-top: 20px;
+    border-top: 1px solid var(--border);
+    color: var(--muted);
+    font-size: 13px;
+    text-align: center;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>GRPO 设计讨论 — PersonalPlan 论文会话存档</h1>
+  <div class="sub">本档案抽取自 IPM_plan_education 项目讨论 session，仅包含与 GRPO 设计相关的问答。</div>
+</header>
+
+<nav class="toc">
+  <h3>目录</h3>
+  <ol>
+    <li><a href="#q1">为什么叫 "Verifiable and Counterfactual Rewards"，GRPO 设计原则</a></li>
+    <li><a href="#q2">本篇文章 GRPO 设计部分完整解读</a></li>
+    <li><a href="#q3">为什么结构正确性还需要 GRPO，SFT 解决不了吗</a></li>
+    <li><a href="#q4">Counterfactual Personalization Reward 在 GRPO 中怎么实现</a></li>
+    <li><a href="#q5">Prerequisite-Aware Pedagogy Reward 解释</a></li>
+    <li><a href="#q6">Soft 部分 LLM judge 的 rubrics 在哪里</a></li>
+    <li><a href="#q7">GRPO 多 reward 联合优化：权重分配与同时优化</a></li>
+  </ol>
+</nav>
+
+<!-- ============================ Q1 ============================ -->
+<section class="qa" id="q1">
+  <div class="question">
+    <span class="label">USER</span>
+    你给我讲一讲论文中为什么要叫做 Verifiable and Counterfactual Rewards；GRPO 设计原则是怎样的，简单易懂的话来讲
+  </div>
+  <div class="answer">
+
+<h2>一、为什么叫 "Verifiable and Counterfactual Rewards"</h2>
+<p>名字直接对应了这个奖励体系最关键的两个设计哲学，每一个都在对抗一种典型的"奖励作弊"问题。</p>
+
+<h3>1. Verifiable（可验证的）——对抗"神经网络 judge 容易被骗"</h3>
+<p>如果用一个 LLM 当裁判去打分（"这个 plan 写得好不好？"），模型很快会学会<strong>讨好裁判</strong>而不是真正变好：写更长、塞专业词、模仿裁判的口味——这就是 reward hacking。</p>
+<p>所以论文里<strong>结构正确性</strong>（$R^{\text{struct}}$）和<strong>先修关系</strong>（$R^{\text{ped,hard}}$）这两部分<strong>完全用规则算</strong>，不让神经网络掺和：</p>
+<ul>
+<li>是不是 DAG？拓扑排序一下就知道</li>
+<li>依赖完整不完整？数边就行</li>
+<li>工具调用合不合法？查 schema</li>
+<li>概念顺序对不对？比对预先建好的先修图 $K$</li>
+</ul>
+<p><strong>规则不会被花言巧语骗</strong>——这就是 "verifiable" 的含义：奖励信号有一个<strong>确定的、可机器复现的判定标准</strong>，模型唯一的提分路径就是真的把结构做对。</p>
+
+<h3>2. Counterfactual（反事实的）——对抗"个性化作弊"</h3>
+<p>个性化最容易作弊：模型在 plan 里塞一句 "considering you are a beginner..." 就能骗过一个朴素的判分器，但 plan 的<strong>结构本身</strong>根本没变。</p>
+<p>论文的做法非常聪明——<strong>同一个 query，分别用真 profile $p$ 和随机换过的假 profile $\tilde p$ 各生成一个 plan</strong>，然后要求：</p>
+<p>$$R^{\text{pers}} = \text{真profile的plan和真ground truth的相似度} - \text{真profile和假profile两个plan的相似度}$$</p>
+<p>这里的关键是<strong>第二项</strong>：如果模型只是表面贴关键词、结构没变，那它换了 profile 也会生成几乎一样的 plan，这一项就接近 0，奖励上不去。<strong>只有真的让 agent 组成、步骤粒度随 profile 改变，才能拿到分</strong>。这就叫"反事实"——不是问"它好不好"，而是问"<strong>换一个 profile 它会不一样吗？</strong>"</p>
+
+<blockquote>
+<strong>所以这个名字 = 两个抗作弊机制的合称</strong>：
+<ul>
+<li>Verifiable 守住<strong>结构和先修</strong>这种客观的东西（用规则）</li>
+<li>Counterfactual 守住<strong>个性化</strong>这种主观的东西（用对照实验）</li>
+</ul>
+</blockquote>
+
+<h2>二、GRPO 的设计原则（大白话版）</h2>
+<p>GRPO（Group Relative Policy Optimization）来自 DeepSeekMath，论文里在它基础上加了几个针对本任务的改造。一共五个核心设计：</p>
+
+<h3>原则 1：组内比较代替学一个 critic</h3>
+<p>传统 PPO 要训练一个 value model 估计"基线分数"，<strong>又贵又难收敛</strong>。</p>
+<p>GRPO 的做法：对<strong>同一个 prompt 采 $G$ 条轨迹</strong>（论文里就是 $G$ 个 plan），直接用这 $G$ 个分数的 mean 和 std 做归一化：</p>
+<p>$$A_i = \frac{R_i - \mu_R}{\sigma_R}$$</p>
+<p><strong>直觉</strong>：不需要绝对分数，只需要回答"这次采样比同一题的其他采样<strong>好还是差</strong>"。简单、便宜、稳定。</p>
+
+<h3>原则 2：KL 锚点钉死在 SFT 模型上（论文的关键改造）</h3>
+<p>普通 GRPO 的 KL 项是和"旧策略 $\pi_{\theta_{\text{old}}}$"比——这是个移动的目标，时间久了 RL 阶段会<strong>慢慢忘掉 SFT 学到的东西</strong>。</p>
+<p>论文改成：</p>
+<p>$$\beta \cdot \mathbb{D}_{\text{KL}}[\pi_\theta \,\|\, \pi_{\text{SFT}}]$$</p>
+<p>也就是<strong>始终拿 SFT 后的检查点当参照系</strong>。</p>
+<p><strong>直觉</strong>：SFT 已经把个性化和教学法装进模型了，RL 只是来补"结构正确"的短板。所以要给 RL 戴个"安全绳"——可以往前走，但不许跑远到忘了之前学的东西。</p>
+
+<h3>原则 3：奖励分段路由（Segment-wise Credit）</h3>
+<p>一个 plan 里有 agent 段、subtask 段、step 段，它们对应的奖励完全不同——结构奖励的方差很大，如果把它平摊到所有 token，会把 agent token 的梯度淹没掉。</p>
+<p>论文的做法是<strong>奖励按 token 所属段路由</strong>：</p>
+<ul>
+<li>agent token → 拿 $R^{\text{pers}}$ 的 advantage</li>
+<li>subtask token → 拿 $R^{\text{ped}}$ 的 advantage</li>
+<li>step / dependency token → 拿 $R^{\text{struct}}$ 的 advantage</li>
+</ul>
+<p><strong>直觉</strong>：谁的活算谁的账。负责个性化的那部分 token 就用个性化奖励来推；不要让方差最大的结构奖励淹没所有梯度。</p>
+
+<h3>原则 4：硬门 + 软分（Hard Gate + Soft Reward）</h3>
+<p>普通做法是所有违规都扣点分；论文区分两类：</p>
+<ul>
+<li><strong>严重违规</strong>（schema 错、有环、工具不存在）→ <strong>硬扣 $-\eta$</strong>，相当于直接判负，不给"用别的优点凑回来"的机会</li>
+<li><strong>软指标</strong>（结构相似度、教学法）→ 正常打分相加</li>
+</ul>
+<p><strong>直觉</strong>：违章是"一票否决"的事，不是"扣两分但其他地方加三分还能过"的事。这避免模型用"个性化加分"换"结构上的 bug"。</p>
+
+<h3>原则 5：反作弊护栏（Anti-Hacking Safeguards）</h3>
+<p>哪怕做了上面这些，模型还是可能找漏洞。论文加了四道护栏：</p>
+<ol>
+<li><strong>Judge 随机化</strong>——每个 batch 换 judge 模型和 prompt，模型没法稳定迎合某一个裁判</li>
+<li><strong>对抗轨迹注入</strong>——10% 的样本是故意写得很烂（超长、塞关键词、假引用），要求奖励必须 ≤ 0</li>
+<li><strong>Proxy-vs-Gold 监控</strong>——画一条"训练奖励 vs. 人工抽检"的曲线，一旦训练奖励还在涨但人工分数停了，就早停（这是 reward hacking 的典型信号）</li>
+<li><strong>自适应 $\beta$</strong>——一旦发现策略离 SFT 飘太远，就自动把 KL 系数调大拽回来</li>
+</ol>
+
+<h2>一句话总结</h2>
+<blockquote>
+<p><strong>奖励的命名 = 抗作弊宣言</strong>：能用规则就用规则（verifiable），不能用规则的就用对照实验（counterfactual），尽量不让 LLM judge 当主裁。</p>
+<p><strong>GRPO 的设计 = 一句口诀</strong>："<strong>组内比较算 advantage，SFT 当锚不让飘，奖励分段不串味，违规硬扣不商量，反作弊护栏全程开</strong>。"</p>
+</blockquote>
+
+  </div>
+</section>
+
+<hr class="section-divider">
+
+<!-- ============================ Q2 ============================ -->
+<section class="qa" id="q2">
+  <div class="question">
+    <span class="label">USER</span>
+    你解释一下本篇文章的 GRPO 的设计部分
+  </div>
+  <div class="answer">
+
+<h2>论文 GRPO 设计的完整解读</h2>
+<p>整个 GRPO 部分（Section 4.2）可以理解成一句话：</p>
+<blockquote><strong>"用一个抗作弊的奖励 + 一个钉死在 SFT 的策略优化算法，把'结构正确性'内化进 planner 的参数里，同时不让它忘记 SFT 学到的个性化和教学法。"</strong></blockquote>
+
+<h3>0. 为什么要做 GRPO？（动机）</h3>
+<p>SFT 后的 planner 已经能模仿 MAPLE 里的金标 plan，但<strong>自回归生成本身不保证执行正确</strong>——长尾 query 上仍然会冒出循环依赖、非法工具调用、schema 错误。</p>
+<p>PersonalPlan 1.0 用的是<strong>推理时反思循环</strong>（生成→reflector 检查→重写），三个缺点：</p>
+<ol>
+<li>部署贵（每次推理多跑好几遍）</li>
+<li>reflector 自己有偏差就把错误带进去了</li>
+<li>近期 reasoning-RL 的研究表明，<strong>把检验信号训进参数里</strong>比每次推理时再做检验更好</li>
+</ol>
+<p>所以 2.0 的思路：<strong>把 reflector 干的活搬到训练阶段</strong>，用 RL 让 planner 一次就生成对。</p>
+
+<h3>1. 奖励设计：三个互补组件 + 一道硬门</h3>
+
+<h4>(a) Verifiable Structural Reward $R^{\text{struct}}$（对应 challenge iii：结构正确性）</h4>
+<p>完全<strong>规则可验证</strong>，不让任何神经裁判插手——因为结构信号最容易被 LLM judge 骗。</p>
+<p>$$R^{\text{struct}}_i = w_1\,\mathbb{I}[\text{DAG}(G_i)] + w_2\,\text{DC}_i + w_3\,\text{ATR}_i + w_4\,\text{GED-sim}(G_i, G_i^{\star})$$</p>
+<p>四个统计量：</p>
+<ul>
+<li><strong>是否是 DAG</strong>（拓扑能不能排序）</li>
+<li><strong>DC</strong>：依赖完整性（步骤间该有的依赖有没有写全）</li>
+<li><strong>ATR</strong>：agent–工具相关性（分给某 agent 的工具是不是它该用的）</li>
+<li><strong>GED-sim</strong>：和金标 plan 的图编辑相似度</li>
+</ul>
+<blockquote>设计原则：<strong>规则不会被花言巧语骗</strong>，结构这种最容易作弊的信号必须钉死在规则上。</blockquote>
+
+<h4>(b) Counterfactual Personalization Reward $R^{\text{pers}}$（对应 challenge i：个性化）</h4>
+<p>朴素 LLM judge 一打"够不够个性化"，模型立刻学会<strong>塞 persona 关键词</strong>作弊。论文换了一个非常巧妙的设计：</p>
+<blockquote><strong>同一个 query，分别用真 profile $p$ 和随机替换的假 profile $\tilde p$ 各生成一个 plan</strong>：</blockquote>
+<p>$$R^{\text{pers}}_i = \underbrace{\text{GED-sim}(\mathcal{P}_i^{(p)}, \mathcal{P}^{\star}_{(p)})}_{\text{真 profile 的 plan 像不像金标}} - \underbrace{\text{GED-sim}(\mathcal{P}_i^{(p)}, \mathcal{P}_i^{(\tilde p)})}_{\text{换 profile 后两个 plan 像不像}}$$</p>
+<p><strong>第二项是关键</strong>：如果模型只在 plan 里塞了几句"考虑到你是新手……"但结构没变，那换 profile 后两个 plan 还是几乎一样，第二项接近 1，奖励就上不去。<strong>只有真的根据 profile 改变了 agent 组合和步骤粒度，奖励才高</strong>。</p>
+<blockquote>设计原则：用"反事实对照"代替"绝对判断"。问的不是"它好不好"，而是"<strong>换个学习者它会不一样吗</strong>"。</blockquote>
+
+<h4>(c) Prerequisite-Aware Pedagogy Reward $R^{\text{ped}}$（对应 challenge ii：教学法）</h4>
+<p>教学法既有客观部分（先修关系）也有主观部分（讲解粒度），所以<strong>拆成硬软两半</strong>：</p>
+<p><strong>硬部分</strong>（可验证）：从 MAPLE 预先建一个<strong>概念先修图</strong> $K$（比如"变量作用域 $\preceq_K$ 闭包"），计算 plan 里所有步骤对的先修兼容率：</p>
+<p>$$R^{\text{ped,hard}}_i = \frac{|\{(s_a, s_b) \in \mathcal{O}_i: c(s_a)\preceq_K c(s_b)\}|}{|\mathcal{O}_i|}$$</p>
+<p><strong>软部分</strong>（不能用规则的部分用 LLM judge，但加了护栏）：</p>
+<ul>
+<li><strong>顺序随机化</strong>（防 position bias）</li>
+<li><strong>judge ensembling 取中位数</strong>（防单个 judge 偏差）</li>
+</ul>
+<p>$$R^{\text{ped,soft}}_i = \operatorname{med}_{j\le J}\{\operatorname{Judge}_j(\mathcal{P}_i^{(p)} \succ \mathcal{P}^{\star}_{(p)})\}$$</p>
+<p>合并时<strong>硬的权重大、软的权重小</strong>（$\lambda \in [0.7, 0.9]$）：</p>
+<p>$$R^{\text{ped}}_i = \lambda\,R^{\text{ped,hard}}_i + (1-\lambda)\,R^{\text{ped,soft}}_i$$</p>
+<blockquote>设计原则：<strong>能用规则就用规则，必须用神经裁判时就让它当配角</strong>。</blockquote>
+
+<h4>(d) Hard Gate $R^{\text{hard}}$（硬门）</h4>
+<p>对于<strong>不可挽回的违规</strong>（schema 错、有环、工具不存在），不是扣一点分，而是<strong>一票否决</strong>：</p>
+<p>$$R^{\text{hard}}_i = -\eta\,\mathbb{I}[\text{SchemaInvalid} \lor \text{HasCycle} \lor \text{InvalidToolCall}]$$</p>
+<blockquote>设计原则：<strong>违章不能用其他优点凑回来</strong>。防止模型靠"个性化加分"换"结构 bug"。</blockquote>
+
+<h3>2. 奖励合并：组内 z-score 归一化</h3>
+<p>四个奖励量纲完全不一样（GED-sim 在 [0,1]，硬门是 $-\eta$）。论文先在<strong>同一个 prompt 的 $G$ 条采样里</strong>做 z-score 归一化，再线性加权：</p>
+<p>$$R_i = w_s\,\bar z(R^{\text{struct}}_i) + w_p\,\bar z(R^{\text{pers}}_i) + w_e\,\bar z(R^{\text{ped}}_i) + R^{\text{hard}}_i$$</p>
+<p>默认权重 $w_s:w_p:w_e = 0.55:0.25:0.20$。</p>
+<blockquote>
+设计原则：
+<ol>
+<li><strong>z-score 抹平量纲差异</strong>，否则方差大的组件会主导梯度</li>
+<li><strong>结构奖励权重最大</strong>（0.55），因为它最不易被骗，是主信号</li>
+<li><strong>个性化和教学法是"防回归信号"</strong>——SFT 已经把这两个能力装进去了，RL 阶段只是别让它退化</li>
+<li>硬门<strong>不归一化</strong>，永远保持惩罚的绝对量级</li>
+</ol>
+</blockquote>
+
+<h3>3. GRPO 主目标：策略梯度 + KL 锚</h3>
+
+<h4>"组相对优势" 替代 critic</h4>
+<p>每个 prompt 采 $G$ 条轨迹，用组内 mean/std 算 advantage：</p>
+<p>$$A_i = \frac{R_i - \mu_R}{\sigma_R + \varepsilon}$$</p>
+<blockquote>不用训 value model，<strong>便宜、稳定、不会震荡</strong>。直觉：不需要知道绝对好坏，只需要知道这次比同一道题的其他采样好还是差。</blockquote>
+
+<h4>Clipped surrogate + KL 锚到 SFT（论文的关键改造）</h4>
+<p>$$\mathcal{L}_{\text{GRPO}}(\theta) = -\mathbb{E}\Bigl[\tfrac{1}{G}\sum_i \tfrac{1}{|o_i|}\sum_t \min\bigl(r_{i,t}A_{i,t},\,\operatorname{clip}(r_{i,t},1-\epsilon,1+\epsilon)A_{i,t}\bigr)\Bigr] + \beta\,\mathbb{D}_{\text{KL}}[\pi_\theta\,\|\,\pi_{\text{SFT}}]$$</p>
+<p>注意 KL 项<strong>钉死在 $\pi_{\text{SFT}}$</strong>，而不是常规 GRPO 用的"上一次旧策略"$\pi_{\theta_{\text{old}}}$。</p>
+<blockquote>设计原则：SFT 已经把个性化和教学法装进模型了，<strong>RL 只是来补"结构正确"的短板</strong>。所以要给 RL 戴个"安全绳"——可以往前走，但不许跑远到忘了之前学的东西。这就是为什么 KL 锚点必须是固定的 SFT 模型，不是移动的旧策略。</blockquote>
+
+<h3>4. Segment-wise Credit Assignment（分段信用分配）</h3>
+<p>一个 plan 由 agent 段、subtask 段、step/dependency 段拼接而成，<strong>每段对应不同的奖励</strong>。如果对所有 token 用同一个 $A_i$，方差大的结构奖励会<strong>淹没</strong> agent token 的梯度。</p>
+<p>论文的做法是<strong>按 token 所属段路由 advantage</strong>：</p>
+<p>$$A_{i,t} = \begin{cases} \bar z(R^{\text{pers}}_i)   & t \in \mathcal{A}_i \text{ (agent 段)} \\ \bar z(R^{\text{ped}}_i)    & t \in \mathcal{T}_i \text{ (subtask 段)} \\ \bar z(R^{\text{struct}}_i) & t \in \mathcal{S}_i \cup \mathcal{O}_i \text{ (step/dep 段)} \end{cases}$$</p>
+<p>硬门项 $R^{\text{hard}}_i$ <strong>均匀加到所有段</strong>（违规是整条轨迹的问题）。</p>
+<blockquote>设计原则：<strong>谁的活算谁的账</strong>。让每个段的 token 只接收和它直接相关的奖励信号，避免互相干扰。</blockquote>
+
+<h3>5. 五道反作弊护栏</h3>
+<table>
+<thead><tr><th>护栏</th><th>防什么</th></tr></thead>
+<tbody>
+<tr><td>(a) Judge 随机化 + 训测异家族</td><td>训练用一个 family 的 judge，测试用另一个 family。防止策略只迎合某一类 judge 的偏好</td></tr>
+<tr><td>(b) 10% 对抗轨迹注入</td><td>故意塞超长、关键词堆砌、假引用的 plan，要求奖励必须 ≤ 0。直接测试奖励是不是真的不能被骗</td></tr>
+<tr><td>(c) Proxy-vs-Gold 监控曲线</td><td>跟踪"训练奖励"和"人工抽检/结构指标"两条曲线，一旦训练奖励还在涨但人工分数停了，就早停——这是 reward hacking 的典型信号</td></tr>
+<tr><td>(d) Loss-mask 到目标 token</td><td>梯度只更新 action / 结构目标 token，prompt 和 observation 不参与</td></tr>
+<tr><td>(e) 自适应 $\beta$</td><td>一旦策略离 SFT 飘超过预算，自动把 KL 系数调大拽回来</td></tr>
+</tbody>
+</table>
+
+<h3>整个 GRPO 设计的三条主线</h3>
+<ol>
+<li><strong>奖励维度上的抗作弊</strong>：能用规则就用规则（verifiable），不能用规则的就用反事实对照（counterfactual），用神经裁判时就让它当配角并加 ensembling</li>
+<li><strong>优化算法上的稳健</strong>：用组相对优势省掉 critic，KL 锚到 SFT 而不是 $\pi_{\text{old}}$，防止 RL 忘掉 SFT 学到的能力</li>
+<li><strong>梯度流动上的精细</strong>：奖励按段路由 advantage，让每种 token 只接收它该接收的信号；硬违规一票否决，不让局部优点把整体 bug 救回来</li>
+</ol>
+
+  </div>
+</section>
+
+<hr class="section-divider">
+
+<!-- ============================ Q3 ============================ -->
+<section class="qa" id="q3">
+  <div class="question">
+    <span class="label">USER</span>
+    为什么 a 结构正确性还需要 GRPO 而不是在 SFT 阶段就能很好解决
+  </div>
+  <div class="answer">
+
+<h2>本质问题：<em>"为什么 token-level 模仿学不会全局结构？"</em></h2>
+
+<h3>1. SFT 优化的是 token-level，结构正确性是 trajectory-level（最核心的原因）</h3>
+<p>SFT 的损失是：</p>
+<p>$$\mathcal{L}_{\text{SFT}} = -\sum_t \log P(y_t \mid x, y_{<t})$$</p>
+<p>这是个<strong>局部、逐 token</strong>的目标——它只问"下一个 token 是不是和金标一样"。</p>
+<p>但 "是不是 DAG"、"工具调不调用得起来"、"schema 合不合法"，这些是<strong>整个输出生成完之后才能判断的全局属性</strong>。</p>
+<p>举个具体例子：</p>
+<ul>
+<li>一个 15 步的 plan，14 步都对，<strong>只有第 12 步的 <code>depends_on</code> 字段引用了一个不存在的 step ID</strong> → SFT loss 几乎完美，但这条 plan 不可执行</li>
+<li>一个 plan 的 JSON 完全合法、agent 名字也对，<strong>但依赖关系刚好形成一个环</strong> → token-level 看不出问题，但拓扑排序直接挂掉</li>
+</ul>
+<p><strong>SFT 永远不会"惩罚成环"这件事</strong>，因为它根本不知道有没有环——它只比对 token。</p>
+<p>对比 GRPO 用的奖励：</p>
+<p>$$R^{\text{struct}} = \mathbb{I}[\text{DAG}] + \text{DC} + \text{ATR} + \text{GED-sim}$$</p>
+<p>这是<strong>先把整条 plan 生成完，跑一遍图算法</strong>算出来的——它直接测量我们想要的属性。</p>
+<blockquote><strong>一句话</strong>：SFT 没法把"DAG"这种组合约束写进损失函数；GRPO 可以。</blockquote>
+
+<h3>2. Exposure Bias（暴露偏差）：训练和推理的输入分布不一样</h3>
+<p>SFT 训练时，模型生成第 $t$ 个 token 时<strong>条件在金标的前 $t-1$ 个 token 上</strong>（teacher forcing）。</p>
+<p>但推理时，模型条件在<strong>自己生成的前 $t-1$ 个 token 上</strong>——一旦前面出错，错误会<strong>滚雪球式累积</strong>。</p>
+<p>这在 plan 生成上尤其致命：</p>
+<ul>
+<li>第 3 步如果稍微写偏了，第 12 步引用第 3 步时就可能引用错</li>
+<li>然后第 15 步基于第 12 步的（错误）输出再编依赖，整条 chain 就崩了</li>
+</ul>
+<p>理论上的复杂度差异：</p>
+<ul>
+<li>SFT 推理误差 $\sim O(T^2)$（$T$ 是序列长度）</li>
+<li>有 on-policy 修正的 RL 误差 $\sim O(T)$</li>
+</ul>
+<p>GRPO 是 <strong>on-policy</strong> 的——它<strong>采样自己生成的轨迹</strong>然后打分，所以模型在训练时就<strong>见过自己的错误</strong>并学会从中恢复。SFT 完全见不到。</p>
+<blockquote><strong>一句话</strong>：SFT 只见过"标准答案下一步"，没见过"自己出错之后该怎么办"。</blockquote>
+
+<h3>3. SFT 没有"负样本"，只能模仿不能避错</h3>
+<p>SFT 只见过<strong>金标 plan</strong>（都是正确的）。它从来没见过：</p>
+<ul>
+<li>"这个 plan 有环 → 坏"</li>
+<li>"这个 plan 工具用错了 → 坏"</li>
+<li>"这个 plan schema 违法 → 坏"</li>
+</ul>
+<p>它只能<strong>正向模仿</strong>，没法<strong>反向回避</strong>。</p>
+<p>GRPO 的逻辑完全相反：</p>
+<ul>
+<li>每个 prompt 采 $G$ 条轨迹，<strong>有好有坏</strong></li>
+<li>好的（$R$ 高）给正梯度，坏的（$R$ 低）给负梯度</li>
+<li>硬门项 $R^{\text{hard}} = -\eta$ 还专门给违规的 plan <strong>直接打负分</strong></li>
+</ul>
+<blockquote><strong>一句话</strong>：SFT 是"抄优等生作业"，GRPO 是"做完一堆题然后被改卷"——后者才能学到错题模式。</blockquote>
+
+<h3>4. MAPLE 数据稀疏，长尾 query 上 SFT 没东西可模仿</h3>
+<p>MAPLE 只有 3,608 条 plan。对于训练分布里<strong>常见</strong>的 query，SFT 后模型生成的 plan 结构基本没问题。</p>
+<p>但对于<strong>长尾 query</strong>（很冷门的组合，比如"在 Rust 里调用 ONNX 模型并部署到 WASM"），训练集里<strong>几乎没有相似的 plan</strong>。SFT 只能靠泛化——而结构正确性恰好是<strong>泛化最差的部分</strong>，因为它依赖精确的 ID 匹配和拓扑约束。</p>
+<p>GRPO 不需要"长得像金标"。它只需要"生成出来的 plan 跑得起来"——而<strong>这个判定是规则化的，不依赖训练数据覆盖</strong>。</p>
+<blockquote><strong>一句话</strong>：金标只有 3,608 条，但 DAG 检查器<strong>可以对任何 plan 都给一个明确的对错信号</strong>。GRPO 把这个信号利用上了，SFT 用不上。</blockquote>
+
+<h3>5. SFT loss 和 structural reward 在数学上根本不对齐</h3>
+<p>考虑两个 plan A 和 B：</p>
+<table>
+<thead><tr><th></th><th>Plan A</th><th>Plan B</th></tr></thead>
+<tbody>
+<tr><td>和金标的 token 重合度</td><td>99%</td><td>70%</td></tr>
+<tr><td>SFT loss</td><td>很低（好）</td><td>很高（差）</td></tr>
+<tr><td>是不是 DAG</td><td>❌ 有环</td><td>✅ 合法</td></tr>
+<tr><td>工具调用</td><td>✅ 都对</td><td>✅ 都对</td></tr>
+<tr><td><strong>真实可用性</strong></td><td><strong>0</strong>（跑不起来）</td><td><strong>1</strong>（能跑）</td></tr>
+</tbody>
+</table>
+<p>SFT 会把 A 评得很高、B 评得很差。<strong>但我们要的是 B</strong>。</p>
+<p>也就是说：<strong>SFT 损失最小化的解，并不是结构正确率最高的解</strong>——两者是不同的目标函数。</p>
+<blockquote><strong>一句话</strong>：SFT 在优化的是<strong>代理目标</strong>（imitation），GRPO 在优化的是<strong>真实目标</strong>（executability）。</blockquote>
+
+<h3>一张表总结</h3>
+<table>
+<thead><tr><th>维度</th><th>SFT 解决不了的原因</th><th>GRPO 怎么解决</th></tr></thead>
+<tbody>
+<tr><td>粒度</td><td>token-level loss 看不到全局 DAG 属性</td><td>trajectory-level reward 直接跑图算法</td></tr>
+<tr><td>暴露偏差</td><td>训练时见金标前缀，推理时见自己前缀</td><td>on-policy 采样，训练时就见自己的错</td></tr>
+<tr><td>负样本</td><td>只见正样本，没法学"什么是错的"</td><td>一组采样里有好有坏，正负梯度都有</td></tr>
+<tr><td>长尾覆盖</td><td>3,608 条数据无法覆盖所有结构组合</td><td>规则验证器对任何 plan 都给信号</td></tr>
+<tr><td>目标对齐</td><td>SFT loss 和真实可用性不是同一个函数</td><td>奖励就是真实可用性本身</td></tr>
+</tbody>
+</table>
+
+  </div>
+</section>
+
+<hr class="section-divider">
+
+<!-- ============================ Q4 ============================ -->
+<section class="qa" id="q4">
+  <div class="question">
+    <span class="label">USER</span>
+    Counterfactual Personalization Reward $R^{\text{pers}}$ 这个 reward 在设计的时候需要再去根据假的 profile 生成 plan，具体在 GRPO 里面怎么实现呀，你本来 GRPO 就是在一个 batch 内进行不同 plan 的采样
+  </div>
+  <div class="answer">
+
+<h2>核心矛盾你已经点出来了</h2>
+<blockquote>GRPO 本身在一个 prompt 下采 $G$ 条轨迹；但 $R^{\text{pers}}$ 需要<strong>另一组</strong>用假 profile $\tilde p$ 生成的 plan 来当对照——这两层采样怎么协调？</blockquote>
+<p>答案的关键是一个<strong>身份区分</strong>：</p>
+<blockquote><strong>真 profile 的 plan 是"训练轨迹"（要算梯度），假 profile 的 plan 是"参考 rollout"（只用来打分，不算梯度）。</strong></blockquote>
+
+<h3>1. 把每个 prompt 的"采样束"重新定义</h3>
+<p>普通 GRPO 一个 prompt 采 $G$ 条轨迹；本论文一个 prompt 实际上要采 <strong>$G + k$ 条</strong>：</p>
+<table>
+<thead><tr><th>角色</th><th>数量</th><th>是否进入策略梯度</th><th>用途</th></tr></thead>
+<tbody>
+<tr><td>真 profile 主样 $\mathcal{P}_i^{(p)} \sim \pi_\theta(\cdot \mid q, p)$</td><td>$G$ 条</td><td>✅ 进 loss</td><td>GRPO 的训练对象</td></tr>
+<tr><td>假 profile 对照样 $\mathcal{P}^{(\tilde p)} \sim \pi_\theta(\cdot \mid q, \tilde p)$</td><td>$k$ 条（通常 $k=1$）</td><td>❌ <code>no_grad</code> / detach</td><td>只作为 $R^{\text{pers}}$ 计算时的参照</title></td></tr>
+</tbody>
+</table>
+<p>所以一个 prompt 的 group <strong>只有那 $G$ 条真 profile 主样</strong>——组内 mean/std、advantage 归一化、KL 锚都只在这 $G$ 条上算。</p>
+
+<h3>2. 具体的训练循环长这样（伪代码）</h3>
+<pre><code>for batch in dataloader:
+    for (q, p, P_gold) in batch:
+        # ───── Step 1: 真 profile 主采样 (要梯度) ─────
+        with torch.enable_grad():
+            P_true = [π_θ.sample(q, p) for _ in range(G)]   # G 条
+
+        # ───── Step 2: 假 profile 对照采样 (不要梯度) ───
+        p_tilde = sample_other_profile(batch, exclude=p)
+        with torch.no_grad():
+            P_cf = π_θ.sample(q, p_tilde)   # k=1 条就够
+
+        # ───── Step 3: 算每条主样的奖励 ──────────────
+        R = []
+        for P_i in P_true:
+            r_struct = struct_reward(P_i)                              # 规则
+            r_ped    = ped_reward(P_i)                                 # 规则+judge
+            r_pers   = ged_sim(P_i, P_gold) - ged_sim(P_i, P_cf)       # 反事实
+            r_hard   = hard_gate(P_i)
+            R.append(combine(r_struct, r_pers, r_ped, r_hard))
+
+        # ───── Step 4: 组内归一化 + 标准 GRPO 更新 ─────
+        A = (R - mean(R)) / (std(R) + eps)
+        loss = grpo_clipped_surrogate(P_true, A) \
+             + β * KL(π_θ(·|q,p) ‖ π_SFT(·|q,p))
+</code></pre>
+<p><strong>关键点</strong>：</p>
+<ul>
+<li>$G$ 条主样<strong>共享同一个 $\mathcal{P}^{(\tilde p)}$</strong>——所有主样都和这同一条"假 profile 对照"算 GED-sim。<strong>每个 query 只多采 1 条额外 rollout</strong>，相对 $G$ 条主样几乎可以忽略（$G=8$ 时多 12% 的采样开销）。</li>
+<li>假 profile 的 rollout 在 <code>torch.no_grad()</code> 下生成，<strong>它的 logits 不进入计算图</strong>。</li>
+</ul>
+
+<h3>3. 假 profile $\tilde p$ 怎么来？</h3>
+<table>
+<thead><tr><th>方法</th><th>做法</th><th>优缺点</th></tr></thead>
+<tbody>
+<tr><td>(a) Batch 内换</td><td>在同一个 batch 里随机抽<strong>另一个样本的 profile</strong> 当 $\tilde p$</td><td>几乎零成本；但有时 $\tilde p$ 和 $p$ 长得太像</td></tr>
+<tr><td>(b) Profile bank</td><td>预先建一个"对极学习者"profile 库，每个 $p$ 配一个最远的 $\tilde p$</td><td>控制力强；要预先维护一个库</td></tr>
+<tr><td>(c) 类别翻转</td><td>把 profile 关键字段（skill_level, goal）反向，然后重生成其他字段</td><td>反事实最干净；实现稍复杂</td></tr>
+</tbody>
+</table>
+<p>最常用的是 (a)，这是<strong>自然产生 in-batch negative</strong>，和对比学习里的做法完全一致。</p>
+
+<h3>4. 这条反事实样本的 reward "去哪了"？</h3>
+<p><strong>假 profile 的 plan 本身不参与任何 reward 计算和梯度更新</strong>。它的<strong>唯一作用</strong>是作为 $R^{\text{pers}}$ 公式里的 $\mathcal{P}_i^{(\tilde p)}$，被真 profile 主样<strong>减一下</strong>：</p>
+<p>$$R^{\text{pers}}_i = \underbrace{\text{GED-sim}(\mathcal{P}_i^{(p)},\, \mathcal{P}^\star_{(p)})}_{\text{真样像不像金标}} \;-\; \underbrace{\text{GED-sim}(\mathcal{P}_i^{(p)},\, \mathcal{P}^{(\tilde p)})}_{\text{真样和反事实样像不像}}$$</p>
+<ul>
+<li><strong>真样产生 reward + 梯度</strong> ✅</li>
+<li><strong>反事实样只产生一个数值</strong>（被 GED-sim 拿来比较），<strong>没有 reward，没有梯度</strong> ❌</li>
+</ul>
+
+<h3>5. 这一切怎么和 segment-wise credit 接上</h3>
+<p>$R^{\text{pers}}$ 经过组内 z-score 后，<strong>只贡献给真 profile 主样里"agent 段" token 的梯度</strong>。</p>
+<ul>
+<li>反事实采样<strong>只影响 agent 段的 advantage</strong></li>
+<li>结构段和 subtask 段的梯度完全不受反事实采样的"$k$ 条额外 rollout"干扰</li>
+<li>反事实采样 ≈ 给 agent 段的 advantage 做一次"对照实验校正"</li>
+</ul>
+
+<h3>6. 一些容易忽略的工程坑</h3>
+<h4>(a) KL 锚怎么算？</h4>
+<p>$\mathbb{D}_{\text{KL}}[\pi_\theta \| \pi_{\text{SFT}}]$ 应该<strong>只在真 profile 主样上算</strong>——不要在 $\mathcal{P}^{(\tilde p)}$ 上算 KL。</p>
+
+<h4>(b) 防止"diverge 作弊"</h4>
+<p>模型会不会学到"让所有 profile 生成完全不同的 plan"来人为放大第二项？<strong>不会</strong>，因为<strong>第一项 $\text{GED-sim}(\mathcal{P}_i^{(p)}, \mathcal{P}^\star_{(p)})$ 钉死它必须靠近金标</strong>。模型只有<strong>改对方向</strong>（按 profile 真的调整结构）才能同时拉高第一项、压低第二项。</p>
+
+<h4>(c) 采样效率优化</h4>
+<p>backbone 跑 $(q, p)$ 和 $(q, \tilde p)$ 时，<strong>$q$ 那段的 KV cache 可以复用</strong>——只需要重算 profile 部分的 prefix。</p>
+
+<h4>(d) 是否每条主样都配一条独立 $\tilde p$？</h4>
+<p>$k=1$ 通常就够了——所有 $G$ 条主样共享一个 $\mathcal{P}^{(\tilde p)}$。如果想降噪，可以采 $k=2{\sim}4$ 条 $\tilde p$，把第二项改成 $\frac{1}{k}\sum$ 的平均 GED-sim。</p>
+
+<h3>一句话总结</h3>
+<blockquote>
+<p><strong>"训练的 group 还是只有 $G$ 条真 profile 主样"——反事实 rollout 是放在 <code>no_grad</code> 块里的 reference，它的唯一身份是 $R^{\text{pers}}$ 公式里那个被减掉的 baseline，既不出现在 advantage 归一化里，也不出现在 KL 锚里。</strong></p>
+<p><strong>多出来的 $\sim 12\%$ 推理开销，换来一个不能被"塞 persona 关键词"作弊的个性化奖励。</strong></p>
+</blockquote>
+
+  </div>
+</section>
+
+<hr class="section-divider">
+
+<!-- ============================ Q5 ============================ -->
+<section class="qa" id="q5">
+  <div class="question">
+    <span class="label">USER</span>
+    Prerequisite-Aware Pedagogy Reward 这个你也解释一下
+  </div>
+  <div class="answer">
+
+<h2>Prerequisite-Aware Pedagogy Reward 完整解读</h2>
+<p>这个奖励要回答的问题是："<strong>这个 plan 教得对吗？</strong>" 但"教得对"既有<strong>客观的一面</strong>（先教概念 A 再教 B）也有<strong>主观的一面</strong>（讲解的密度、铺垫得是否合适）。</p>
+<p>论文的核心设计哲学是 <strong>"硬软分离，硬为主、软为辅"</strong>：</p>
+<p>$$R^{\text{ped}}_i = \lambda \cdot R^{\text{ped,hard}}_i + (1-\lambda) \cdot R^{\text{ped,soft}}_i,\quad \lambda \in [0.7, 0.9]$$</p>
+
+<h3>1. Hard 部分：概念先修图 $K$ + 兼容率（最关键的设计）</h3>
+
+<h4>(a) 先修图 $K = (V_K, E_K)$ 是什么？</h4>
+<p>这是一个<strong>离线预先建好的</strong>有向图：</p>
+<ul>
+<li><strong>节点 $V_K$</strong>：编程教学里的概念，比如 "变量作用域"、"闭包"、"函数定义"、"REST 原则"、"HTTP 状态码"……</li>
+<li><strong>边 $E_K$</strong>：先修关系。$a \preceq_K b$ 表示"学 $b$ 之前应该先学 $a$"</li>
+</ul>
+<p>比如：</p>
+<pre><code>变量定义  →  变量作用域  →  闭包  →  高阶函数
+环境配置  →  包管理     →  虚拟环境  →  跑代码
+HTTP 基础 →  REST 原则  →  路由设计  →  鉴权
+</code></pre>
+
+<h4>(b) 这张图怎么建出来？</h4>
+<p>论文里写的是"From the MAPLE ground-truth plans we precompute"——<strong>$K$ 不是手工写的，而是从训练集里自动归纳的</strong>：</p>
+<table>
+<thead><tr><th>方法</th><th>做法</th></tr></thead>
+<tbody>
+<tr><td>频次统计</td><td>扫所有金标 plan，如果"概念 $a$"在"概念 $b$"前出现 ≥ 阈值次（且很少反过来），就建一条 $a \to b$ 的边</td></tr>
+<tr><td>聚合 + 闭包</td><td>先建一阶共现图，然后做传递闭包 / DAG 剪枝去掉冲突边</td></tr>
+</tbody>
+</table>
+<p><strong>关键</strong>：$K$ 是<strong>全局共享、一次性建好的</strong>。GRPO 训练循环里<strong>只查它，不更新它</strong>。</p>
+
+<h4>(c) 步骤 → 概念的映射 $c(\cdot)$</h4>
+<p>$c(s)$ 把一个具体步骤映射到 $K$ 的某个概念节点。工程上：</p>
+<ul>
+<li><strong>关键词/实体匹配</strong>：用预先建好的 concept → keyword 词典</li>
+<li><strong>Embedding 最近邻</strong>：把 $V_K$ 节点描述向量化，取 cosine 最近</li>
+<li><strong>小模型分类器</strong>：训一个 lightweight classifier</li>
+</ul>
+
+<h4>(d) 兼容率的具体含义</h4>
+<p>$$R^{\text{ped,hard}}_i = \frac{|\{(s_a, s_b) \in \mathcal{O}_i : c(s_a) \preceq_K c(s_b)\}|}{|\mathcal{O}_i|}$$</p>
+<ul>
+<li>分母 $|\mathcal{O}_i|$：plan 里所有依赖边的总数</li>
+<li>分子：这些边里<strong>"先修方向正确"的边数</strong></li>
+</ul>
+<p>例子：plan 里写了"步骤 5 (闭包实现) 依赖 步骤 3 (变量作用域)"——查 $K$ 发现"变量作用域 $\preceq_K$ 闭包"，✅ 合法。</p>
+<blockquote>设计原则：<strong>教学顺序错不错是个客观事实</strong>——这部分<strong>完全规则可验证</strong>。</blockquote>
+
+<h3>2. Soft 部分：成对 LLM judge（保底，权重小）</h3>
+
+<h4>(a) 为什么还要 soft 部分？</h4>
+<p>有些"教学法好不好"的维度<strong>没法用规则量化</strong>：</p>
+<ul>
+<li>"讲解粒度"够不够细</li>
+<li>是否在合适的地方插入了"复习/巩固"的步骤</li>
+<li>学习者能不能跟上节奏</li>
+</ul>
+
+<h4>(b) 公式</h4>
+<p>$$R^{\text{ped,soft}}_i = \operatorname{med}_{j \le J}\{\operatorname{Judge}_j(\mathcal{P}_i^{(p)} \succ \mathcal{P}^\star_{(p)})\}$$</p>
+<ul>
+<li><strong>$\mathcal{P}_i^{(p)} \succ \mathcal{P}^\star_{(p)}$</strong>：<strong>成对比较</strong>——问 judge "学生 plan 比金标 plan 更教学法好吗？"</li>
+<li><strong>$\operatorname{Judge}_j$</strong>：第 $j$ 个 judge 给出的偏好分</li>
+<li><strong>$j \le J$</strong>：有 $J$ 个不同的 judge（<strong>ensembling</strong>）</li>
+<li><strong>$\operatorname{med}$</strong>：取<strong>中位数</strong>，不是平均</li>
+</ul>
+
+<h4>(c) 关键护栏</h4>
+<ol>
+<li><strong>成对比较 ≠ 绝对打分</strong>：对 calibration 不敏感</li>
+<li><strong>顺序随机化</strong>：消除 position bias</li>
+<li><strong>Judge ensembling</strong>：$J$ 个 judge，取中位数</li>
+<li><strong>训测异家族</strong>：训练 vs 评估使用不同模型 family</li>
+</ol>
+
+<h4>(d) 为什么权重小（$1-\lambda \in [0.1, 0.3]$）</h4>
+<blockquote>"Keeping the hackable judge subordinate to the verifiable component."</blockquote>
+<p><strong>LLM judge 是整个奖励系统里最容易被作弊的组件</strong>，所以即使加了一堆护栏，论文还是把它的权重压到 ≤ 30%。</p>
+
+<h3>3. 与硬/软对应的反作弊逻辑</h3>
+<table>
+<thead><tr><th>Reward</th><th>主要作弊面</th><th>论文怎么防</th></tr></thead>
+<tbody>
+<tr><td>$R^{\text{struct}}$</td><td>LLM judge 容易被骗</td><td><strong>全用规则</strong>，零 judge</td></tr>
+<tr><td>$R^{\text{pers}}$</td><td>persona 关键词作弊</td><td><strong>反事实对照</strong>，差值结构</td></tr>
+<tr><td>$R^{\text{ped}}$</td><td>judge 主观、有偏</td><td><strong>拆硬软</strong>，硬为主（70-90%），软用 ensembling+顺序随机化</td></tr>
+</tbody>
+</table>
+
+<h3>4. 在 GRPO 里怎么实现</h3>
+<pre><code># 离线预处理（训练前做一次）
+K = build_prerequisite_graph_from(MAPLE_gold_plans)
+c = load_concept_mapper()
+judges = [load_judge(family_A_model_1, prompt_v1),
+          load_judge(family_A_model_2, prompt_v2),
+          load_judge(family_B_model_1, prompt_v3)]
+
+# 在 GRPO 训练循环里
+for batch in dataloader:
+    for (q, p, P_gold) in batch:
+        P_true = [π_θ.sample(q, p) for _ in range(G)]
+        for P_i in P_true:
+            # ---- Hard 部分：直接查图 ----
+            edges_in_O = P_i.dependency_edges()
+            ok = sum(1 for (s_a, s_b) in edges_in_O
+                       if (c(s_b), c(s_a)) in K.edges())
+            r_ped_hard = ok / max(len(edges_in_O), 1)
+
+            # ---- Soft 部分：成对 judge + 顺序随机化 + 中位数 ----
+            scores = []
+            for judge_j in judges:
+                if random.random() &lt; 0.5:
+                    s = judge_j(P_i, P_gold)
+                else:
+                    s = 1 - judge_j(P_gold, P_i)
+                scores.append(s)
+            r_ped_soft = median(scores)
+
+            r_ped = λ * r_ped_hard + (1 - λ) * r_ped_soft   # λ ≈ 0.8
+</code></pre>
+
+<h3>5. 怎么和 segment-wise credit 接上</h3>
+<p>$R^{\text{ped}}$ <strong>被路由到 subtask 段</strong>——也就是说先修兼容率算的是 step 之间的依赖（$\mathcal{O}_i$），但<strong>奖励只回流给 subtask token 的梯度</strong>。</p>
+<p>为什么？</p>
+<ul>
+<li><strong>subtask 段决定了整个 plan 的"教学骨架"</strong></li>
+<li>step 级别的依赖正确性已经被 $R^{\text{struct}}$ 抓住了</li>
+<li>把"先修兼容率"路由到 subtask 段 = "<strong>你拆 subtask 的时候要按照知识的逻辑顺序拆</strong>"</li>
+</ul>
+<blockquote>奖励<strong>的计算</strong>是基于 step 间依赖 $\mathcal{O}_i$，但奖励<strong>的回传</strong>是给 subtask token——这是 segment-wise credit 的关键巧思。</blockquote>
+
+<h3>一句话总结</h3>
+<blockquote>
+<p><strong>教学法奖励 = "概念顺序对不对（规则、80%权重）" + "讲解风格好不好（ensemble judge、20%权重）"。</strong></p>
+<p><strong>硬部分把可形式化的教学法规则离线编码成一张先修图 $K$，训练时 0 神经裁判、几乎 0 成本；软部分用成对比较+顺序随机化+多 judge 中位数把 LLM judge 的偏差压到最低，且权重压到 30% 以内。</strong></p>
+<p><strong>最后这个奖励被路由到 subtask 段的 token，专门优化"教学骨架"的搭建。</strong></p>
+</blockquote>
+
+  </div>
+</section>
+
+<hr class="section-divider">
+
+<!-- ============================ Q6 ============================ -->
+<section class="qa" id="q6">
+  <div class="question">
+    <span class="label">USER</span>
+    soft 部分 LLM judge 的 rubrics 在哪里呀
+  </div>
+  <div class="answer">
+
+<h2>你抓到了一个真实的论文漏洞</h2>
+<blockquote>"For aspects that resist rule-based verification (scaffolding density, learner-appropriate elaboration), we add a low-weight pairwise LLM judge with order randomization and judge ensembling"</blockquote>
+<p>——论文<strong>只提到 judge 评的是哪两个维度</strong>（scaffolding density、learner-appropriate elaboration），但 <strong>rubric 的具体定义和 judge prompt 模板都不在正文里</strong>。</p>
+<p>这是一个真实的漏洞，审稿人一定会问。要么补到正文（占字数）、要么放 Appendix（更合理）、要么在 Implementation Details 里写一段。</p>
+
+<h3>1. 应该写在哪里？</h3>
+<table>
+<thead><tr><th>方案</th><th>放哪</th><th>推荐度</th></tr></thead>
+<tbody>
+<tr><td>正文 Section 4.2 内联展开</td><td>紧跟 $R^{\text{ped,soft}}$ 公式</td><td>❌ 占太多字</td></tr>
+<tr><td><strong>Appendix</strong></td><td>单独一节 "Soft Judge Rubric and Prompt"</td><td>✅ <strong>推荐</strong></td></tr>
+<tr><td>Section 5 Implementation Details</td><td>实验设置那一段</td><td>⚠️ 折中方案</td></tr>
+</tbody>
+</table>
+<p>正文里加<strong>一句指针</strong>就够：</p>
+<blockquote>"The two dimensions are operationalized through a structured rubric and a pairwise comparison prompt; see Appendix~\ref{app:soft-judge} for the full specification."</blockquote>
+
+<h3>2. Rubric 长什么样</h3>
+
+<h4>Dimension 1: Scaffolding Density（脚手架密度）</h4>
+<table>
+<thead><tr><th>子项</th><th>含义</th><th>1 分（差）</th><th>5 分（好）</th></tr></thead>
+<tbody>
+<tr><td>Foundation-before-use</td><td>基础概念在被使用前是否先被介绍</td><td>直接跳到目标</td><td>每个新概念都有前置介绍步骤</td></tr>
+<tr><td>Checkpoint placement</td><td>是否在合适密度上插入验证/复习步骤</td><td>无 checkpoint</td><td>关键里程碑后都有自检</td></tr>
+<tr><td>Bridging granularity</td><td>概念跳跃是否有过渡步骤</td><td>从 A 直接跳到 C</td><td>A → B → C 平滑过渡</td></tr>
+<tr><td>Tool-readiness</td><td>用工具前是否先确保环境就绪</td><td>直接调用未配置的工具</td><td>工具调用前显式有环境准备</td></tr>
+</tbody>
+</table>
+
+<h4>Dimension 2: Learner-Appropriate Elaboration（学习者适配展开）</h4>
+<table>
+<thead><tr><th>子项</th><th>含义</th><th>1 分（差）</th><th>5 分（好）</th></tr></thead>
+<tbody>
+<tr><td>Granularity match</td><td>步骤粒度是否匹配水平</td><td>新手得到压缩的步骤 / 专家被喂极细的步骤</td><td>粒度和水平对得上</td></tr>
+<tr><td>Explanation depth</td><td>解释篇幅是否匹配先验知识</td><td>对新手不解释术语 / 对专家重复基础</td><td>详略与 profile 对齐</td></tr>
+<tr><td>Tool/agent complexity</td><td>选用的工具/agent 角色是否合学习者水平</td><td>给新手安排难以驾驭的工具栈</td><td>工具复杂度梯度合理</td></tr>
+<tr><td>Goal alignment</td><td>步骤展开方向是否服务于 learning goal</td><td>偏离 goal、做无关展开</td><td>每步都向 goal 收敛</td></tr>
+</tbody>
+</table>
+
+<h4>明确不评什么</h4>
+<blockquote>
+The judge <strong>must not</strong> evaluate:
+<ul>
+<li>Structural correctness, DAG validity, dependency completeness (scored by $R^{\text{struct}}$)</li>
+<li>Concept-level prerequisite ordering (scored by $R^{\text{ped,hard}}$)</li>
+<li>Personalization keyword presence (scored by $R^{\text{pers}}$)</li>
+<li>JSON/schema validity (covered by $R^{\text{hard}}$)</li>
+</ul>
+</blockquote>
+<p>这一段非常重要——没有它，judge 会重复打分，让 soft 奖励和 hard 奖励<strong>相关性过高</strong>，反作弊的"分离设计"就失效了。</p>
+
+<h3>3. Pairwise Judge Prompt 模板</h3>
+<pre><code>SYSTEM:
+You are an expert in programming education. You will compare TWO learning plans
+generated for the SAME query and learner profile, and decide which plan is more
+pedagogically effective along TWO dimensions only:
+
+(1) Scaffolding Density:
+    a. Foundation-before-use
+    b. Checkpoint placement
+    c. Bridging granularity
+    d. Tool-readiness
+
+(2) Learner-Appropriate Elaboration:
+    a. Granularity match
+    b. Explanation depth
+    c. Tool/agent complexity
+    d. Goal alignment
+
+Do NOT evaluate: structural correctness, DAG/dependency validity, prerequisite
+concept ordering, personalization keywords, or JSON schema. Those are scored
+by separate verifiers.
+
+USER:
+Query:    {q}
+Profile:  {p}
+---
+Plan A: {plan_A}
+---
+Plan B: {plan_B}
+
+For each of the 8 sub-criteria above, briefly note which plan is better
+(A / B / Tie). Then give a final verdict.
+
+Output JSON ONLY in this schema:
+{
+  "subscores": {
+    "foundation_before_use": "A" | "B" | "Tie",
+    "checkpoint_placement":  "A" | "B" | "Tie",
+    ...
+  },
+  "verdict": "A" | "B" | "Tie",
+  "justification": "&lt;one sentence, ≤ 30 words&gt;"
+}
+</code></pre>
+
+<h4>算分时怎么把 verdict 变成标量</h4>
+<pre><code>def soft_score(subscores, verdict, w_sub=0.6, w_verdict=0.4):
+    sub = mean([{"A":1, "Tie":0.5, "B":0}[s] for s in subscores.values()])
+    ver = {"A":1, "Tie":0.5, "B":0}[verdict]
+    return w_sub * sub + w_verdict * ver
+</code></pre>
+
+<h3>4. 关键护栏怎么落到 prompt 上</h3>
+<table>
+<thead><tr><th>护栏</th><th>prompt/调用层面怎么做</th></tr></thead>
+<tbody>
+<tr><td>顺序随机化</td><td>50% 的时候 (Plan A = $\mathcal{P}_i$, Plan B = $\mathcal{P}^\star$)，50% 反过来；后处理时把 verdict 翻转回来</td></tr>
+<tr><td>Judge 模型 ensembling</td><td>用 $J \ge 3$ 个不同模型/不同 prompt 模板（最好跨 2 个 model family），取<strong>中位数</strong></td></tr>
+<tr><td>训测异家族</td><td>训练时用 Family A 的 judge，评估时换 Family B</td></tr>
+</tbody>
+</table>
+
+<h3>一句话总结</h3>
+<blockquote>
+<p><strong>现在论文里 soft judge 只点了名（"scaffolding density, learner-appropriate elaboration"），但 rubric 实质内容缺失。</strong></p>
+<p><strong>该填的东西：每个维度 4 个子项 + 1-5 分锚点 + 明确"不评什么"清单 + pairwise prompt 模板 + JSON 输出 schema + ensembling 协议。</strong></p>
+<p><strong>该放的位置：Appendix（推荐），正文只留一句指针。</strong></p>
+</blockquote>
+
+  </div>
+</section>
+
+<hr class="section-divider">
+
+<!-- ============================ Q7 ============================ -->
+<section class="qa" id="q7">
+  <div class="question">
+    <span class="label">USER</span>
+    GRPO 的部分，有多个 reward，他们联合优化的时候，权重系数如何分配；怎么同时优化呢
+  </div>
+  <div class="answer">
+
+<h2>多 Reward 联合优化是个<em>两层问题</em></h2>
+<p>很多人误以为多 reward 优化就是简单的加权求和，但在论文这套设计里<strong>"权重分配"和"怎么同时优化"在两个不同的层级上发挥作用</strong>：</p>
+<table>
+<thead><tr><th>层级</th><th>任务</th><th>谁来做</th><th>权重在哪</th></tr></thead>
+<tbody>
+<tr><td><strong>Level 1</strong>：Reward 融合</td><td>把 4 个标量奖励合成 1 个 trajectory-level 信号</td><td>Hard Gate + Group-wise Normalization 段</td><td>$w_s, w_p, w_e$ 出现在加权和里</td></tr>
+<tr><td><strong>Level 2</strong>：梯度路由</td><td>把信号回传到具体 token 上</td><td>Segment-wise Credit Assignment 段</td><td>隐式地由"段"决定，不再显式加权</td></tr>
+</tbody>
+</table>
+
+<h3>Level 1：Reward 融合——权重出现在这里</h3>
+<p>四个奖励<strong>先各自归一化、再线性加权</strong>：</p>
+<p>$$R_i = w_s\,\bar z(R^{\text{struct}}_i) + w_p\,\bar z(R^{\text{pers}}_i) + w_e\,\bar z(R^{\text{ped}}_i) + R^{\text{hard}}_i$$</p>
+
+<h4>(a) 先 z-score、再加权——保证权重真的等于"优先级"</h4>
+<p>如果不归一化直接加权，会出问题：</p>
+<ul>
+<li>$R^{\text{struct}}$ 范围在 $[0, 4]$</li>
+<li>$R^{\text{pers}}$ 范围在 $[-1, 1]$</li>
+<li>$R^{\text{ped}}$ 范围在 $[0, 1]$</li>
+</ul>
+<p><strong>就算 $w_s = 0.1$，结构奖励的绝对量级仍然能淹没其他两个</strong>——权重就失去了"我想给谁多少话语权"的语义。</p>
+<p>z-score 把每个组件<strong>强制压到同一个均值 0、方差 1 的尺度</strong>——这时 $w_s = 0.55$ 真的等于"55% 的话语权"。</p>
+<blockquote>没有这一步，权重只是装饰品。</blockquote>
+
+<h4>(b) 默认权重 $w_s : w_p : w_e = 0.55 : 0.25 : 0.20$ 的逻辑</h4>
+<table>
+<thead><tr><th>Reward</th><th>抗作弊等级</th><th>SFT 学得动吗</th><th>应得权重</th></tr></thead>
+<tbody>
+<tr><td>$R^{\text{struct}}$</td><td><strong>最高</strong>（纯规则）</td><td>学不动（全局约束）</td><td><strong>最大 0.55</strong></td></tr>
+<tr><td>$R^{\text{pers}}$</td><td>高（反事实差值）</td><td>SFT 已经会大半</td><td>中 0.25</td></tr>
+<tr><td>$R^{\text{ped}}$</td><td>中（80% 规则 + 20% judge）</td><td>SFT 已经会大半</td><td>小 0.20</td></tr>
+</tbody>
+</table>
+<p>口诀：</p>
+<blockquote><strong>最不易作弊 + SFT 学不到的，给最大权重</strong>。</blockquote>
+
+<h4>(c) Hard Gate 故意不归一化——它是约束不是偏好</h4>
+<p>$R^{\text{hard}}_i = -\eta\,\mathbb{I}[\text{违规}]$，<strong>没有 $w_h$，没有 $\bar z$</strong>。</p>
+<p>为什么？如果 z-score 化它：</p>
+<ul>
+<li>整个 batch 都没违规 → 归一化后是 0，根本没惩罚</li>
+<li>一个 batch 全违规 → 归一化后也变 0，"大家一起违规就不算违规了"</li>
+</ul>
+<p>所以硬门<strong>必须保持绝对量级</strong>。</p>
+<blockquote><strong>z-score 化的是"偏好信号"；保持绝对量级的是"硬约束"</strong>。</blockquote>
+
+<h3>Level 2：梯度路由——权重在这里"消失"</h3>
+<p>按 GRPO 流程，融合好的 $R_i$ 应该走标准 advantage，所有 token 共享同一个 $A_i$。<strong>但论文不这样做</strong>——它做了 <strong>segment-wise credit assignment</strong>：</p>
+<p>$$A_{i,t} = \begin{cases} \bar z(R^{\text{pers}}_i) & t \in \mathcal{A}_i \\ \bar z(R^{\text{ped}}_i) & t \in \mathcal{T}_i \\ \bar z(R^{\text{struct}}_i) & t \in \mathcal{S}_i \cup \mathcal{O}_i \end{cases} \;+\; R^{\text{hard}}_i$$</p>
+<p>注意公式里<strong>没有 $w_s, w_p, w_e$</strong>！</p>
+<p><strong>这是因为</strong>：每个 token 实际上<strong>只接收一个 reward 的信号</strong>——agent token 只看 $R^{\text{pers}}$，step token 只看 $R^{\text{struct}}$。它们之间根本不在同一个 token 上<strong>竞争</strong>。</p>
+
+<h3>为什么"权重消失"反而是优雅的？</h3>
+<p>考虑反例：如果用共享 $A_i$ 的标准 GRPO，<strong>所有 token 的梯度方向都被加权和决定</strong>：</p>
+<ul>
+<li>一条 plan 结构对、个性化差 → 整体 $A_i$ 大 → <strong>agent token 也被推向"保持当前个性化"的方向</strong>（错的奖励信号）</li>
+<li>一条 plan 结构错、个性化对 → 整体 $A_i$ 小 → <strong>agent token 也被打压</strong>（明明 agent 段做得对）</li>
+</ul>
+<p>Segment-wise routing 解决了这个：</p>
+<table>
+<thead><tr><th>轨迹特征</th><th>agent token 的梯度方向</th><th>step token 的梯度方向</th></tr></thead>
+<tbody>
+<tr><td>结构✅、个性化❌</td><td><strong>下降</strong>（个性化差）</td><td><strong>上升</strong>（结构好）</td></tr>
+<tr><td>结构❌、个性化✅</td><td><strong>上升</strong>（个性化好）</td><td><strong>下降</strong>（结构差）</td></tr>
+</tbody>
+</table>
+<p>每个 token 只对<strong>自己负责的那部分</strong> reward 做出响应。</p>
+
+<h3>那 Level 1 的权重还有什么用？</h3>
+
+<h4>(1) 用作<strong>轨迹排序</strong>和<strong>早停判据</strong></h4>
+<ul>
+<li>anti-hacking safeguard 监控 <strong>proxy-vs-gold 曲线</strong>——proxy 就是这个加权 $R_i$</li>
+<li>同一个 prompt 内 $G$ 条轨迹排序、挑出最佳/最差用于人工抽检</li>
+</ul>
+
+<h4>(2) 用作 <strong>Pareto curve 的旋钮</strong></h4>
+<blockquote>"By varying the relative weights of the three reward components, the same trained planner exposes a controllable Pareto curve..."</blockquote>
+<p>具体来说：</p>
+<ul>
+<li><strong>训练前</strong>选一组 $(w_s, w_p, w_e)$ → 得到一个偏重某维度的 planner</li>
+<li>多组权重 → <strong>多个 checkpoint</strong> → 画出 Pareto 前沿</li>
+</ul>
+
+<h4>(3) 用作 segment-wise 实现中的<strong>隐式重要性采样修正</strong></h4>
+<p>有的实现里会把 $w_*$ 拉回到 segment-wise advantage 上：</p>
+<p>$$A_{i,t} = \begin{cases} \alpha_p \cdot \bar z(R^{\text{pers}}_i) & t \in \mathcal{A}_i \\ \alpha_e \cdot \bar z(R^{\text{ped}}_i) & t \in \mathcal{T}_i \\ \alpha_s \cdot \bar z(R^{\text{struct}}_i) & t \in \mathcal{S}_i \cup \mathcal{O}_i \end{cases}$$</p>
+<p>其中 $\alpha_*$ 用来<strong>补偿不同 segment 的 token 数差异</strong>——例如 step 段 token 通常是 agent 段的 5-10 倍。如果想精确控制各段贡献，可以让 $\alpha_* \propto w_* / |\text{segment}|$。</p>
+
+<h3>把整个联合优化串起来（伪代码）</h3>
+<pre><code>for batch in loader:
+    for (q, p, P_gold) in batch:
+        # ============= 采样 =============
+        traj = [π_θ.sample(q, p) for _ in range(G)]
+        with no_grad: traj_cf = π_θ.sample(q, p_tilde)
+
+        # ============= 4 个 reward 各自打分 =============
+        for i in range(G):
+            r_struct[i] = struct_reward(traj[i])
+            r_pers[i]   = ged_sim(traj[i], P_gold) - ged_sim(traj[i], traj_cf)
+            r_ped[i]    = λ*ped_hard(traj[i]) + (1-λ)*ped_soft(traj[i])
+            r_hard[i]   = hard_gate(traj[i])
+
+        # ============= Level 1: 融合（用于排序/监控） =============
+        R = w_s*z_score(r_struct) + w_p*z_score(r_pers) \
+          + w_e*z_score(r_ped) + r_hard
+        # ↑ 这个 R 用于 proxy-vs-gold 监控和早停判据，不直接进 loss
+
+        # ============= Level 2: segment-wise routing（进 loss） =============
+        for i in range(G):
+            for t in range(len(traj[i])):
+                seg = which_segment(traj[i], t)
+                if   seg == 'agent':    A[i, t] = z_score(r_pers)[i]
+                elif seg == 'subtask':  A[i, t] = z_score(r_ped)[i]
+                else:                   A[i, t] = z_score(r_struct)[i]
+                A[i, t] += r_hard[i]   # 硬门均匀加到每个 token
+
+        # ============= GRPO 主目标 =============
+        loss = -clipped_surrogate(traj, A, π_θ, π_θ_old) \
+             + β * KL(π_θ ‖ π_SFT)
+        loss.backward(); optimizer.step()
+
+        # ============= Anti-hacking: 监控 R vs gold =============
+        if proxy_rising_but_gold_plateau(R, gold_metrics):
+            early_stop()
+        if KL(π_θ ‖ π_SFT) > budget:
+            β *= 1.5   # 自适应调大
+</code></pre>
+
+<h3>一句话总结</h3>
+<blockquote>
+<p><strong>多 reward 不是"合成一个标量然后优化"——是"按段路由各 reward 各管一段 token，组合起来再加一个公共的硬门"。</strong></p>
+<p><strong>权重 $w_s, w_p, w_e$ 只在融合层（Level 1）出现，用途是：</strong></p>
+<ol>
+<li><strong>给 proxy 信号做线性投影，用于监控/排序；</strong></li>
+<li><strong>当作 Pareto 旋钮，训前一调就能换一组 trade-off；</strong></li>
+<li><strong>可选地反馈回 segment advantage，做 token 数补偿。</strong></li>
+</ol>
+<p><strong>真正进梯度的（Level 2）是 z-score 后的每段 reward + 硬门。两类信号天然不冲突——它们根本不在同一个 token 上抢位置。</strong></p>
+</blockquote>
+<p>这种设计的本质是 <strong>"用结构性 routing 替代向量加权"</strong>——加权适合标量目标的多目标优化（比如 Pareto 搜索），routing 适合<strong>结构化输出</strong>（plan 由不同段组成）的多目标优化。论文在这两件事上做了对应的工具选择，避免了传统多目标 RL 里"权重一改，所有 token 都跟着摇摆"的不稳定性。</p>
+
+  </div>
+</section>
+
+<footer>
+  从 PersonalPlan 论文讨论 session 抽取 · 仅含 GRPO 相关问答 · MathJax 数学渲染
+</footer>
+
+</body>
+</html>

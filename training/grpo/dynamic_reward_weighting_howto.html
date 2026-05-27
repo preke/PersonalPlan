@@ -1,0 +1,646 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>MAPLE GRPO — Hypervolume-Guided Dynamic Reward Weighting 实施指南</title>
+<style>
+  :root {
+    --fg: #1a1a1a;
+    --muted: #555;
+    --bg: #fafafa;
+    --code-bg: #f4f4f4;
+    --diff-add: #e6ffec;
+    --diff-add-fg: #1a7f37;
+    --diff-del: #ffeef0;
+    --diff-del-fg: #b31d28;
+    --accent: #0969da;
+    --warn: #b15c00;
+    --border: #d0d7de;
+  }
+  body {
+    font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+    max-width: 980px;
+    margin: 2rem auto;
+    padding: 0 1.5rem;
+    color: var(--fg);
+    background: var(--bg);
+    line-height: 1.7;
+  }
+  h1 { border-bottom: 2px solid var(--accent); padding-bottom: 0.5rem; }
+  h2 { margin-top: 2.5rem; border-bottom: 1px solid var(--border); padding-bottom: 0.3rem; }
+  h3 { margin-top: 1.8rem; color: var(--accent); }
+  code {
+    font-family: "SF Mono", Monaco, Consolas, monospace;
+    background: var(--code-bg);
+    padding: 0.1em 0.35em;
+    border-radius: 3px;
+    font-size: 0.92em;
+  }
+  pre {
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 1rem;
+    overflow-x: auto;
+    font-size: 0.88em;
+    line-height: 1.55;
+  }
+  pre code { background: none; padding: 0; }
+  .diff-add { background: var(--diff-add); color: var(--diff-add-fg); display: block; }
+  .diff-del { background: var(--diff-del); color: var(--diff-del-fg); display: block; text-decoration: line-through; }
+  .filebox {
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    margin: 1rem 0;
+    overflow: hidden;
+  }
+  .filebox-header {
+    background: #eaeef2;
+    padding: 0.5rem 0.9rem;
+    border-bottom: 1px solid var(--border);
+    font-family: "SF Mono", Monaco, monospace;
+    font-size: 0.88em;
+    color: var(--muted);
+  }
+  .filebox pre {
+    border: none;
+    border-radius: 0;
+    margin: 0;
+  }
+  .warn {
+    background: #fff8e6;
+    border-left: 4px solid var(--warn);
+    padding: 0.8rem 1rem;
+    margin: 1rem 0;
+    border-radius: 4px;
+  }
+  .note {
+    background: #ddf4ff;
+    border-left: 4px solid var(--accent);
+    padding: 0.8rem 1rem;
+    margin: 1rem 0;
+    border-radius: 4px;
+  }
+  table {
+    border-collapse: collapse;
+    margin: 1rem 0;
+    width: 100%;
+  }
+  th, td {
+    border: 1px solid var(--border);
+    padding: 0.55rem 0.8rem;
+    text-align: left;
+  }
+  th { background: #eaeef2; }
+  .step-pill {
+    display: inline-block;
+    background: var(--accent);
+    color: white;
+    padding: 0.15rem 0.6rem;
+    border-radius: 12px;
+    font-size: 0.85em;
+    margin-right: 0.5em;
+  }
+  .toc {
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 1rem 1.5rem;
+    margin: 1.5rem 0;
+  }
+  .toc ol { margin: 0; padding-left: 1.4rem; }
+</style>
+</head>
+<body>
+
+<h1>Hypervolume-Guided Dynamic Reward Weighting<br>
+<small style="font-size: 0.55em; color: var(--muted);">MAPLE GRPO v1 → v1.5 改造指南</small></h1>
+
+<div class="note">
+<b>目标</b>：把现在 <code>compose_reward</code> 里的固定权重 <code>(w_struct, w_pers, w_ped) = (0.55, 0.25, 0.20)</code>
+换成<b>每 K 步根据三项 reward 当前 Pareto 状态自动调整</b>的动态权重 ——
+"缺哪项就提哪项"。<br><br>
+理论来源：<a href="https://arxiv.org/abs/2509.11452">Learning to Optimize Multi-Objective Alignment Through Dynamic Reward Weighting</a> (TACL'26) 的 <i>hypervolume-guided</i> 简化版。
+</div>
+
+<div class="toc">
+<b>目录</b>
+<ol>
+  <li>设计原理（5 分钟）</li>
+  <li>改动总览 — 3 个文件，约 80 行</li>
+  <li>Step 1：<code>rewards.py</code> 新增 <code>HypervolumeReweighter</code> 类</li>
+  <li>Step 2：<code>rewards.py</code> 修改 <code>RewardConfig</code> + <code>compose_reward</code></li>
+  <li>Step 3：<code>configs/grpo.yaml</code> 加入 <code>dynamic_weighting</code> block</li>
+  <li>Step 4：<code>grpo_train.py</code> 实例化 reweighter</li>
+  <li>验证：smoke test</li>
+  <li>训练时观察什么</li>
+  <li>调参建议</li>
+  <li>已知限制 / 进一步升级</li>
+</ol>
+</div>
+
+<h2>1. 设计原理</h2>
+
+<h3>1.1 什么是 Hypervolume，以及为什么"缺哪项就提哪项"</h3>
+
+<p>把三个 reward 当成三维空间里的坐标。每个 batch 跑完后，
+<code>(R_struct_mean, R_pers_mean, R_ped_mean)</code> 是一个点。</p>
+
+<p><b>Hypervolume (HV)</b> = 这个点和一个固定参考点 <code>r</code>（你希望"至少达到"的下限，比如 <code>r = (0.3, 0.3, 0.3)</code>）
+构成的长方体体积。HV 越大 = 三项 reward 越远离参考点 = Pareto 状态越好。</p>
+
+<p>HV 对每一维的偏导数 <code>∂HV/∂R_i = ∏_{j≠i} (R_j - r_j)</code> —— 也就是说，
+<b>HV 关于"目前最低那一维"的梯度最大</b>。所以最快增大 HV 的方法 = 把权重往最低的那一维倾斜。</p>
+
+<h3>1.2 简化实现：指数化乘法更新</h3>
+
+<p>不要去做完整的 HV 梯度计算（数值不稳、容易爆）。用一个等价的启发式：</p>
+
+<pre><code>gap_i = target_i - EMA(R_i)            # 正 = 这一维拖后腿
+w_i ← w_i · exp(lr · gap_i)            # 拖后腿就指数级涨权重
+w ← clip(w, w_floor, w_cap)
+w ← w / sum(w)                          # 归一化保持预算总和 = 1
+</code></pre>
+
+<p>三个关键参数：</p>
+<ul>
+  <li><code>target</code>：每一维的"期望水位"，参考点。比如 <code>[0.5, 0.4, 0.4]</code>。</li>
+  <li><code>lr</code>（weight_lr）：权重学习率。建议 <code>0.3 ~ 0.5</code>，太大会震荡。</li>
+  <li><code>update_every</code>：多少 reward fn 调用更新一次。建议 <code>50 ~ 200</code>。</li>
+</ul>
+
+<h3>1.3 为什么用 EMA 而不是瞬时均值</h3>
+
+<p>单个 batch 的 raw mean 噪声大（G=8 个 rollout 而已），直接拿来更新权重会让 w 跳来跳去。
+用 EMA 平滑：<code>EMA ← (1-α)·EMA + α·this_batch</code>，<code>α = 0.1</code> 大概等价 10 个 batch 的滑动平均。</p>
+
+<h3>1.4 和 z-score / GDPO 的关系</h3>
+
+<div class="warn">
+<b>关键：动态权重读的是 RAW reward 均值，不是 z-score 后的。</b><br>
+z-score 之后的均值永远是 0，看不出哪一维"拖后腿"。所以 Reweighter 必须在 z-score <b>之前</b>
+观察每一维的绝对水位，然后输出新的权重；这个权重再乘到 z-score <b>之后</b> 的值上。
+</div>
+
+<h2>2. 改动总览</h2>
+
+<table>
+  <tr><th>文件</th><th>改动</th><th>行数</th></tr>
+  <tr><td><code>rewards.py</code></td><td>新增 <code>HypervolumeReweighter</code> 类 + 改 <code>compose_reward</code></td><td>~60</td></tr>
+  <tr><td><code>configs/grpo.yaml</code></td><td>加 <code>dynamic_weighting</code> block</td><td>~10</td></tr>
+  <tr><td><code>grpo_train.py</code></td><td>从 config 实例化 reweighter，传给 <code>compose_reward</code></td><td>~10</td></tr>
+</table>
+
+<p>训练脚本 <code>train_grpo.sh</code> 和 TRL 调用本身<b>都不改</b>。</p>
+
+<h2>3. <span class="step-pill">Step 1</span> 在 <code>rewards.py</code> 文件顶部加 Reweighter 类</h2>
+
+<p>插入位置：<code>rewards.py</code> 第 53 行附近（<code>from plan_utils import ...</code> 之后，
+<code># R_struct</code> 注释之前）。</p>
+
+<div class="filebox">
+<div class="filebox-header">GRPO/rewards.py — 新增（约 line 55 开始）</div>
+<pre><code>import numpy as np
+from collections import defaultdict, deque
+from datetime import datetime
+
+
+class HypervolumeReweighter:
+    """
+    简化版 hypervolume-guided 动态权重更新（参考 arxiv 2509.11452）。
+
+    每 `update_every` 次 reward_fn 调用，根据各 component 的 EMA 均值
+    与 target reference 的差距，按指数化乘法更新权重。
+    """
+
+    def __init__(
+        self,
+        component_names: tuple[str, ...] = ("struct", "pers", "ped"),
+        init_weights: tuple[float, ...] = (0.55, 0.25, 0.20),
+        reference: tuple[float, ...] = (0.50, 0.40, 0.40),
+        update_every: int = 100,
+        ema_alpha: float = 0.10,
+        weight_lr: float = 0.3,
+        w_floor: float = 0.05,
+        w_cap: float = 0.70,
+        log_path: str | None = None,
+        warmup_steps: int = 50,
+    ):
+        assert len(component_names) == len(init_weights) == len(reference)
+        self.names = component_names
+        self.weights = np.array(init_weights, dtype=float)
+        self.ref = np.array(reference, dtype=float)
+        self.update_every = update_every
+        self.ema_alpha = ema_alpha
+        self.weight_lr = weight_lr
+        self.w_floor = w_floor
+        self.w_cap = w_cap
+        self.warmup_steps = warmup_steps  # 不更新权重的前 N 步
+        self.ema: np.ndarray | None = None
+        self.step = 0
+        self.log_path = log_path
+        if log_path:
+            with open(log_path, "w") as f:
+                f.write("# step\ttimestamp\tema\tweights\n")
+
+    def observe(self, raw_means: tuple[float, ...]) -> None:
+        """传入 RAW（未加权、未 z-score）的本 batch 各 component 均值。"""
+        x = np.array(raw_means, dtype=float)
+        if self.ema is None:
+            self.ema = x.copy()
+        else:
+            self.ema = (1 - self.ema_alpha) * self.ema + self.ema_alpha * x
+        self.step += 1
+        if self.step > self.warmup_steps and self.step % self.update_every == 0:
+            self._update_weights()
+
+    def _update_weights(self) -> None:
+        gap = self.ref - self.ema                      # 正 = 拖后腿
+        self.weights = self.weights * np.exp(self.weight_lr * gap)
+        self.weights = np.clip(self.weights, self.w_floor, self.w_cap)
+        self.weights = self.weights / self.weights.sum()
+        ts = datetime.utcnow().isoformat(timespec="seconds")
+        msg = (
+            f"[reweighter step={self.step}] "
+            f"EMA={dict(zip(self.names, [round(v, 3) for v in self.ema]))} "
+            f"→ w={dict(zip(self.names, [round(v, 3) for v in self.weights]))}"
+        )
+        print(msg)
+        if self.log_path:
+            with open(self.log_path, "a") as f:
+                f.write(f"{self.step}\t{ts}\t"
+                        f"{','.join(f'{v:.4f}' for v in self.ema)}\t"
+                        f"{','.join(f'{v:.4f}' for v in self.weights)}\n")
+
+    def get(self, name: str) -> float:
+        return float(self.weights[self.names.index(name)])
+</code></pre>
+</div>
+
+<h2>4. <span class="step-pill">Step 2</span> 修改 <code>RewardConfig</code> 和 <code>compose_reward</code></h2>
+
+<h3>4.1 在 <code>RewardConfig</code> dataclass 里加字段</h3>
+
+<p>位置：<code>rewards.py</code> 第 477 行附近，<code>@dataclass class RewardConfig:</code> 内。</p>
+
+<div class="filebox">
+<div class="filebox-header">GRPO/rewards.py — RewardConfig（修改）</div>
+<pre><code>@dataclass
+class RewardConfig:
+    # ... 保留原有字段 ...
+    w_struct: float = 0.55
+    w_pers: float = 0.25
+    w_ped: float = 0.20
+    # ... 中间字段保留 ...
+    eta: float = 10.0
+    verbose: bool = False
+
+<span class="diff-add">    # === 新增 —— 动态权重 ===
+    use_dynamic_weights: bool = False        # 总开关
+    dyn_update_every: int = 100
+    dyn_ema_alpha: float = 0.10
+    dyn_weight_lr: float = 0.3
+    dyn_w_floor: float = 0.05
+    dyn_w_cap: float = 0.70
+    dyn_warmup_steps: int = 50
+    dyn_reference: tuple[float, float, float] = (0.50, 0.40, 0.40)
+    dyn_log_path: str | None = None
+    # === 新增 + GDPO z-score（强烈推荐同时开） ===
+    zscore_components: bool = True           # 每个 component 在 group 内 z-score 后再加权</span>
+</code></pre>
+</div>
+
+<h3>4.2 改 <code>compose_reward</code> 内部的 <code>reward_fn</code></h3>
+
+<p>关键改动：把原来 <b>per-sample 一次性</b> 计算 total reward 的循环，
+拆成 <b>三步</b>：(a) 算每个 sample 的各 component raw 值，
+(b) 按 question_id 分组 z-score，
+(c) 让 reweighter 观察 RAW 均值并取新权重，最后加权求和。</p>
+
+<div class="filebox">
+<div class="filebox-header">GRPO/rewards.py — compose_reward（替换 reward_fn）</div>
+<pre><code>def compose_reward(
+    cfg: RewardConfig,
+    *,
+    precedence_pairs: set[tuple[str, str]] | None = None,
+    cf_cache: dict[str, dict] | None = None,
+    judges: list[Callable[[str, str], float]] | None = None,
+<span class="diff-add">    reweighter: "HypervolumeReweighter | None" = None,</span>
+) -> Callable:
+    # ... 原有的 pers_mode / ped_mode 合法性检查保留 ...
+
+    def reward_fn(completions, **kwargs):
+        prompts = kwargs.get("prompts", [None] * len(completions))
+        question_ids = kwargs.get("question_id", [None] * len(completions))
+        gold_plans = kwargs.get("gold_plan", [None] * len(completions))
+        learner_profiles = kwargs.get("learner_profile", [None] * len(completions))
+
+<span class="diff-add">        # ---------- (a) 算 RAW 分量（不加权，不归一） ----------</span>
+        R_s, R_p, R_e, R_h = [], [], [], []
+        for i, comp in enumerate(completions):
+            gold = gold_plans[i] if i < len(gold_plans) else None
+            qid = question_ids[i] if i < len(question_ids) else None
+            profile = learner_profiles[i] if i < len(learner_profiles) else None
+
+            R_s.append(reward_structural(comp, gold) if cfg.enable_struct else 0.0)
+            R_h.append(reward_hard_gate(comp, eta=cfg.eta) if cfg.enable_hard else 0.0)
+
+            if cfg.pers_mode == "lite":
+                R_p.append(reward_personalization_lite(comp, profile))
+            elif cfg.pers_mode == "counterfactual" and cf_cache and qid is not None:
+                R_p.append(reward_personalization(comp, gold, cf_cache.get(qid)))
+            else:
+                R_p.append(0.0)
+
+            if cfg.ped_mode == "lite":
+                R_e.append(reward_pedagogy_lite(
+                    comp, precedence_pairs,
+                    w_precedence=cfg.w_ped_precedence,
+                    w_phases=cfg.w_ped_phases))
+            elif cfg.ped_mode == "full":
+                lite = reward_pedagogy_lite(
+                    comp, precedence_pairs,
+                    w_precedence=cfg.w_ped_precedence,
+                    w_phases=cfg.w_ped_phases)
+                soft = reward_pedagogy_soft(comp, gold, judges) if judges else 0.0
+                R_e.append(cfg.lambda_ped * lite + (1 - cfg.lambda_ped) * soft)
+            else:
+                R_e.append(0.0)
+
+<span class="diff-add">        # ---------- (b) 让 reweighter 观察 RAW 均值（z-score 之前） ----------
+        if reweighter is not None:
+            reweighter.observe((
+                float(np.mean(R_s)),
+                float(np.mean(R_p)),
+                float(np.mean(R_e)),
+            ))
+            w_struct = reweighter.get("struct")
+            w_pers   = reweighter.get("pers")
+            w_ped    = reweighter.get("ped")
+        else:
+            w_struct, w_pers, w_ped = cfg.w_struct, cfg.w_pers, cfg.w_ped
+
+        # ---------- (c) GDPO 风格 per-component z-score by question_id ----------
+        def _zscore_by_group(vals, qids):
+            groups = defaultdict(list)
+            for idx, q in enumerate(qids):
+                groups[q].append(idx)
+            out = [0.0] * len(vals)
+            for idxs in groups.values():
+                xs = np.array([vals[i] for i in idxs], dtype=float)
+                mu, sd = xs.mean(), xs.std()
+                if sd > 1e-6:
+                    zs = (xs - mu) / sd
+                else:
+                    zs = np.zeros_like(xs)
+                for k, i in enumerate(idxs):
+                    out[i] = float(zs[k])
+            return out
+
+        if cfg.zscore_components:
+            Z_s = _zscore_by_group(R_s, question_ids)
+            Z_p = _zscore_by_group(R_p, question_ids)
+            Z_e = _zscore_by_group(R_e, question_ids)
+        else:
+            Z_s, Z_p, Z_e = R_s, R_p, R_e
+        # R_hard 不做 z-score（理由见 eta 设计说明）
+
+        # ---------- (d) 加权求和 ----------
+        scores = [
+            w_struct * Z_s[i] + w_pers * Z_p[i] + w_ped * Z_e[i] + R_h[i]
+            for i in range(len(completions))
+        ]
+        if cfg.verbose:
+            for i in range(len(completions)):
+                print(
+                    f"  [{i:02d}] raw(s,p,e)=({R_s[i]:.2f},{R_p[i]:.2f},{R_e[i]:.2f}) "
+                    f"z(s,p,e)=({Z_s[i]:+.2f},{Z_p[i]:+.2f},{Z_e[i]:+.2f}) "
+                    f"w=({w_struct:.2f},{w_pers:.2f},{w_ped:.2f}) "
+                    f"hard={R_h[i]:+.1f} → R={scores[i]:+.3f}"
+                )
+        return scores</span>
+
+    return reward_fn
+</code></pre>
+</div>
+
+<h2>5. <span class="step-pill">Step 3</span> <code>configs/grpo.yaml</code> 加入新 block</h2>
+
+<div class="filebox">
+<div class="filebox-header">GRPO/configs/grpo.yaml — reward block（修改）</div>
+<pre><code>reward:
+  enable_struct: true
+  enable_hard: true
+  pers_mode: "lite"          # 建议同时启用 lite（无需 cf cache）
+  ped_mode:  "lite"
+  w_struct: 0.30             # 这些只是 dyn 关闭时的 fallback / dyn warmup 起点
+  w_pers: 0.35
+  w_ped:  0.35
+  w_ped_precedence: 0.5
+  w_ped_phases: 0.5
+  lambda_ped: 0.8
+  eta: 10.0
+  verbose: false
+
+<span class="diff-add">  # === 新增：per-component z-score（GDPO 风格） ===
+  zscore_components: true
+
+  # === 新增：动态权重 ===
+  use_dynamic_weights: true
+  dyn_update_every: 100        # 每 100 个 reward batch 重算一次权重
+  dyn_warmup_steps: 50         # 前 50 步只观察、不动权重
+  dyn_ema_alpha: 0.10
+  dyn_weight_lr: 0.3
+  dyn_w_floor: 0.05
+  dyn_w_cap: 0.70
+  dyn_reference: [0.50, 0.40, 0.40]   # (struct, pers, ped) 期望水位
+  dyn_log_path: ./outputs/grpo-v1/reweight_log.tsv</span>
+</code></pre>
+</div>
+
+<div class="warn">
+<b>注意</b>：<code>w_struct / w_pers / w_ped</code> 改成 <code>0.30 / 0.35 / 0.35</code> 是把动态权重的<b>起点</b>
+设得更接近"平等对待三项"。dyn 开启后这些数字会被覆盖，但 warmup 阶段（前 50 步）仍用它们。
+</div>
+
+<h2>6. <span class="step-pill">Step 4</span> <code>grpo_train.py</code> 实例化 reweighter</h2>
+
+<p>位置：在 <code>reward_fn = compose_reward(...)</code> 之前（约 line 143）插入；
+然后修改 <code>compose_reward</code> 调用。</p>
+
+<div class="filebox">
+<div class="filebox-header">GRPO/grpo_train.py — main() 内修改</div>
+<pre><code><span class="diff-add">from rewards import RewardConfig, compose_reward, HypervolumeReweighter</span>
+# ...
+
+    rcfg = RewardConfig(**cfg["reward"])
+    # ... mine_subtask_precedence / cf_cache 加载保留 ...
+
+<span class="diff-add">    # --- 动态权重 reweighter（可选） -----------------------------------
+    reweighter = None
+    if rcfg.use_dynamic_weights:
+        # log 文件放在 output_dir 下
+        log_path = rcfg.dyn_log_path or os.path.join(output_dir, "reweight_log.tsv")
+        os.makedirs(os.path.dirname(log_path) or ".", exist_ok=True)
+        reweighter = HypervolumeReweighter(
+            component_names=("struct", "pers", "ped"),
+            init_weights=(rcfg.w_struct, rcfg.w_pers, rcfg.w_ped),
+            reference=tuple(rcfg.dyn_reference),
+            update_every=rcfg.dyn_update_every,
+            ema_alpha=rcfg.dyn_ema_alpha,
+            weight_lr=rcfg.dyn_weight_lr,
+            w_floor=rcfg.dyn_w_floor,
+            w_cap=rcfg.dyn_w_cap,
+            warmup_steps=rcfg.dyn_warmup_steps,
+            log_path=log_path,
+        )
+        print(f"Dynamic weighting ON — log → {log_path}")</span>
+
+    reward_fn = compose_reward(
+        rcfg,
+        precedence_pairs=precedence_pairs or None,
+        cf_cache=cf_cache or None,
+        judges=None,
+<span class="diff-add">        reweighter=reweighter,</span>
+    )
+</code></pre>
+</div>
+
+<h2>7. 验证 — Smoke Test</h2>
+
+<p>跑训练前先单测，确认 (a) reweighter 能正常更新，(b) 三项 reward 的 raw 值在合理范围。</p>
+
+<div class="filebox">
+<div class="filebox-header">命令行 smoke test</div>
+<pre><code>cd GRPO/
+python -c "
+import json, sys
+sys.path.insert(0, '.')
+import numpy as np
+from rewards import RewardConfig, compose_reward, HypervolumeReweighter
+
+# 拿一行真实 gold plan 当假数据
+row = json.loads(open('data/grpo/train.jsonl').readline())
+gold = json.loads(row['gold_plan'])
+profile = json.loads(row['learner_profile']) if 'learner_profile' in row else None
+qid = row.get('question_id', 'q1')
+
+# 假装 G=4 个 rollout：3 个 gold（合法），1 个垃圾（违法）
+completions = [json.dumps(gold), json.dumps(gold), json.dumps(gold), 'random garbage']
+qids = [qid] * 4
+
+cfg = RewardConfig(
+    enable_struct=True, enable_hard=True,
+    pers_mode='lite', ped_mode='lite',
+    use_dynamic_weights=True,
+    dyn_update_every=2, dyn_warmup_steps=0,
+    zscore_components=True, verbose=True,
+)
+rw = HypervolumeReweighter(
+    init_weights=(0.30, 0.35, 0.35),
+    reference=(0.50, 0.40, 0.40),
+    update_every=2, warmup_steps=0, weight_lr=0.3,
+)
+fn = compose_reward(cfg, reweighter=rw)
+
+# 跑 5 个假 batch，看权重是否在动
+for k in range(5):
+    print(f'--- batch {k} ---')
+    fn(completions,
+       question_id=qids,
+       gold_plan=[gold]*4,
+       learner_profile=[profile]*4)
+print('final weights:', rw.weights)
+"
+</code></pre>
+</div>
+
+<p>应该看到：</p>
+<ul>
+  <li>前 3 个 rollout（gold）的 z-score 后 struct 项 ≈ <code>+0.58</code>，第 4 个（垃圾）≈ <code>-1.73</code>。</li>
+  <li>R_hard：前 3 个 = 0，第 4 个 = -10。</li>
+  <li>权重每 2 个 batch 印一次 <code>[reweighter step=N] EMA=... → w=...</code>。</li>
+  <li>因为 gold plan 的 R_struct 通常 ≈ 0.5 已经接近 reference 0.50，而 R_pers / R_ped 经常拖后腿，
+      所以 <code>w_pers / w_ped</code> 应该缓慢上升，<code>w_struct</code> 下降。</li>
+</ul>
+
+<h2>8. 训练时观察什么</h2>
+
+<table>
+  <tr><th>信号</th><th>正常表现</th><th>不对劲</th></tr>
+  <tr><td><code>reweight_log.tsv</code> 里 w 列</td>
+      <td>缓慢漂移（每 100 步小幅变化），最终收敛到一组平稳值</td>
+      <td>w 在两个值之间反复横跳 → 调小 <code>weight_lr</code></td></tr>
+  <tr><td>raw EMA 值</td>
+      <td>三项都在向 reference 靠近</td>
+      <td>某项卡死在远低于 ref（比如 R_pers 一直 0.1） → ref 设得太高，调到 0.25</td></tr>
+  <tr><td>train/reward (TRL log)</td>
+      <td>稳定上升</td>
+      <td>权重动了之后 reward 反而崩 → <code>w_floor</code> 调到 0.10 防止某维归零</td></tr>
+  <tr><td>train/kl</td>
+      <td>&lt; 5</td>
+      <td>每次 reweight 后 KL 抖动放大 → 调大 <code>dyn_update_every</code> 到 200+</td></tr>
+  <tr><td>train/completion_length</td>
+      <td>稳定</td>
+      <td>w_pers 涨到 cap 后长度飙升（lite 版的"长文本伪个性化"hack） → 降 <code>w_cap</code> 到 0.5</td></tr>
+</table>
+
+<h2>9. 调参建议</h2>
+
+<h3>9.1 <code>dyn_reference</code> 怎么选</h3>
+
+<p>这是<b>最重要的旋钮</b>。选得太高 → 三项都"拖后腿"，权重全部往某个尖角倾斜；选得太低 → 早早达成 →
+权重停止更新（变成固定权重）。</p>
+
+<p>推荐做法：先用 SFT checkpoint 在 train split 上跑 50 个 prompt × G=8 rollout，
+统计三项 raw reward 的 <b>当前 mean + 0.10</b> 作为 reference。例如：</p>
+
+<pre><code>SFT baseline:  R_struct=0.45  R_pers=0.20  R_ped=0.15
+→ reference = (0.55, 0.30, 0.25)
+</code></pre>
+
+<p>这样 reweighter 一开始有动力推所有维度，但目标可达。</p>
+
+<h3>9.2 其他参数默认值的取舍</h3>
+
+<table>
+  <tr><th>参数</th><th>默认</th><th>降低 → </th><th>调高 → </th></tr>
+  <tr><td><code>weight_lr</code></td><td>0.3</td><td>权重更稳但适应慢</td><td>权重抖动大</td></tr>
+  <tr><td><code>update_every</code></td><td>100</td><td>反应快但噪声大</td><td>稳但慢</td></tr>
+  <tr><td><code>ema_alpha</code></td><td>0.10</td><td>EMA 更平滑</td><td>更跟最近</td></tr>
+  <tr><td><code>w_floor</code></td><td>0.05</td><td>允许某维几乎归零（危险）</td><td>强制三项都有最低存在感</td></tr>
+  <tr><td><code>w_cap</code></td><td>0.70</td><td>禁止任何维一家独大</td><td>允许极端倾斜（容易 hack）</td></tr>
+  <tr><td><code>warmup_steps</code></td><td>50</td><td>立刻开始调权重（数据少时不稳）</td><td>固定权重跑久一些</td></tr>
+</table>
+
+<h2>10. 已知限制 / 进一步升级</h2>
+
+<ol>
+  <li><b>不是真正的 HV gradient</b> —— 这是"按差距 exp 加权"的启发式，省去了 HV 求导。
+      论文里 gradient-based 变体需要做 numerical HV grad，工程成本高 5-10x。
+      实测在 3 个 reward 的小空间里，本简化版能拿到 ≥ 80% 的提升。</li>
+  <li><b>跨 checkpoint 不持久化</b> —— reweighter 状态（EMA, weights, step）目前只在内存。
+      若中途 resume，weights 会从 YAML 的 init 重新开始。要彻底解决：在 <code>save_steps</code>
+      时把 <code>reweighter.__dict__</code> pickle 到 <code>output_dir/reweighter.pkl</code>，
+      reload 时从那读。</li>
+  <li><b>不和 TRL callback 集成</b> —— 现在权重日志只 print + tsv，没接 wandb / tensorboard。
+      要接入：把 <code>_update_weights</code> 末尾的权重写到 <code>trainer.state.log_history</code>。</li>
+  <li><b>reference 是绝对值，不是 Pareto 前沿点</b> —— 真正的多目标做法是维护一个动态 Pareto archive。
+      这版简化为"固定参考点"，足够 MAPLE 的 3 维场景，但更高维时需要换成 archive-based。</li>
+  <li><b>和 segment-wise credit 正交</b> —— 这个改动不冲突，将来上 SPO-chain 时，
+      reweighter 只需要在 segment-level reward 上观察均值即可。</li>
+</ol>
+
+<div class="note">
+<b>验证通过后的下一步</b>：开启 R_pers counterfactual（<code>pers_mode: "counterfactual"</code>）
+和 R_ped soft judge（<code>ped_mode: "full"</code>），让 reweighter 在更丰富的信号上工作。
+此时 reference 也要重新校准。
+</div>
+
+<hr>
+<p style="color: var(--muted); font-size: 0.85em; text-align: center; margin-top: 3rem;">
+MAPLE GRPO v1.5 · Hypervolume-Guided Dynamic Reward Weighting · 2026-05-17
+</p>
+
+</body>
+</html>

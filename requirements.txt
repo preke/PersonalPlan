@@ -1,0 +1,40 @@
+# MAPLE — pinned dependency floor for the public release.
+# Tested with Python 3.10+. Pin exact versions in your own environment
+# if you need full reproducibility (`pip freeze > requirements.lock.txt`).
+
+# --- Core ML / training ---
+torch>=2.2
+transformers>=4.45
+accelerate>=0.34
+peft>=0.13
+trl>=0.11
+datasets>=2.20
+huggingface_hub>=0.25
+sentencepiece>=0.2.0
+
+# --- Multi-agent execution layer ---
+crewai>=0.80
+openai>=1.40
+
+# --- LLM provider SDKs (only the ones you'll use need to be installed) ---
+anthropic>=0.40           # dataset construction (Claude Sonnet 4.6)
+dashscope>=1.20           # Qwen-based baselines (autogen_qwen3, autoagents, genmentor)
+
+# --- Data + utils ---
+pydantic>=2.5
+python-dotenv>=1.0
+tqdm>=4.66
+numpy>=1.26
+pandas>=2.1
+
+# --- Plotting (paper-analysis figures only) ---
+matplotlib>=3.8
+seaborn>=0.13
+
+# --- Optional: stats / statistical tests in analysis scripts ---
+scipy>=1.11
+scikit-learn>=1.4
+
+# --- Optional: SO data ingest / construction ---
+# requests>=2.31
+# beautifulsoup4>=4.12

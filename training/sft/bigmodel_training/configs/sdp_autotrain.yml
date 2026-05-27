@@ -1,0 +1,65 @@
+# TRL SFTTrainer config for Stage 1b — SDP Supervised Fine-Tuning
+# Reproduces §4 of the paper:
+#   x_sdp = I_q ⊕ I_p ⊕ A* ⊕ T*    (conditioned on the GOLD scaffold)
+#   y_sdp = (S*, O*) — concrete steps + execution_order
+#
+# This is a SEPARATE LoRA adapter from PAD, trained on the same frozen
+# backbone. The adapter is independent and can be trained in parallel
+# with the PAD adapter.
+#
+# Run with:
+#   ./train_sdp.sh
+
+task: llm-sft
+
+base_model: /root/autodl-tmp/Qwen-32B-Instruct
+project_name: maple-sdp-sft
+
+log: tensorboard
+backend: local
+
+data:
+  path: data/sdp
+  train_split: train
+  valid_split: dev
+  chat_template: tokenizer
+  column_mapping:
+    text_column: messages
+
+params:
+  trainer: sft
+  peft: true
+  lora_r: 16
+  lora_alpha: 32
+  lora_dropout: 0.05
+  target_modules: all-linear
+
+  block_size: 3072
+  model_max_length: 3072
+
+  epochs: 2
+  batch_size: 2
+  gradient_accumulation: 8
+  lr: 1.0e-4
+  optimizer: paged_adamw_8bit
+  scheduler: cosine
+  warmup_ratio: 0.02
+  weight_decay: 0.01
+
+  mixed_precision: bf16
+  quantization: null
+  disable_gradient_checkpointing: false
+
+  logging_steps: 1
+  eval_strategy: steps
+  eval_steps: 50
+  save_strategy: steps
+  save_steps: 50
+  save_total_limit: 3
+
+  seed: 42
+
+hub:
+  push_to_hub: false
+  username: local
+  token: dummy

@@ -1,0 +1,40 @@
+cff-version: 1.2.0
+title: "MAPLE: Multi-Agent Personalized Learning Plans"
+message: "If you use MAPLE in your research, please cite the paper below."
+type: software
+authors:
+  - family-names: "TBD"
+    given-names: "TBD"
+    affiliation: "TBD"
+    # orcid: "https://orcid.org/0000-0000-0000-0000"
+abstract: >-
+  MAPLE is a dataset and training/evaluation pipeline for multi-agent
+  personalized teaching plans. It pairs Stack Overflow duplicate-question
+  clusters with learner profiles, generates multi-agent plans with Claude
+  Sonnet 4.6, and validates them via static structural checks and execution
+  feasibility. The release includes hierarchical SFT (PAD / SDP / Joint
+  Alignment) and GRPO training code with structural + personalization +
+  pedagogical + hard-constraint rewards, a CrewAI-based Teacher/Student
+  Socratic execution layer, and a five-tier baseline matrix.
+keywords:
+  - multi-agent systems
+  - personalized learning
+  - large language models
+  - educational AI
+  - SFT
+  - GRPO
+license: MIT
+license-url: "https://opensource.org/licenses/MIT"
+repository-code: "https://github.com/TBD/maple"
+url: "https://github.com/TBD/maple"
+
+# Once the paper is on arXiv / accepted, fill in `preferred-citation`:
+# preferred-citation:
+#   type: article
+#   title: "MAPLE: ..."
+#   authors:
+#     - family-names: "TBD"
+#       given-names: "TBD"
+#   year: 2026
+#   journal: "TBD"
+#   doi: "TBD"

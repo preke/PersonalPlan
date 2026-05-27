@@ -1,0 +1,583 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>Tier 1 评估使用指南</title>
+<style>
+  body { font-family: -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif;
+         max-width: 1100px; margin: 30px auto; padding: 0 30px;
+         color: #222; line-height: 1.65; background: #fdfdfd; }
+  h1 { border-bottom: 3px solid #2c3e50; padding-bottom: 8px; color: #2c3e50; }
+  h2 { border-bottom: 2px solid #ddd; padding-bottom: 4px; color: #2c3e50;
+       margin-top: 40px; }
+  h3 { color: #34495e; margin-top: 24px; }
+  h4 { color: #555; margin-top: 18px; }
+  code { background: #f0f3f6; padding: 1px 6px; border-radius: 3px;
+         font-family: "Consolas", "Menlo", monospace; font-size: 0.92em;
+         color: #c7254e; }
+  pre { background: #1e1e2e; color: #eaeaea; padding: 14px 18px;
+        border-radius: 5px; overflow-x: auto; font-size: 0.88em; line-height: 1.5; }
+  pre code { background: transparent; color: inherit; padding: 0; }
+  table { border-collapse: collapse; width: 100%; margin: 14px 0; }
+  th { background: #2c3e50; color: white; padding: 8px 12px; text-align: left;
+       font-weight: 600; }
+  td { border-bottom: 1px solid #e0e0e0; padding: 8px 12px; vertical-align: top; }
+  tr:nth-child(even) td { background: #f7f9fb; }
+  .ok { color: #1b8a3a; font-weight: 600; }
+  .warn { color: #c87a00; font-weight: 600; }
+  .err { color: #c0392b; font-weight: 600; }
+  .note { background: #eef6fb; border-left: 4px solid #3498db; padding: 10px 16px;
+          margin: 12px 0; border-radius: 0 4px 4px 0; }
+  .warn-box { background: #fff7e6; border-left: 4px solid #e08e00; padding: 10px 16px;
+              margin: 12px 0; border-radius: 0 4px 4px 0; }
+  .err-box { background: #fdecea; border-left: 4px solid #c0392b; padding: 10px 16px;
+             margin: 12px 0; border-radius: 0 4px 4px 0; }
+  .tag { display: inline-block; padding: 1px 8px; border-radius: 10px;
+         font-size: 0.78em; font-weight: 600; margin-right: 4px; }
+  .tag-rule { background: #d4e9d4; color: #1b5e1b; }
+  .tag-judge { background: #ffe0c2; color: #8a4500; }
+  .tag-cf { background: #d8d0f0; color: #4a2680; }
+  .toc { background: #f7f9fb; border: 1px solid #ddd; padding: 14px 20px;
+         border-radius: 5px; margin: 20px 0; }
+  .toc ul { margin: 4px 0; padding-left: 20px; }
+  .toc a { color: #2c3e50; text-decoration: none; }
+  .toc a:hover { text-decoration: underline; }
+  .meta { color: #888; font-size: 0.9em; }
+  ul li { margin: 3px 0; }
+</style>
+</head>
+<body>
+
+<h1>Tier 1 评估使用指南</h1>
+<div class="meta">
+  最后更新：2026-05-26 ｜ 适用于
+  <code>D:/codex_project/multi_agent_datasets/Evaluation/</code> 下的 Tier 1 代码
+</div>
+
+<div class="toc">
+  <strong>目录</strong>
+  <ul>
+    <li><a href="#overview">1. Tier 1 评估概览</a></li>
+    <li><a href="#prereq">2. 环境与依赖</a></li>
+    <li><a href="#files">3. 必需文件</a></li>
+    <li><a href="#metrics">4. 10 项指标说明</a></li>
+    <li><a href="#path-a">5. 推荐方式 A：<code>tier1_run.py</code> 一条命令</a></li>
+    <li><a href="#path-b">6. 推荐方式 B：拆 4 个脚本并行跑</a></li>
+    <li><a href="#examples">7. 完整示例（按 baseline）</a></li>
+    <li><a href="#output">8. 输出格式</a></li>
+    <li><a href="#pitfalls">9. 常见踩坑</a></li>
+    <li><a href="#files-list">10. 代码文件清单</a></li>
+  </ul>
+</div>
+
+<!-- ====================================================== -->
+<h2 id="overview">1. Tier 1 评估概览</h2>
+
+<p>Tier 1 是 <strong>plan 静态质量评估</strong>（pre-execution）—— 在 plan 还没真正执行前，
+评估它的结构合理性、内容质量、个性化程度。共 <strong>10 项指标</strong>，分 3 类：</p>
+
+<table>
+  <tr><th>类别</th><th>指标</th><th>是否需要 LLM API</th><th>耗时（305 条）</th></tr>
+  <tr>
+    <td><span class="tag tag-rule">规则</span></td>
+    <td>SchemaValid_Pass / ToolAgent_Perm / Topo_Consist / ATR / GED_sim</td>
+    <td>❌ 不需要</td>
+    <td>~2–3 min（CPU）</td>
+  </tr>
+  <tr>
+    <td><span class="tag tag-judge">LLM judge</span></td>
+    <td>Pers + 3 子维（SkillMatch / GoalOrient / BgAdapt）<br/>
+        Ped + 4 子维（PRR / NDAR / SPR / IAR）</td>
+    <td>✅ 需要 bianxie.ai API key</td>
+    <td>~40 min（8 workers）</td>
+  </tr>
+  <tr>
+    <td><span class="tag tag-cf">反事实</span></td>
+    <td>PVS（规则）/ PNG（LLM judge）</td>
+    <td>PVS ❌ ／ PNG ✅</td>
+    <td>PVS ~30s ／ PNG ~6 min</td>
+  </tr>
+</table>
+
+<div class="note">
+  <strong>默认 LLM judge backend：</strong><code>gemini-3.1-pro-preview</code>（via bianxie.ai 代理）。
+  历史脚注：早期用过 <code>gpt-5-2025-08-07</code>，2026-05-22 起统一切到 gemini，
+  长期默认不再改。
+</div>
+
+<!-- ====================================================== -->
+<h2 id="prereq">2. 环境与依赖</h2>
+
+<h3>2.1 Python 包</h3>
+<pre><code>pip install pydantic networkx pandas tqdm scipy openai python-dotenv
+
+# 仅 ATR embedding 模式（推荐）需要：
+pip install sentence-transformers
+# 不装也行，跑时加 --atr-mode keyword 走纯关键词模式</code></pre>
+
+<h3>2.2 API key</h3>
+<p>LLM judge / PNG 需要 bianxie.ai 的 API key。把它放在
+<code>D:/codex_project/multi_agent_datasets/.env</code> 文件里（脚本会自动 <code>load_dotenv()</code>）：</p>
+
+<pre><code>OPENAI_PROXY_API_KEY=sk-xxxxxx...
+# 或：
+OPENAI_API_KEY=sk-xxxxxx...</code></pre>
+
+<p>也可以直接设环境变量：</p>
+<pre><code>set OPENAI_PROXY_API_KEY=sk-xxxxxx</code></pre>
+
+<h3>2.3 Python 版本</h3>
+<p>Python 3.10+（pydantic v2 + 类型提示语法需要）。</p>
+
+<!-- ====================================================== -->
+<h2 id="files">3. 必需文件</h2>
+
+<table>
+  <tr><th>用途</th><th>文件</th><th>路径</th><th>来源</th></tr>
+  <tr>
+    <td>待评估 plans</td>
+    <td><code>--input</code></td>
+    <td>由你提供，JSONL 格式</td>
+    <td>各 baseline 生成的 plans</td>
+  </tr>
+  <tr>
+    <td>Gold dataset</td>
+    <td><code>--gold</code></td>
+    <td><code>D:/codex_project/multi_agent_datasets/multi_agent_dataset_filtered_qap.jsonl</code></td>
+    <td>v15 release 全量 3043 条（不要用 test305 子集，否则 dev qid 找不到 gold）</td>
+  </tr>
+  <tr>
+    <td>QAP 字典（accepted answer）</td>
+    <td><code>--qap</code></td>
+    <td><code>D:/codex_project/multi_agent_datasets/filtered_qap.jsonl</code></td>
+    <td>NDAR 子指标需要</td>
+  </tr>
+</table>
+
+<h3>3.1 输入 plans JSONL 格式</h3>
+<p>每行一个 JSON 对象，必须包含外层 wrapper：</p>
+<pre><code>{
+  "question_id": "1031554",
+  "profile_index": 1,
+  "generated_plan": {
+    "input":  { "query": "...", "learner": { "about_me": "...", "top_tags": [...] } },
+    "output": { "agents": [...], "subtasks": [...], "execution_order": [...] }
+  }
+}</code></pre>
+
+<p>外层支持以下两种别名（都会被自动 unwrap）：</p>
+<ul>
+  <li><code>generated_plan</code>（baseline 输出标准）</li>
+  <li><code>plan</code>（gold dataset 标准）</li>
+</ul>
+
+<!-- ====================================================== -->
+<h2 id="metrics">4. 10 项指标说明</h2>
+
+<table>
+  <tr><th>#</th><th>指标</th><th>类型</th><th>取值</th><th>含义</th></tr>
+  <tr>
+    <td>1</td>
+    <td><strong>SchemaValid_Pass</strong></td>
+    <td>规则</td>
+    <td>{0, 1}</td>
+    <td>schema 合规综合门：top-level 字段齐全、agent.tools ⊂ 8 工具白名单、
+        step.agent 已声明、step.tool 在 agent 工具列表里、execution_order = 所有 step.id 集合</td>
+  </tr>
+  <tr>
+    <td>2</td>
+    <td><strong>ToolAgent_Perm</strong></td>
+    <td>规则</td>
+    <td>[0, 1] 或 NaN</td>
+    <td>带工具的 step 中，工具 ∈ 该 agent.tools 的比例。
+        NaN = 该 plan 完全没用工具（不算失败）</td>
+  </tr>
+  <tr>
+    <td>3</td>
+    <td><strong>Topo_Consist</strong></td>
+    <td>规则</td>
+    <td>[0, 1]</td>
+    <td>depends_on 边中「dep 早于 dependent」在 execution_order 顺序里的比例</td>
+  </tr>
+  <tr>
+    <td>4</td>
+    <td><strong>ATR</strong></td>
+    <td>规则</td>
+    <td>[0, 1] 或 NaN</td>
+    <td>Agent-Tool-Subtask 三方语义对齐（embedding mode 用 MiniLM 余弦阈值 0.10）</td>
+  </tr>
+  <tr>
+    <td>5</td>
+    <td><strong>GED_sim</strong></td>
+    <td>规则（vs gold）</td>
+    <td>[0, 1] 或 NaN</td>
+    <td>1 − GED / max(|S|+|O|, |S*|+|O*|)，与 gold plan 的图编辑距离相似度</td>
+  </tr>
+  <tr>
+    <td>6</td>
+    <td><strong>Pers</strong> + 3 子维</td>
+    <td>LLM judge</td>
+    <td>[0, 1]</td>
+    <td>个性化得分（SkillMatch / GoalOrient / BgAdapt 三子维平均）</td>
+  </tr>
+  <tr>
+    <td>7</td>
+    <td><strong>Ped</strong> + 4 子维</td>
+    <td>LLM judge</td>
+    <td>[0, 1]</td>
+    <td>教学法得分（PRR / NDAR / SPR / IAR 四子维平均）</td>
+  </tr>
+  <tr>
+    <td>8</td>
+    <td><strong>PVS</strong></td>
+    <td>反事实（规则）</td>
+    <td>[0, 1]</td>
+    <td>Profile Variation Sensitivity = 1 − mean pairwise GED-sim per qid，
+        然后跨 qid 取均值。**需要多 profile qid**</td>
+  </tr>
+  <tr>
+    <td>9</td>
+    <td><strong>PNG</strong></td>
+    <td>反事实（LLM）</td>
+    <td>(-1, 1)</td>
+    <td>Profile-Negative Gain = Pers(real plan with real profile)
+        − Pers(other plan with this profile swapped in)</td>
+  </tr>
+</table>
+
+<div class="note">
+  <strong>SchemaValid_Pass 的 6 个子检查（按出现顺序）：</strong>
+  <ol>
+    <li>顶层有 <code>input</code> 和 <code>output</code></li>
+    <li><code>input.query</code> + <code>input.learner.{about_me, top_tags}</code> 都齐全</li>
+    <li><code>output.agents</code> 非空、每个 agent 4 字段齐全</li>
+    <li>每个 <code>agent.tools[*]</code> ∈ 8 工具白名单</li>
+    <li>每个 step 8 字段齐全（含 <code>depends_on</code>）；<code>step.agent</code> ∈ 已声明 agents；
+        <code>step.tool</code> ∈ 该 agent 的 tools 列表</li>
+    <li><code>flatten(execution_order)</code> 集合 = 所有 step.id 集合</li>
+  </ol>
+  任一子检查失败 → 该 plan 得 0。
+</div>
+
+<!-- ====================================================== -->
+<h2 id="path-a">5. 推荐方式 A：<code>tier1_run.py</code> 一条命令</h2>
+
+<p>新数据集做完整 Tier 1，<strong>一条命令搞定</strong>：</p>
+
+<pre><code>cd D:/codex_project/multi_agent_datasets/Evaluation
+
+python tier1_run.py \
+    --input  &lt;你的_plans.jsonl&gt; \
+    --output &lt;输出.csv&gt; \
+    --gold   D:/codex_project/multi_agent_datasets/multi_agent_dataset_filtered_qap.jsonl \
+    --qap    D:/codex_project/multi_agent_datasets/filtered_qap.jsonl \
+    --workers 8 \
+    --pvs --png</code></pre>
+
+<h3>5.1 完整参数表</h3>
+<table>
+  <tr><th>参数</th><th>默认值</th><th>说明</th></tr>
+  <tr><td><code>--input</code></td><td><strong>必填</strong></td><td>plans JSONL 路径</td></tr>
+  <tr><td><code>--output</code></td><td><strong>必填</strong></td><td>输出 CSV 路径</td></tr>
+  <tr><td><code>--gold</code></td><td>Evaluation/multi_agent_dataset_filtered_qap_v15_goodplus.jsonl</td>
+      <td>GED-sim 和 PVS 用的 gold；<span class="warn">推荐用顶层 3043 全量</span></td></tr>
+  <tr><td><code>--qap</code></td><td>Evaluation/filtered_qap.jsonl</td>
+      <td>NDAR 用的 accepted-answer 字典</td></tr>
+  <tr><td><code>--judge</code></td><td>gemini-3.1-pro-preview</td>
+      <td>LLM judge backend，long-term 不改</td></tr>
+  <tr><td><code>--workers</code></td><td>4</td><td>LLM 并发数；全量跑建议 8</td></tr>
+  <tr><td><code>--rule-only</code></td><td>False</td><td>只跑 5 项规则，无需 API key（快速 smoke）</td></tr>
+  <tr><td><code>--pvs</code></td><td>False</td><td>额外算 PVS 聚合</td></tr>
+  <tr><td><code>--png</code></td><td>False</td><td>额外算 PNG 聚合（需 API key）</td></tr>
+  <tr><td><code>--atr-mode</code></td><td>embedding</td>
+      <td><code>embedding</code>（需 sentence-transformers）或 <code>keyword</code></td></tr>
+  <tr><td><code>--atr-threshold</code></td><td>0.10</td>
+      <td>embedding 模式的余弦相似度阈值</td></tr>
+  <tr><td><code>--limit</code></td><td>None</td><td>只跑前 N 条（smoke 用）</td></tr>
+</table>
+
+<h3>5.2 想只跑某一类指标</h3>
+<pre><code># 只跑 5 项规则（无需 API key，~3 min）
+python tier1_run.py --input plans.jsonl --output out.csv --rule-only
+
+# 跑 rule + judge（不要反事实）
+python tier1_run.py --input plans.jsonl --output out.csv
+
+# 跑全部 10 项（含 PVS + PNG）
+python tier1_run.py --input plans.jsonl --output out.csv --pvs --png</code></pre>
+
+<!-- ====================================================== -->
+<h2 id="path-b">6. 推荐方式 B：拆 4 个脚本并行跑</h2>
+
+<p>大数据集（≥ 300 行）+ 想要分类 CSV 输出，建议用
+<code>tier1_full305_2026-05-22/_run_*_grpo_v4.py</code> 这套作为模板。</p>
+
+<table>
+  <tr><th>脚本</th><th>作用</th><th>耗时</th><th>API key</th><th>输出</th></tr>
+  <tr><td><code>_run_rule_grpo_v4.py</code></td><td>5 项规则</td><td>~3 min</td><td>❌</td>
+      <td><code>rule_&lt;NAME&gt;.csv</code></td></tr>
+  <tr><td><code>_run_judge_grpo_v4.py</code></td><td>Pers + Ped 子维</td><td>~40 min</td><td>✅</td>
+      <td><code>judge_&lt;NAME&gt;.csv</code></td></tr>
+  <tr><td><code>_run_pvs_grpo_v4.py</code></td><td>PVS 聚合</td><td>~30 s</td><td>❌</td>
+      <td><code>pvs_&lt;NAME&gt;.csv</code> + 追加 <code>pvs_summary.csv</code></td></tr>
+  <tr><td><code>_run_png_grpo_v4.py</code></td><td>PNG 聚合（依赖 judge）</td><td>~6 min</td><td>✅</td>
+      <td><code>png_&lt;NAME&gt;.csv</code></td></tr>
+</table>
+
+<h3>6.1 改一份新 baseline 的模板</h3>
+<p>每个脚本头部只改 3 个常量：</p>
+<pre><code>NAME   = "&lt;你的baseline_name&gt;"
+INPUT  = "D:/.../your_plans.jsonl"
+GOLD   = "D:/codex_project/multi_agent_datasets/multi_agent_dataset_filtered_qap.jsonl"</code></pre>
+
+<h3>6.2 并行跑（推荐顺序）</h3>
+<pre><code>cd D:/codex_project/multi_agent_datasets/Evaluation/tier1_full305_2026-05-22
+
+# T=0：3 个并行启
+python _run_rule_&lt;NAME&gt;.py   &gt; _rule_&lt;NAME&gt;.log  2&gt;&amp;1 &amp;
+python _run_judge_&lt;NAME&gt;.py  &gt; _judge_&lt;NAME&gt;.log 2&gt;&amp;1 &amp;
+python _run_pvs_&lt;NAME&gt;.py    &gt; _pvs_&lt;NAME&gt;.log   2&gt;&amp;1 &amp;
+wait
+
+# T=judge 跑完后：PNG 依赖 judge 的 Pers cache
+python _run_png_&lt;NAME&gt;.py    &gt; _png_&lt;NAME&gt;.log   2&gt;&amp;1</code></pre>
+
+<!-- ====================================================== -->
+<h2 id="examples">7. 完整示例（按 baseline）</h2>
+
+<h3>7.1 评估 claude_opus_4_6_plans_fixed（最新修复版）</h3>
+<pre><code>cd D:/codex_project/multi_agent_datasets/Evaluation
+
+python tier1_run.py \
+    --input  D:/codex_project/multi_agent_datasets/baselines/T1_results/claude_opus_4_6_plans_fixed.jsonl \
+    --output D:/codex_project/multi_agent_datasets/Evaluation/tier1_full305_2026-05-22/tier1_claude_fixed.csv \
+    --gold   D:/codex_project/multi_agent_datasets/multi_agent_dataset_filtered_qap.jsonl \
+    --qap    D:/codex_project/multi_agent_datasets/filtered_qap.jsonl \
+    --workers 8 --pvs --png</code></pre>
+
+<h3>7.2 评估 qwen3_max_plans_fixed</h3>
+<pre><code>python tier1_run.py \
+    --input  D:/codex_project/multi_agent_datasets/baselines/T1_results/qwen3_max_plans_fixed.jsonl \
+    --output D:/codex_project/multi_agent_datasets/Evaluation/tier1_full305_2026-05-22/tier1_qwen3-max_fixed.csv \
+    --gold   D:/codex_project/multi_agent_datasets/multi_agent_dataset_filtered_qap.jsonl \
+    --qap    D:/codex_project/multi_agent_datasets/filtered_qap.jsonl \
+    --workers 8 --pvs --png</code></pre>
+
+<h3>7.3 只跑 rule 验证某个 baseline 是否 SV/TA 满分（不调用 LLM）</h3>
+<pre><code>python tier1_run.py \
+    --input  D:/codex_project/multi_agent_datasets/baselines/T1_results/claude_opus_4_6_plans_fixed.jsonl \
+    --output /tmp/check.csv \
+    --gold   D:/codex_project/multi_agent_datasets/multi_agent_dataset_filtered_qap.jsonl \
+    --rule-only --atr-mode keyword</code></pre>
+
+<!-- ====================================================== -->
+<h2 id="output">8. 输出格式</h2>
+
+<h3>8.1 主 CSV 字段</h3>
+<pre><code>question_id, profile_index,
+SchemaValid_Pass, ToolAgent_Perm, Topo_Consist, ATR, GED_sim,        # 5 项规则
+Pers, Pers_SkillMatch, Pers_GoalOrient, Pers_BgAdapt,                 # Pers + 3 子维
+Ped,  Ped_PRR, Ped_NDAR, Ped_SPR, Ped_IAR,                            # Ped + 4 子维
+error                                                                 # 异常信息</code></pre>
+
+<h3>8.2 stdout 打印</h3>
+<ul>
+  <li>每项指标的均值 + n（非 NaN 数）</li>
+  <li>有 error 的行数</li>
+  <li>PVS 聚合（如果加了 <code>--pvs</code>）</li>
+  <li>PNG 聚合 + paired-t p-value（如果加了 <code>--png</code>）</li>
+</ul>
+
+<h3>8.3 PVS / PNG 单独 CSV</h3>
+<ul>
+  <li><code>pvs_&lt;NAME&gt;.csv</code> — per-qid PVS + n_profiles</li>
+  <li><code>pvs_summary.csv</code> — 跨 baseline 汇总（mean/median/min/max/std）</li>
+  <li><code>png_&lt;NAME&gt;.csv</code> — per-pair PNG = Pers_real − Pers_shuf_cf</li>
+</ul>
+
+<!-- ====================================================== -->
+<h2 id="pitfalls">9. 常见踩坑</h2>
+
+<div class="err-box">
+  <strong>坑 1：GED_sim 全 NaN</strong><br/>
+  <strong>原因</strong>：<code>--gold</code> 用了只覆盖 test split 的
+  <code>gold_v15_test305.jsonl</code>，但你 plan 用的是 dev 或 train qid。<br/>
+  <strong>修法</strong>：<code>--gold</code> 一律用顶层全量
+  <code>multi_agent_dataset_filtered_qap.jsonl</code>（3043 条），覆盖所有 split。
+</div>
+
+<div class="err-box">
+  <strong>坑 2：PVS = 0 或 "multi-profile qids: 0"</strong><br/>
+  <strong>原因</strong>：参考脚本里写死了 gpt-5 qid 做 universe filter；
+  如果新数据用 dev qid，过滤光了。<br/>
+  <strong>修法</strong>：照 <code>_run_pvs_grpo_v4.py</code> 用文件自己的 qid，不外加过滤。
+</div>
+
+<div class="err-box">
+  <strong>坑 3：<code>ModuleNotFoundError: sentence_transformers</code></strong><br/>
+  <strong>原因</strong>：ATR embedding mode 需要这个包，本机没装。<br/>
+  <strong>修法</strong>：两选一——
+  <ol>
+    <li><code>pip install sentence-transformers</code></li>
+    <li>加 <code>--atr-mode keyword</code> 走纯关键词模式（精度略低但能跑）</li>
+  </ol>
+</div>
+
+<div class="warn-box">
+  <strong>坑 4：API key 报错 / "missing OPENAI_PROXY_API_KEY"</strong><br/>
+  <strong>修法</strong>：检查 <code>D:/codex_project/multi_agent_datasets/.env</code>
+  里有 <code>OPENAI_PROXY_API_KEY=...</code>，或环境变量里有。
+</div>
+
+<div class="warn-box">
+  <strong>坑 5：plan JSON 格式坏（KeyError / ValidationError）</strong><br/>
+  <strong>修法</strong>：先跑 <code>--rule-only</code>，看 <code>error</code> 列是否报
+  schema 异常。如果是 LLM 输出的 JSON 本身坏，参考
+  <code>baselines/T1_results/_convert_grpo_v4.py</code> 用
+  <code>json_repair</code> 包兜底修。
+</div>
+
+<div class="warn-box">
+  <strong>坑 6：bianxie.ai 限速 / Claude 偶发 schema bug</strong><br/>
+  <strong>修法</strong>：判 judge 时 <code>--workers 4</code> 起步，遇 429
+  自动 retry；Claude 路径偶发空 JSON 反复跑 1-2 次基本能成。
+</div>
+
+<div class="warn-box">
+  <strong>坑 7：续跑 / done set 跳过想重跑的行</strong><br/>
+  <strong>原因</strong>：<code>_run_*</code> 脚本不带 resume；
+  <code>tier1_run.py</code> 也是从头跑。要部分重跑必须先删旧 CSV
+  或换 <code>--output</code> 路径。
+</div>
+
+<!-- ====================================================== -->
+<h2 id="files-list">10. 代码文件清单</h2>
+
+<h3>10.1 底层库（核心实现）</h3>
+<table>
+  <tr><th>文件</th><th>作用</th><th>导出</th></tr>
+  <tr>
+    <td><code>tier1_rule.py</code></td>
+    <td>5 项规则指标 + 共享 schema (Pydantic) + JSONL helpers</td>
+    <td><code>eval_rule()</code> / <code>RULE_COLS</code> /
+        <code>load_jsonl</code> / <code>unwrap</code> /
+        <code>build_gold_map</code> / <code>build_qap_lookup</code></td>
+  </tr>
+  <tr>
+    <td><code>tier1_judge.py</code></td>
+    <td>LLM judge（Pers + Ped + 7 子维） + prompt 9 段结构</td>
+    <td><code>eval_judge()</code> / <code>pers()</code> /
+        <code>JUDGE_COLS</code> / <code>DEFAULT_JUDGE</code> /
+        <code>inject_accepted_answer()</code></td>
+  </tr>
+  <tr>
+    <td><code>tier1_counterfactual.py</code></td>
+    <td>反事实指标</td>
+    <td><code>pvs()</code> / <code>png()</code> /
+        <code>bucket_by_qid()</code> /
+        <code>build_png_pairs_from_multi_profile()</code></td>
+  </tr>
+  <tr>
+    <td><strong><code>tier1_run.py</code></strong> ⭐</td>
+    <td>统一 CLI 入口（最常用）</td>
+    <td>main() —— 直接 <code>python tier1_run.py --input ...</code></td>
+  </tr>
+</table>
+
+<h3>10.2 runner 脚本（针对单个 baseline 的封装）</h3>
+<p>位置：<code>D:/codex_project/multi_agent_datasets/Evaluation/tier1_full305_2026-05-22/</code></p>
+<table>
+  <tr><th>脚本</th><th>作用</th><th>备注</th></tr>
+  <tr>
+    <td><code>_run_rule_grpo_v4.py</code></td>
+    <td>rule 跑 grpo_v4</td>
+    <td>最新版（修过 gold 用全量 3043 不用 test305）</td>
+  </tr>
+  <tr>
+    <td><code>_run_judge_generic.py</code></td>
+    <td>通用 judge 模板</td>
+    <td>给一般 baseline 用</td>
+  </tr>
+  <tr>
+    <td><code>_run_judge_autogen.py</code></td>
+    <td>autogen 专用 judge</td>
+    <td></td>
+  </tr>
+  <tr>
+    <td><code>_run_judge_grpo_v4.py</code></td>
+    <td>grpo_v4 专用 judge</td>
+    <td>最新版</td>
+  </tr>
+  <tr>
+    <td><code>_run_pvs_all.py</code></td>
+    <td>PVS 批量（多 baseline 一次过）</td>
+    <td></td>
+  </tr>
+  <tr>
+    <td><code>_run_pvs_grpo_v4.py</code></td>
+    <td>grpo_v4 专用 PVS（fixed qid universe）</td>
+    <td>最新版</td>
+  </tr>
+  <tr>
+    <td><code>_run_png_cached.py</code></td>
+    <td>PNG 通用版（复用 judge cache）</td>
+    <td></td>
+  </tr>
+  <tr>
+    <td><code>_run_png_grpo_v4.py</code></td>
+    <td>grpo_v4 专用 PNG</td>
+    <td>最新版</td>
+  </tr>
+</table>
+
+<h3>10.3 跟代码无关但常被一起提到的</h3>
+<table>
+  <tr><th>文件</th><th>作用</th></tr>
+  <tr>
+    <td><code>EVALUATION_DESIGN_2026-05-15.html</code></td>
+    <td>Tier 1 设计文档（11 项指标 + rubric + 示例）</td>
+  </tr>
+  <tr>
+    <td><code>TIER1_IMPLEMENTATION_REVIEW.html</code></td>
+    <td>每项指标的实现审计（每指标对应代码位置）</td>
+  </tr>
+  <tr>
+    <td><code>tier1_full305_2026-05-22/TIER1_RESULTS.html</code></td>
+    <td>跨 baseline 对比可视化（最终结果表）</td>
+  </tr>
+</table>
+
+<!-- ====================================================== -->
+<h2 id="quick">附录：极速 cheatsheet</h2>
+
+<div class="note">
+  <strong>新 baseline 想立刻跑完整 Tier 1：</strong>
+  <pre style="margin: 8px 0;"><code>cd D:/codex_project/multi_agent_datasets/Evaluation
+python tier1_run.py \
+    --input  &lt;your_plans.jsonl&gt; \
+    --output &lt;output.csv&gt; \
+    --gold   D:/codex_project/multi_agent_datasets/multi_agent_dataset_filtered_qap.jsonl \
+    --qap    D:/codex_project/multi_agent_datasets/filtered_qap.jsonl \
+    --workers 8 --pvs --png</code></pre>
+</div>
+
+<div class="note">
+  <strong>只想 smoke 验证 schema：</strong>
+  <pre style="margin: 8px 0;"><code>python tier1_run.py --input &lt;plans.jsonl&gt; --output check.csv \
+    --gold &lt;...&gt; --rule-only --atr-mode keyword --limit 10</code></pre>
+</div>
+
+<div class="note">
+  <strong>大数据集分类并行（推荐用 grpo_v4 那套模板）：</strong>
+  改 3 个常量 → 启 3 个 background 进程 → judge 跑完启 PNG。
+</div>
+
+<hr style="margin-top: 50px; border: none; border-top: 1px solid #ddd;">
+<p class="meta" style="text-align: center;">
+  生成于 2026-05-26 ｜
+  对应代码版本：<code>Evaluation/tier1_run.py</code> @ 2026-05-23 |
+  默认 judge：<code>gemini-3.1-pro-preview</code>
+</p>
+
+</body>
+</html>

@@ -1,0 +1,346 @@
+You are evaluating whether a teaching plan was faithfully executed
+and whether its teaching content is correct and effective.
+
+You will receive three separate inputs:
+1. Plan JSON — the teaching workflow blueprint
+2. Execution Log — a JSON array of what actually happened at runtime
+3. Accepted Answer — the correct solution from Stack Overflow
+   (this is NOT part of the plan; it is provided separately as
+   a correctness reference)
+
+You will perform four checks and produce a structured report.
+
+IMPORTANT PRINCIPLE:
+The student agent is an LLM, not a real learner. Do NOT try to infer
+whether it "truly learned." Instead, treat the student's response
+sequence as an observable behavioral trace — if the student's outputs
+shift from incorrect toward correct after specific teaching steps,
+that is evidence that the plan's instructional flow is working.
+
+==================================================================
+CHECK 1: INSTRUCTION FIDELITY
+==================================================================
+
+GOAL: For each learner-facing step, verify that the teaching agent
+did what the plan's instruction asked it to do.
+
+HOW TO DO IT:
+
+For each log entry where requires_human_input = true,
+compare plan_instruction against teacher_output.
+(For loop steps, only check the LAST iteration.)
+
+Judge two aspects per step:
+
+(A) Action Alignment
+
+Read plan_instruction, extract the core action intent
+(e.g., "elicit a prediction", "explain X using Y as analogy",
+"ask student to write code").
+Then check: does teacher_output carry out that intent?
+
+  - Aligned: the agent does what the instruction asks.
+    Wording differences are fine.
+  - Partial Deviation: the agent does the requested action
+    BUT adds unrequested content (e.g., reveals the answer early).
+  - Severe Deviation: the agent does something fundamentally different
+    (e.g., instruction says "elicit prediction", agent gives a lecture).
+
+(B) Boundary Compliance
+
+Check: does teacher_output teach content that belongs to LATER steps?
+Look at the plan's subsequent steps' instructions and subtask_objectives
+to determine what counts as "later content."
+
+  - Within Bounds: only covers current step's content.
+  - Minor Overstep: briefly mentions a later topic without teaching it.
+  - Severe Overstep: teaches a later step's core content,
+    making that step redundant.
+
+VERDICT:
+  Pass — no step has Severe Deviation or Severe Overstep.
+  Fail — any step has Severe Deviation or Severe Overstep.
+
+==================================================================
+CHECK 2: WORKFLOW COMPLETENESS
+==================================================================
+
+GOAL: Verify that all steps ran, loops worked, and information
+flowed between steps.
+
+HOW TO DO IT:
+
+(A) Step Coverage
+
+Go through execution_order in the plan. For each step ID,
+verify the log has at least one entry with non-empty actual_interaction.
+
+  - Complete: all steps have records.
+  - Incomplete: some steps are missing or have empty output.
+    List the missing step IDs.
+
+(B) Loop Behavior
+
+For each loop in execution_order, check:
+  1. Does the log have entries for it?
+  2. Does the final iteration have an exit_reason
+     ("condition_met" or "max_iterations")?
+  3. If exit_reason is "condition_met", does the teacher's output
+     in that iteration contain a judgment consistent with the
+     condition being satisfied?
+  4. If the loop exited after only 1 iteration via "condition_met":
+     verify the teacher's judgment in that iteration is substantiated,
+     not just a default pass-through.
+
+  - Normal: all loops have clear, consistent exit_reasons.
+  - Abnormal: any loop lacks exit_reason, or exit_reason contradicts
+    the interaction content. Describe the issue.
+
+(C) Information Flow
+
+For each step with depends_on (check the plan JSON),
+verify that the upstream step produced output relevant to
+what the downstream step needs. Only flag obvious breaks —
+upstream output is empty, missing, or clearly irrelevant.
+
+  - Connected: no obvious breaks.
+  - Broken: at least one break. List them.
+
+VERDICT:
+  Pass — coverage Complete, loops Normal, flow Connected.
+  Fail — any sub-check fails.
+
+==================================================================
+CHECK 3: INTERACTION QUALITY
+==================================================================
+
+GOAL: Verify that the student agent participated substantively
+in the teaching interactions.
+
+HOW TO DO IT:
+
+(A) Participation — rate each student_response
+
+For every learner-facing log entry (including each iteration
+within loops), classify the student_response:
+
+  - Substantive: directly addresses the teacher's question with
+    specific content — a prediction, explanation, code attempt,
+    reasoning, or concrete question.
+    Example: "I think 0.1+0.2==0.3 returns True because
+    mathematically they're equal"
+
+  - Shallow: acknowledges the teacher but says nothing specific.
+    Could be pasted into any conversation unchanged.
+    Example: "OK, I understand", "That makes sense"
+
+  - Non-participatory: ignores the teacher's question,
+    goes off-topic, or echoes the question back.
+
+Count each type.
+
+(B) Interaction Pattern — holistic assessment
+
+Look at ALL learner-facing interactions as a sequence:
+
+  - Reasonable: teacher guides → student attempts → teacher progresses.
+    Student responses vary across steps. Within loops, responses
+    differ between iterations. Crucially, a student who gives
+    incorrect or incomplete answers early but improves after
+    receiving teaching is a POSITIVE signal — this is exactly
+    what effective teaching looks like. Do NOT penalize improvement.
+
+  - Degenerate: student shows a flat, uniform pattern with no
+    variation across the interaction. Three specific failure modes:
+    (1) Persistently helpless: every response is "I don't know"
+        or equivalent, with no improvement even after teaching.
+    (2) Perfect from the start: student gives fully correct and
+        complete answers from the VERY FIRST learner-facing step,
+        before any teaching has occurred. This indicates the
+        student agent's constraint is not working — it already
+        "knows" the answer. Note: this is different from a student
+        who starts wrong and becomes correct after teaching.
+        The latter is Reasonable, not Degenerate.
+    (3) Repetitive: responses are substantively identical across
+        steps, regardless of what the teacher says.
+
+IMPORTANT DISTINCTION:
+  "Student gets better over time" = Reasonable (teaching is working)
+  "Student is perfect from the beginning" = Degenerate (constraint failed)
+  The dividing line is WHETHER the student showed any gap BEFORE
+  the teaching that led to the improvement.
+
+VERDICT:
+  Pass — >70% of responses are Substantive AND pattern is Reasonable.
+  Fail — >30% are Shallow or Non-participatory, OR pattern is Degenerate.
+
+==================================================================
+CHECK 4: CONTENT CORRECTNESS AND GUIDANCE EFFECTIVENESS
+==================================================================
+
+GOAL: Verify that (a) the correct solution was taught, and
+(b) the teaching flow guided the student toward that solution.
+
+HOW TO DO IT:
+
+(A) Core Solution Coverage
+
+Step 1: From the accepted answer, extract the core solution —
+the primary method, API, or concept used to solve the problem.
+State it in one sentence.
+  Example: "use math.isclose() for float comparison"
+  Example: "set timezone on SimpleDateFormat before formatting"
+
+Step 2: Scan ALL teacher_output and agent_output fields across
+the entire log. Was this core solution explicitly taught?
+
+  - Covered: the core solution was substantively taught in at least
+    one step. Does not need identical wording — same method/concept
+    must be clearly explained.
+  - Mentioned Only: briefly referenced but not the teaching focus.
+    Most teaching targeted a different approach.
+  - Not Covered: the core solution never appears anywhere.
+
+(B) Guidance Trace
+
+Examine the student_response fields in execution order
+(including every loop iteration). Look for a behavioral pattern
+showing the plan's teaching is guiding the student.
+
+Analyze three phases:
+
+EARLY (first subtask):
+Does the student show uncertainty, error, or incompleteness
+about the target topic?
+  - If yes: gap confirmed, proceed.
+  - If the student gives fully correct answers from the first step:
+    mark as "no observable gap." This means the guidance trace
+    cannot be established — not necessarily that the plan is bad,
+    but this execution cannot provide evidence of guidance.
+
+MID (middle subtasks, loop iterations):
+Does the student's response improve AFTER specific teaching?
+The key test is causal traceability:
+  - Pick a student response that improved compared to earlier.
+  - Can you point to a specific preceding teacher_output that
+    introduced the knowledge the student is now using?
+  - Example: teacher explains IEEE 754 in iteration 1,
+    student mentions binary representation in iteration 2
+    (did not mention it before) → traceable.
+  - In loops: compare student_response across iterations.
+    Does iteration N+1 incorporate feedback from iteration N?
+
+LATE (last subtask):
+Does the student's final code or explanation align with the
+accepted answer's approach direction?
+
+Rate:
+  - Clear Guidance: early gap → teaching → observable shift toward
+    correct direction. At least one improvement is traceable to
+    a specific teaching step.
+  - Weak Guidance: some directional shift exists but cannot be
+    clearly traced to specific teaching steps.
+  - No Guidance Signal: student responses do not change;
+    OR student was correct from the start (no gap to close);
+    OR changes are unrelated to the teaching content.
+
+(C) Final Output Correctness
+
+Look at the last subtask's outputs — student's final response
+and/or teacher's fallback (if loop exited at max_iterations).
+Compare against the accepted answer.
+
+  - Correct: final output presents a correct solution aligned
+    with the accepted answer's approach.
+  - Partially Correct: right direction but has meaningful errors
+    or omissions.
+  - Incorrect: wrong solution, contradicts accepted answer,
+    or no solution reached.
+
+VERDICT:
+  Pass requires ALL of:
+    - Coverage: Covered
+    - Guidance: Clear Guidance or Weak Guidance
+    - Final Output: Correct or Partially Correct
+
+  Fail if ANY of:
+    - Coverage: Not Covered
+    - Guidance: No Guidance Signal
+    - Final Output: Incorrect
+
+  Borderline:
+    - Coverage "Mentioned Only" + Final Output "Correct"
+      + Guidance "Clear" → Pass
+    - Coverage "Mentioned Only" + Final Output not "Correct" → Fail
+
+==================================================================
+OVERALL VERDICT
+==================================================================
+
+  All four checks Pass → execution_verified
+  Any check Fail → execution_failed
+
+If execution_failed, identify the root cause:
+
+  CHECK 1 failed: which steps deviated? Is it isolated or systematic?
+
+  CHECK 2 failed: which steps/loops had issues?
+    Is it a plan structure problem or an execution framework problem?
+
+  CHECK 3 failed: is it a student agent problem or a plan problem?
+    Method: if teacher output is open-ended but student gives shallow
+    responses → student agent system prompt issue.
+    If teacher output is closed/lecture-style → plan design issue.
+
+  CHECK 4 failed:
+    - Core solution not covered → plan's teaching path drifted
+      from accepted answer. Modify generation prompt.
+    - No guidance signal + student correct from start
+      → student agent constraint not working.
+      Modify student agent system prompt.
+    - No guidance signal + teacher is lecture-style
+      → plan doesn't elicit participation.
+      Modify generation prompt's pedagogical strategy rules.
+    - Final output incorrect + core solution was taught
+      → teaching agent explained it wrong, or loop fallback
+      didn't provide correct answer.
+      Modify generation prompt's instruction/fallback rules.
+
+==================================================================
+OUTPUT FORMAT
+==================================================================
+
+CHECK 1: Instruction Fidelity
+  Verdict: [Pass / Fail]
+  Per-step:
+    - {step_id}:
+      Action Alignment: [Aligned / Partial Deviation / Severe Deviation]
+      Boundary: [Within Bounds / Minor Overstep / Severe Overstep]
+      Note: <brief description if any deviation>
+
+CHECK 2: Workflow Completeness
+  Verdict: [Pass / Fail]
+  Step Coverage: [Complete / Incomplete]
+  Loop Behavior: [Normal / Abnormal]
+    - Loop {step_ids}: exit_reason={}, consistent=[Yes/No]
+  Information Flow: [Connected / Broken]
+
+CHECK 3: Interaction Quality
+  Verdict: [Pass / Fail]
+  Participation: Substantive X/N, Shallow X/N, Non-participatory X/N
+  Pattern: [Reasonable / Degenerate]
+    <if Degenerate, state which failure mode>
+
+CHECK 4: Content Correctness and Guidance
+  Verdict: [Pass / Fail]
+  Core Solution: <one sentence>
+  Coverage: [Covered / Mentioned Only / Not Covered]
+    Evidence: <which steps>
+  Guidance Trace: [Clear / Weak / No Signal]
+    Evidence: <describe student trajectory, cite steps and iterations,
+    state which improvements trace to which teaching actions>
+  Final Output: [Correct / Partially Correct / Incorrect]
+    Evidence: <cite final steps, describe content, relate to accepted answer>
+
+OVERALL: [execution_verified / execution_failed]
+Root Cause (if failed): <which check, why, what to modify>

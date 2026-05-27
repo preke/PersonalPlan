@@ -1,0 +1,131 @@
+Your job is to generate a personalized multi-agent plan — a strict JSON
+specification of agents, subtasks, and steps — that orchestrates
+multiple agents to collectively teach a specific learner how to figure
+out a technical StackOverflow question. The plan is consumed by a
+CrewAI-style runtime that instantiates each agent and executes the
+steps in the given order.
+
+INPUTS
+- A technical query — a StackOverflow question.
+- A learner profile with two fields:
+    about_me — the learner's free-form bio (role, background,
+      interests).
+    top_tags — the StackOverflow tag set of questions the learner has
+      interacted with. These signal topical familiarity, not mastery
+      depth: a tag means "the learner is active in this domain", not
+      "the learner has mastered this concept".
+- A pool of available tools that can be used by agents (see §1).
+
+OUTPUT
+One JSON object defining agents, subtasks, steps, and execution_order
+(schema in §2). The plan must lead the learner to understand and solve
+their query, and should be tailored to the learner described in the
+input.
+
+Do not output a direct answer, a dialogue script, or a lesson transcript.
+Do not address the learner directly — the learner profile and the query
+are CONTEXT provided so you can tailor the plan; the learner is not your
+audience. Your audience is the runtime that will read your JSON.
+Output ONLY valid JSON, with no markdown or extra text.
+
+--------------------------------------------------
+1. AVAILABLE TOOLS
+--------------------------------------------------
+(1) FirecrawlSearchTool — search the web for relevant webpage content.
+    Requires a clear search topic.
+(2) RagTool — retrieve and answer questions from a provided document or
+    knowledge base. Requires an available source.
+(3) CodeInterpreterTool — execute code for computation, simulation, or
+    testing. Requires executable code, data, or test cases.
+(4) DirectoryReadTool — list a directory's structure. Requires a known
+    path.
+(5) FileReadTool — read an existing file's contents. Requires a known
+    path.
+(6) FileWriterTool — write generated content to a file. Requires content
+    and a target path.
+(7) CodeDocsSearchTool — retrieve information from official API or
+    library documentation. Requires a target API/library.
+(8) ArxivPaperTool — search academic papers. Requires a clear research
+    topic or keyword set.
+
+Each agent's "tools" array and each step's "tool" field may only
+contain tool names from the list above (or null for "tool" when no
+tool is used). Do not invent tools outside this list.
+
+--------------------------------------------------
+2. OUTPUT FORMAT (STRICT JSON)
+--------------------------------------------------
+{
+  "input": {
+    "query": "<the raw content of the given technical question>",
+    "learner": {
+      "about_me": "<summary>",
+      "top_tags": ["<tag>", "..."]
+    }
+  },
+  "output": {
+    "agents": [
+      {
+        "agent_role": "<role name>",
+        "goal": "<what this agent accomplishes>",
+        "backstory": "<persona / capability description>",
+        "tools": ["<tool_name>"]
+      }
+    ],
+    "subtasks": [
+      {
+        "id": "S1",
+        "name": "<subtask name>",
+        "subtask_objective": "<what completing this subtask achieves>",
+        "steps": [
+          {
+            "id": "S1-1",
+            "agent": "<agent_role>",
+            "objective": "<what this step achieves>",
+            "instruction": "<the work order for the agent>",
+            "tool": null,
+            "requires_human_input": false,
+            "expected_output": "<the artifact this step produces>",
+            "depends_on": []
+          }
+        ]
+      }
+    ],
+    "execution_order": [
+      "S1-1",
+      "S1-2",
+      {
+        "loop": {
+          "steps": ["S2-1", "S2-2", "S2-3"],
+          "condition": "<a boolean expression over a step's expected_output>",
+          "max_iterations": 3
+        }
+      },
+      "S2-4",
+      "S3-1"
+    ]
+  }
+}
+
+The execution_order above is illustrative. Your plan's actual structure
+— how many subtasks, steps, and loops it needs — depends on the
+specific query and learner.
+
+Field notes:
+- "tool" is either one tool name from §1, or null.
+- "requires_human_input" is true when the step needs the learner to
+  respond, otherwise false.
+- "depends_on" lists step ids whose output this step uses.
+- An "execution_order" entry may be either a step id string, or a loop
+  object of the form
+    { "loop": { "step":  "<step id>",      "condition": "<expr>", "max_iterations": <int> } }
+  or
+    { "loop": { "steps": ["<step id>", ...], "condition": "<expr>", "max_iterations": <int> } }
+  Every step declared under "subtasks" must appear somewhere in
+  "execution_order" (standalone or inside a loop).
+
+--------------------------------------------------
+3. OUTPUT
+--------------------------------------------------
+Output strict valid JSON only. No commentary. No extra fields. No
+trailing commas.

@@ -1,0 +1,717 @@
+{
+  "meta": {
+    "dataset_path": "/Users/wenzhiyuan/Desktop/2026 Papers/PersonalPlan/multi_agent_datasets/MAPLE_Construction/multi_agent_dataset_filtered_qap.jsonl",
+    "n_records": 3043
+  },
+  "A_overview": {
+    "total_records": 3043,
+    "unique_questions": 1730,
+    "unique_profiles_by_text": 2738,
+    "rows_per_qid_mean": 1.7589595375722544,
+    "learner_schema_distribution": {
+      "('about_me', 'top_tags')": 3042,
+      "('about_me', 'about_me_summary', 'top_tags')": 1
+    },
+    "profile_index_distribution": {
+      "0": 1727,
+      "1": 972,
+      "3": 68,
+      "2": 253,
+      "4": 15,
+      "5": 8
+    },
+    "nprof_per_qid_distribution": {
+      "2": 720,
+      "1": 759,
+      "3": 183,
+      "6": 8,
+      "4": 53,
+      "5": 7
+    },
+    "max_profiles_per_question": 6,
+    "questions_with_multi_profile": 971,
+    "query_len_chars": {
+      "mean": 592.1340782122905,
+      "median": 532.0,
+      "p25": 340.0,
+      "p75": 774.5,
+      "min": 34,
+      "max": 2340
+    },
+    "desc_len_chars": {
+      "mean": 169.77029247453171,
+      "median": 130.0,
+      "min": 2,
+      "max": 1460
+    },
+    "skills_per_profile": {
+      "mean": 4.877423595136379,
+      "median": 5.0,
+      "min": 0,
+      "max": 5
+    },
+    "agent_goal_len_chars": {
+      "mean": 166.45022036388292,
+      "median": 160.0
+    },
+    "agent_backstory_len_chars": {
+      "mean": 393.83591366256076,
+      "median": 374.0
+    },
+    "subtask_objective_len_chars": {
+      "mean": 142.67264462809916,
+      "median": 140.0
+    },
+    "step_instruction_len_chars": {
+      "mean": 378.9843255224826,
+      "median": 361.0
+    },
+    "step_objective_len_chars": {
+      "mean": 95.33533882203926,
+      "median": 94.0
+    },
+    "step_expected_output_len_chars": {
+      "mean": 114.62175427485751,
+      "median": 112.0
+    }
+  },
+  "B_complexity": {
+    "agents_per_plan": {
+      "mean": 2.907985540584949,
+      "median": 3.0,
+      "min": 2,
+      "max": 4,
+      "distribution": {
+        "3": 2659,
+        "2": 332,
+        "4": 52
+      }
+    },
+    "subtasks_per_plan": {
+      "mean": 3.976339139007558,
+      "median": 4.0,
+      "min": 2,
+      "max": 6,
+      "distribution": {
+        "3": 475,
+        "4": 2094,
+        "5": 449,
+        "2": 24,
+        "6": 1
+      }
+    },
+    "steps_per_plan": {
+      "mean": 10.377916529740387,
+      "median": 10.0,
+      "min": 5,
+      "max": 23
+    },
+    "steps_per_subtask": {
+      "mean": 2.6099173553719006,
+      "median": 2.0
+    },
+    "tools_total_per_plan_mean": 1.89516924088071,
+    "tools_unique_per_plan_mean": 1.8941833716726915,
+    "plans_with_loop": 2454,
+    "plans_with_multiple_loops": 23,
+    "loops_total": 2481,
+    "loop_step_count_mean": 2.5078597339782345,
+    "loop_max_iter_distribution": {
+      "3": 2071,
+      "2": 410
+    },
+    "human_input_steps_per_plan_mean": 5.685836345711469,
+    "human_input_step_ratio_overall": 0.5478784040531982,
+    "dag_longest_path": {
+      "mean": 5.447255997371015,
+      "median": 5.0,
+      "min": 2,
+      "max": 15
+    },
+    "dag_max_layer_width": {
+      "mean": 3.5787052251068023
+    },
+    "dag_parallelizable_ratio_mean": 0.4685965192687678,
+    "agent_step_load_mean": 3.5687648321844274
+  },
+  "C_agents": {
+    "total_agent_instances": 8849,
+    "unique_agent_roles_global": 4380,
+    "top_roles": [
+      [
+        "cpp_code_validator",
+        219
+      ],
+      [
+        "csharp_code_validator",
+        207
+      ],
+      [
+        "cpp_docs_retriever",
+        121
+      ],
+      [
+        "java_code_validator",
+        105
+      ],
+      [
+        "cpp_standard_docs_retriever",
+        92
+      ],
+      [
+        "csharp_docs_retriever",
+        91
+      ],
+      [
+        "js_code_validator",
+        90
+      ],
+      [
+        "dotnet_docs_retriever",
+        89
+      ],
+      [
+        "php_code_validator",
+        73
+      ],
+      [
+        "r_code_validator",
+        71
+      ],
+      [
+        "css_docs_retriever",
+        65
+      ],
+      [
+        "php_docs_retriever",
+        59
+      ],
+      [
+        "java_docs_retriever",
+        52
+      ],
+      [
+        "css_code_validator",
+        51
+      ],
+      [
+        "js_docs_retriever",
+        50
+      ],
+      [
+        "c_code_validator",
+        48
+      ],
+      [
+        "python_code_validator",
+        39
+      ],
+      [
+        "android_docs_retriever",
+        35
+      ],
+      [
+        "rust_code_validator",
+        33
+      ],
+      [
+        "android_code_validator",
+        29
+      ],
+      [
+        "swift_code_validator",
+        28
+      ],
+      [
+        "pandas_code_validator",
+        27
+      ],
+      [
+        "mysql_docs_retriever",
+        27
+      ],
+      [
+        "jquery_docs_retriever",
+        25
+      ],
+      [
+        "python_docs_retriever",
+        24
+      ]
+    ],
+    "roles_per_plan_mean": 2.907985540584949,
+    "unique_roles_per_plan_mean": 2.907985540584949,
+    "duplicate_role_plans": 0,
+    "tools_per_agent_mean": 0.6517120578596451,
+    "zero_tool_agents_pct": 0.34851395637925187,
+    "tools_global_unique": 5,
+    "tools_global_counts": {
+      "CodeInterpreterTool": 2980,
+      "CodeDocsSearchTool": 2652,
+      "FirecrawlSearchTool": 126,
+      "FileWriterTool": 8,
+      "ArxivPaperTool": 1
+    },
+    "role_family_distribution": {
+      "debugger": 130,
+      "retriever": 2770,
+      "validator": 2942,
+      "tutor": 2968,
+      "other": 29,
+      "generator": 8,
+      "reviewer": 2
+    }
+  },
+  "D_learner": {
+    "unique_tags": 2500,
+    "top_30_tags": [
+      [
+        "javascript",
+        676
+      ],
+      [
+        "python",
+        610
+      ],
+      [
+        "java",
+        563
+      ],
+      [
+        "c#",
+        533
+      ],
+      [
+        "c++",
+        486
+      ],
+      [
+        "html",
+        329
+      ],
+      [
+        "php",
+        278
+      ],
+      [
+        "css",
+        232
+      ],
+      [
+        ".net",
+        220
+      ],
+      [
+        "c",
+        217
+      ],
+      [
+        "jquery",
+        210
+      ],
+      [
+        "android",
+        205
+      ],
+      [
+        "git",
+        126
+      ],
+      [
+        "arrays",
+        126
+      ],
+      [
+        "c++11",
+        119
+      ],
+      [
+        "mysql",
+        119
+      ],
+      [
+        "r",
+        116
+      ],
+      [
+        "sql",
+        114
+      ],
+      [
+        "ios",
+        113
+      ],
+      [
+        "string",
+        112
+      ],
+      [
+        "asp.net",
+        101
+      ],
+      [
+        "node.js",
+        98
+      ],
+      [
+        "reactjs",
+        91
+      ],
+      [
+        "python-3.x",
+        89
+      ],
+      [
+        "bash",
+        84
+      ],
+      [
+        "linux",
+        82
+      ],
+      [
+        "sql-server",
+        78
+      ],
+      [
+        "typescript",
+        77
+      ],
+      [
+        "dataframe",
+        74
+      ],
+      [
+        "pandas",
+        70
+      ]
+    ],
+    "top_15_pairs": [
+      [
+        [
+          "html",
+          "javascript"
+        ],
+        212
+      ],
+      [
+        [
+          ".net",
+          "c#"
+        ],
+        199
+      ],
+      [
+        [
+          "javascript",
+          "jquery"
+        ],
+        168
+      ],
+      [
+        [
+          "css",
+          "html"
+        ],
+        158
+      ],
+      [
+        [
+          "css",
+          "javascript"
+        ],
+        141
+      ],
+      [
+        [
+          "c",
+          "c++"
+        ],
+        132
+      ],
+      [
+        [
+          "c++",
+          "c++11"
+        ],
+        119
+      ],
+      [
+        [
+          "javascript",
+          "php"
+        ],
+        112
+      ],
+      [
+        [
+          "c#",
+          "javascript"
+        ],
+        101
+      ],
+      [
+        [
+          "html",
+          "jquery"
+        ],
+        91
+      ],
+      [
+        [
+          "asp.net",
+          "c#"
+        ],
+        86
+      ],
+      [
+        [
+          "python",
+          "python-3.x"
+        ],
+        84
+      ],
+      [
+        [
+          "java",
+          "javascript"
+        ],
+        84
+      ],
+      [
+        [
+          "javascript",
+          "python"
+        ],
+        81
+      ],
+      [
+        [
+          "android",
+          "java"
+        ],
+        80
+      ]
+    ],
+    "tags_per_profile_mean": 4.877423595136379
+  },
+  "E_pedagogy": {
+    "pattern_plan_coverage_pct": {
+      "prediction_elicitation": 0.9500492934604009,
+      "explanation_walkthrough": 0.9930989155438712,
+      "worked_example": 0.48274728885967794,
+      "guided_practice": 0.8396319421623398,
+      "scaffolding_iterative": 0.7426881367071968,
+      "validation_feedback": 1.0,
+      "reflection_metacognition": 0.8402891883010187,
+      "retrieval_practice": 0.9112717712783437,
+      "analogy_priorknowledge": 0.5218534341110745,
+      "diagnostic_assessment": 0.6017088399605652
+    },
+    "pattern_step_count": {
+      "prediction_elicitation": 6897,
+      "explanation_walkthrough": 9292,
+      "worked_example": 1598,
+      "guided_practice": 2494,
+      "scaffolding_iterative": 4243,
+      "validation_feedback": 14954,
+      "reflection_metacognition": 1928,
+      "retrieval_practice": 3937,
+      "analogy_priorknowledge": 1751,
+      "diagnostic_assessment": 1671
+    },
+    "patterns_per_plan_mean": 7.883338810384489,
+    "patterns_per_plan_median": 8.0,
+    "skeleton_full_triple_pct": 0.5869208018402892,
+    "skeleton_breakdown": {
+      "activate": 0.7492605980939862,
+      "apply": 0.9260598093986198,
+      "consolidate": 0.842589549786395
+    }
+  },
+  "F_personalization": {
+    "second_person_ratio_per_plan_mean": 0.6965380730497811,
+    "bridge_anchor_count_per_plan_mean": 6.450870851133749,
+    "plans_with_at_least_one_skill_mentioned": 2857,
+    "plans_with_at_least_one_skill_pct": 0.938876109102859,
+    "skill_in_plan_ratio_mean": 0.42828282828282827,
+    "skill_in_plan_ratio_median": 0.4,
+    "desc_token_in_plan_ratio_mean": 0.28790693587632965,
+    "cross_profile_pairs": 1777,
+    "cross_profile_jaccard_means": {
+      "agent_role": 0.32006324195406916,
+      "role_family": 0.9259050834740199,
+      "tools": 0.9112736822359784,
+      "subtask_tokens": 0.22903664926414713,
+      "pedagogy": 0.755765245509196
+    },
+    "cross_profile_step_diff_mean": 1.814856499718627
+  },
+  "G_intent_summary": [
+    {
+      "primary_intent": "API_USAGE",
+      "n": 1114,
+      "agents": 2.93,
+      "subtasks": 3.95,
+      "steps": 10.31,
+      "longest_path": 5.77,
+      "loops_mean": 0.94,
+      "loop_pct": 0.93,
+      "human_input_mean": 5.63,
+      "tools": 1.92,
+      "ped_patterns": 7.93
+    },
+    {
+      "primary_intent": "CONCEPTUAL",
+      "n": 1488,
+      "agents": 2.9,
+      "subtasks": 4.03,
+      "steps": 10.54,
+      "longest_path": 5.16,
+      "loops_mean": 0.69,
+      "loop_pct": 0.69,
+      "human_input_mean": 5.73,
+      "tools": 1.89,
+      "ped_patterns": 7.85
+    },
+    {
+      "primary_intent": "DISCREPANCY",
+      "n": 172,
+      "agents": 2.85,
+      "subtasks": 3.85,
+      "steps": 9.98,
+      "longest_path": 5.49,
+      "loops_mean": 0.91,
+      "loop_pct": 0.9,
+      "human_input_mean": 5.6,
+      "tools": 1.83,
+      "ped_patterns": 8.16
+    },
+    {
+      "primary_intent": "ERRORS",
+      "n": 70,
+      "agents": 2.84,
+      "subtasks": 3.66,
+      "steps": 9.54,
+      "longest_path": 5.39,
+      "loops_mean": 0.83,
+      "loop_pct": 0.83,
+      "human_input_mean": 5.39,
+      "tools": 1.81,
+      "ped_patterns": 8.01
+    },
+    {
+      "primary_intent": "REVIEW",
+      "n": 129,
+      "agents": 2.81,
+      "subtasks": 3.91,
+      "steps": 10.32,
+      "longest_path": 5.88,
+      "loops_mean": 0.97,
+      "loop_pct": 0.93,
+      "human_input_mean": 6.19,
+      "tools": 1.82,
+      "ped_patterns": 7.43
+    },
+    {
+      "primary_intent": "API_CHANGE",
+      "n": 58,
+      "agents": 2.9,
+      "subtasks": 3.78,
+      "steps": 9.48,
+      "longest_path": 5.34,
+      "loops_mean": 0.81,
+      "loop_pct": 0.81,
+      "human_input_mean": 4.97,
+      "tools": 1.88,
+      "ped_patterns": 7.66
+    },
+    {
+      "primary_intent": "LEARNING",
+      "n": 12,
+      "agents": 3.5,
+      "subtasks": 4.5,
+      "steps": 11.92,
+      "longest_path": 6.92,
+      "loops_mean": 0.92,
+      "loop_pct": 0.92,
+      "human_input_mean": 5.83,
+      "tools": 2.5,
+      "ped_patterns": 8.17
+    }
+  ],
+  "H_by_profile_index": [
+    {
+      "profile_index": 0,
+      "n": 1727,
+      "agents": 2.91,
+      "subtasks": 3.973,
+      "steps": 10.435,
+      "loops_pct": 0.796,
+      "human_input": 5.752,
+      "ped": 7.814
+    },
+    {
+      "profile_index": 1,
+      "n": 972,
+      "agents": 2.921,
+      "subtasks": 3.994,
+      "steps": 10.28,
+      "loops_pct": 0.81,
+      "human_input": 5.576,
+      "ped": 7.975
+    },
+    {
+      "profile_index": 2,
+      "n": 253,
+      "agents": 2.862,
+      "subtasks": 3.929,
+      "steps": 10.352,
+      "loops_pct": 0.854,
+      "human_input": 5.617,
+      "ped": 7.953
+    },
+    {
+      "profile_index": 3,
+      "n": 68,
+      "agents": 2.868,
+      "subtasks": 3.985,
+      "steps": 10.618,
+      "loops_pct": 0.824,
+      "human_input": 5.926,
+      "ped": 8.132
+    },
+    {
+      "profile_index": 4,
+      "n": 15,
+      "agents": 2.867,
+      "subtasks": 4.0,
+      "steps": 9.733,
+      "loops_pct": 0.867,
+      "human_input": 5.333,
+      "ped": 7.6
+    },
+    {
+      "profile_index": 5,
+      "n": 8,
+      "agents": 2.75,
+      "subtasks": 4.0,
+      "steps": 10.0,
+      "loops_pct": 0.875,
+      "human_input": 5.625,
+      "ped": 7.875
+    }
+  ],
+  "I_quality": {
+    "plans_with_unknown_agent_ref": 0,
+    "plans_with_unknown_depends_on": 0,
+    "plans_with_unknown_step_in_exec": 0,
+    "plans_with_missing_step_in_exec": 0,
+    "plans_with_cycle": 0,
+    "plans_with_any_issue": 0,
+    "valid_plans": 3043,
+    "valid_rate": 1.0,
+    "loop_schema_plural_steps": 2262,
+    "loop_schema_singular_step": 219
+  }
+}

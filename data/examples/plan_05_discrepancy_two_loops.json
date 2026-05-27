@@ -1,0 +1,184 @@
+{
+  "input": {
+    "query": "My script works in dev but hangs in production — same Python, same packages, same data?\n\nA scheduled batch job that processes a Postgres queue runs fine locally and on staging. In production the same script hangs after a few hundred rows and never completes. CPU is idle while it hangs. No error in the logs. I have ruled out package versions and Python version. What is going on?",
+    "learner": {
+      "self_description": "SRE who became a backend engineer two years ago. Strong at networking and Linux debugging (strace, lsof, tcpdump). Weaker on Python-side concurrency idioms.",
+      "skills": ["python", "postgresql", "linux", "strace", "concurrency"]
+    }
+  },
+  "output": {
+    "agents": [
+      {
+        "agent_role": "discrepancy_hypothesis_tutor",
+        "goal": "Help the learner narrow the dev-vs-prod difference space by iterating through hypotheses keyed off CPU-idle-while-hanging (= waiting on something external), reframing each round based on what was just ruled out.",
+        "description": "You are a senior debugging partner with strong SRE instincts. You treat CPU-idle hangs as 'waiting on I/O or a lock' and steer the learner toward connection pools, locks, and network differences. You never propose more than one hypothesis at a time and you always tie it to a concrete observation the learner can make.",
+        "tools": []
+      },
+      {
+        "agent_role": "postgres_state_inspector",
+        "goal": "Run diagnostic SQL queries against pg_stat_activity to surface blocked queries, idle-in-transaction sessions, and lock waits that explain the hang.",
+        "description": "You are a Postgres state inspector. You execute targeted SQL using CodeInterpreterTool against a connection (or a simulated pg_stat_activity snapshot in this teaching context), and you summarise findings in terms of which session is blocking which.",
+        "tools": ["CodeInterpreterTool"]
+      },
+      {
+        "agent_role": "psycopg_docs_retriever",
+        "goal": "Surface authoritative documentation on connection pooling, autocommit defaults, and idle-in-transaction behaviour for psycopg2 / psycopg3.",
+        "description": "You are a meticulous documentation retriever for psycopg. You confirm the documented default for autocommit, what idle in transaction means, and how connection pools recycle idle sessions.",
+        "tools": ["CodeDocsSearchTool"]
+      }
+    ],
+    "subtasks": [
+      {
+        "id": "S1",
+        "name": "Narrow the discrepancy space to a tractable hypothesis class",
+        "subtask_objective": "Learner can state that 'CPU idle while hanging' means the script is waiting on an external resource — most likely a network socket, a database lock, or a connection that has stalled — not stuck in a CPU loop.",
+        "steps": [
+          {
+            "id": "S1-1",
+            "agent": "discrepancy_hypothesis_tutor",
+            "objective": "Activate the learner's SRE intuition about what 'CPU idle' implies.",
+            "instruction": "Ask the learner: if they hit this hang locally and ran strace on the Python process, what is the single observation they would expect to see — is the process in a CPU spin, blocked on a futex, or blocked on a read syscall against a socket? Have them write the expected strace state in one sentence before the discussion continues.",
+            "tool": null,
+            "requires_human_input": true,
+            "expected_output": "Learner's prediction of what strace would show — typically blocked on read/recv against the Postgres socket fd.",
+            "depends_on": []
+          },
+          {
+            "id": "S1-2",
+            "agent": "discrepancy_hypothesis_tutor",
+            "objective": "Iteratively narrow to a single hypothesis class.",
+            "instruction": "Iteration 1: based on S1-1's prediction, ask the learner what concretely differs between dev and prod for a Postgres-blocked read — concurrent writer? long-running transaction? connection pool exhaustion? network ACL throttling? Have them pick one. On retry iterations: rule out the previously picked hypothesis (the learner will tell you what the diagnostic step revealed) and ask them to pick the next most likely, tightening based on what was ruled out. Set hypothesis_narrowed=true once the learner has committed to 'lock contention with another transaction on the queue table' or equivalent, false until then.",
+            "tool": null,
+            "requires_human_input": true,
+            "expected_output": "Learner's committed hypothesis this iteration and the diagnostic that would confirm or rule it out. hypothesis_narrowed=true once a lock-contention hypothesis is named, false otherwise.",
+            "depends_on": ["S1-1"]
+          }
+        ]
+      },
+      {
+        "id": "S2",
+        "name": "Ground the lock hypothesis in Postgres docs and a live snapshot",
+        "subtask_objective": "Learner can read pg_stat_activity output and identify a blocking session along with the lock it holds.",
+        "steps": [
+          {
+            "id": "S2-1",
+            "agent": "psycopg_docs_retriever",
+            "objective": "Retrieve docs on idle-in-transaction and autocommit defaults.",
+            "instruction": "Look up the official psycopg documentation for the autocommit attribute and for idle in transaction connection state. Retrieve the documented default for autocommit (false) and the explanation of why a never-committed transaction holds locks across all rows it touched.",
+            "tool": "CodeDocsSearchTool",
+            "requires_human_input": false,
+            "expected_output": "Documented psycopg autocommit default (false) and the meaning of idle in transaction.",
+            "depends_on": []
+          },
+          {
+            "id": "S2-2",
+            "agent": "postgres_state_inspector",
+            "objective": "Inspect a representative pg_stat_activity snapshot.",
+            "instruction": "Execute a query like SELECT pid, state, query, wait_event_type, wait_event, xact_start FROM pg_stat_activity WHERE datname = current_database() ORDER BY xact_start; against a teaching snapshot. Surface any session in state='idle in transaction' alongside the sessions reporting wait_event_type='Lock'. Print the results plainly.",
+            "tool": "CodeInterpreterTool",
+            "requires_human_input": false,
+            "expected_output": "Tabular output highlighting an idle-in-transaction session with old xact_start and a separate session in Lock wait.",
+            "depends_on": []
+          },
+          {
+            "id": "S2-3",
+            "agent": "discrepancy_hypothesis_tutor",
+            "objective": "Reconcile the snapshot with the learner's hypothesis.",
+            "instruction": "Present S2-2's output and the docs from S2-1. Ask the learner: which session is the cause, and what is the cause specifically — a forgotten commit on a long-running transaction. Connect this back to the dev-prod difference: in dev there is no concurrent writer, so a missing commit is harmless; in prod the worker holds row locks the batch needs.",
+            "tool": null,
+            "requires_human_input": true,
+            "expected_output": "Learner's identification of the idle-in-transaction worker as the blocker and the missing commit as the root cause.",
+            "depends_on": ["S1-2", "S2-1", "S2-2"]
+          }
+        ]
+      },
+      {
+        "id": "S3",
+        "name": "Iteratively fix the script and confirm the hang is gone",
+        "subtask_objective": "Learner's revised script either commits explicitly after each row or uses autocommit, and a re-run does not hang.",
+        "steps": [
+          {
+            "id": "S3-1",
+            "agent": "discrepancy_hypothesis_tutor",
+            "objective": "Ask for a code fix.",
+            "instruction": "Ask the learner to revise the batch script's main loop to either set conn.autocommit = True at the start, or call conn.commit() after each row's UPDATE. On retry iterations, use S3-2's feedback from the previous attempt: if they kept a long-lived transaction but only moved the commit position, point them to autocommit as the more robust fix for queue-style processing.",
+            "tool": null,
+            "requires_human_input": true,
+            "expected_output": "Learner's revised script main loop showing either autocommit=true or per-row commit().",
+            "depends_on": ["S2-3"]
+          },
+          {
+            "id": "S3-2",
+            "agent": "postgres_state_inspector",
+            "objective": "Re-run the snapshot after the fix.",
+            "instruction": "Execute the same pg_stat_activity query from S2-2 with the learner's fixed script applied to a simulated workload. Print the new state of all sessions. Set hang_resolved=true if no session is in state='idle in transaction' longer than a few seconds, false otherwise.",
+            "tool": "CodeInterpreterTool",
+            "requires_human_input": false,
+            "expected_output": "Updated pg_stat_activity snapshot and hang_resolved=true if no long idle-in-transaction sessions remain, hang_resolved=false otherwise.",
+            "depends_on": ["S3-1"]
+          },
+          {
+            "id": "S3-3",
+            "agent": "discrepancy_hypothesis_tutor",
+            "objective": "Targeted feedback if the fix did not stick.",
+            "instruction": "If S3-2 shows the hang remains: identify whether the learner's commit was placed inside a try/except that swallowed errors, or whether autocommit was set after the connection had already begun a transaction (requires a fresh connection). Tell them the specific line to change. If the fix worked, say so plainly and move on.",
+            "tool": null,
+            "requires_human_input": false,
+            "expected_output": "Targeted feedback message identifying the precise issue in the fix attempt, or confirmation that it worked.",
+            "depends_on": ["S3-2"]
+          },
+          {
+            "id": "S3-4",
+            "agent": "discrepancy_hypothesis_tutor",
+            "objective": "Resolve the fix loop.",
+            "instruction": "Using S3-2's final hang_resolved: if true, confirm the dev-vs-prod gap is closed — the difference was purely the presence of concurrent writers in prod that exposed a latent missing-commit bug. If max iterations exhausted, provide the canonical fix: open the connection with autocommit=True, run each UPDATE as its own implicit transaction; explain why this is preferred over a long-running explicit transaction for queue-style workers.",
+            "tool": null,
+            "requires_human_input": false,
+            "expected_output": "Resolution statement: confirmation or canonical autocommit-based fix with explanation.",
+            "depends_on": ["S3-2"]
+          }
+        ]
+      },
+      {
+        "id": "S4",
+        "name": "Generalise the diagnostic move",
+        "subtask_objective": "Learner can state a one-line rule for diagnosing 'works in dev, hangs in prod' on a Postgres-backed worker.",
+        "steps": [
+          {
+            "id": "S4-1",
+            "agent": "discrepancy_hypothesis_tutor",
+            "objective": "Have the learner crystallise the diagnostic rule.",
+            "instruction": "Using the resolved investigation from S3-4, ask the learner to write a one-sentence rule: when a Python+Postgres worker hangs in prod but not dev with CPU idle, what is the first query they will run and what are they looking for? Their rule should reference pg_stat_activity and idle in transaction.",
+            "tool": null,
+            "requires_human_input": true,
+            "expected_output": "Learner's diagnostic rule for prod-only hangs in Postgres workers.",
+            "depends_on": ["S3-4"]
+          }
+        ]
+      }
+    ],
+    "execution_order": [
+      "S1-1",
+      {
+        "loop": {
+          "step": "S1-2",
+          "condition": "S1-2.hypothesis_narrowed == false",
+          "max_iterations": 3
+        }
+      },
+      "S2-1",
+      "S2-2",
+      "S2-3",
+      {
+        "loop": {
+          "steps": ["S3-1", "S3-2", "S3-3"],
+          "condition": "S3-2.hang_resolved == false",
+          "max_iterations": 4
+        }
+      },
+      "S3-4",
+      "S4-1"
+    ]
+  }
+},
+{"answer":"CPU-idle hangs against Postgres almost always mean lock contention. Run SELECT pid, state, query, wait_event_type, wait_event, xact_start FROM pg_stat_activity; you will likely see one session in state='idle in transaction' with an old xact_start, and another session waiting on a Lock. The root cause is a worker that opened a transaction but never called commit() (psycopg autocommit defaults to false). Fix by either setting conn.autocommit = True at connection open, or calling conn.commit() after each row update. The dev environment has no concurrent writer so the same bug is invisible there; production exposes it as soon as two workers contend for the queue table."}

@@ -1,0 +1,77 @@
+# GRPO configuration — paper §4.2, v1 staging.
+#
+# v1 enables: R_struct + R_hard
+# Toggle R_pers / R_ped via the `reward:` block once you have a
+# counterfactual cache or mined precedence pairs respectively.
+
+base_model: Qwen/Qwen2.5-7B-Instruct
+sft_adapter: null            # optional path to SFT-stage adapter to start from.
+                              # If null, a fresh LoRA is initialised on base_model.
+output_dir: ./outputs/grpo-v1
+seed: 42
+report_to: [tensorboard]
+
+data:
+  train_path: data/grpo/train.jsonl
+  valid_path: data/grpo/valid.jsonl
+
+lora:
+  r: 16
+  alpha: 32
+  dropout: 0.05
+  target_modules: all-linear
+
+training:
+  epochs: 1
+  per_device_batch_size: 1
+  grad_accum: 8
+  lr: 5.0e-6
+  scheduler: cosine
+  warmup_ratio: 0.03
+  weight_decay: 0.0
+  max_grad_norm: 1.0
+  bf16: true
+
+  # GRPO core
+  num_generations: 8           # G in paper
+  max_prompt_length: 2048
+  max_completion_length: 3500  # plan JSONs typically fit; raise if your plans are larger
+  beta: 0.04                   # KL coefficient anchoring to π_SFT (TRL ref model)
+  epsilon: 0.2                 # PPO clip
+  temperature: 0.9
+  top_p: 0.95
+
+  # vLLM rollout backend (strongly recommended)
+  use_vllm: true
+  vllm_device: auto
+  vllm_gpu_mem: 0.5            # leave half the GPU for training; tune per hardware
+
+  logging_steps: 5
+  save_steps: 50
+  save_total_limit: 3
+
+# Counterfactual cache for R_pers. Generated offline by
+# build_counterfactual_cache.py — one cf plan per question_id.
+counterfactual_cache: null   # e.g. data/grpo/cf_cache.jsonl
+
+# Reward composition.
+# Default below = v1 = R_struct + R_hard only.
+# Recommended next step:
+#   pers_mode: "lite"     # counterfactual-free, ~µs/call
+#   ped_mode:  "lite"     # rule-based pedagogy (precedence + phase coverage)
+# Paper-faithful (heavier):
+#   pers_mode: "counterfactual"   + counterfactual_cache: data/grpo/cf_cache.jsonl
+#   ped_mode:  "full"             + provide judges in grpo_train.py
+reward:
+  enable_struct: true
+  enable_hard: true
+  pers_mode: "off"            # "off" | "lite" | "counterfactual"
+  ped_mode:  "off"            # "off" | "lite" | "full"
+  w_struct: 0.55
+  w_pers: 0.25
+  w_ped: 0.20
+  w_ped_precedence: 0.5       # within ped_mode="lite": split precedence vs phase coverage
+  w_ped_phases: 0.5
+  lambda_ped: 0.8             # within ped_mode="full": λ·lite + (1−λ)·soft
+  eta: 10.0
+  verbose: false

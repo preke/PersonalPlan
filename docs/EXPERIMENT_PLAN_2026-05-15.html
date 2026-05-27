@@ -1,0 +1,1141 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<title>PersonalPlan / MAPLE 实验方案 v2 — 2026-05-15</title>
+<style>
+  :root {
+    --fg: #1f2328;
+    --muted: #57606a;
+    --bg: #ffffff;
+    --bg-soft: #f6f8fa;
+    --border: #d0d7de;
+    --accent: #0969da;
+    --accent-soft: #ddf4ff;
+    --warn: #9a6700;
+    --warn-soft: #fff8c5;
+    --bad: #cf222e;
+    --bad-soft: #ffebe9;
+    --ok: #1a7f37;
+    --ok-soft: #dafbe1;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+                 "Hiragino Sans GB", "Helvetica Neue", Arial, sans-serif;
+    color: var(--fg);
+    background: var(--bg);
+    line-height: 1.65;
+    max-width: 1080px;
+    margin: 32px auto;
+    padding: 0 28px 80px;
+    font-size: 15.5px;
+  }
+  h1 { font-size: 28px; border-bottom: 2px solid var(--border); padding-bottom: 10px; margin-bottom: 4px; }
+  h2 { font-size: 22px; margin-top: 44px; padding-bottom: 6px; border-bottom: 1px solid var(--border); }
+  h3 { font-size: 18px; margin-top: 28px; color: #24292f; }
+  h4 { font-size: 16px; margin-top: 20px; color: #24292f; }
+  .subtitle { color: var(--muted); margin-top: 0; font-size: 15px; }
+  .meta { color: var(--muted); font-size: 13.5px; margin-bottom: 8px; }
+  code, .mono { font-family: var(--mono); font-size: 0.92em; background: var(--bg-soft);
+                 padding: 1px 6px; border-radius: 4px; border: 1px solid var(--border); }
+  pre { background: var(--bg-soft); border: 1px solid var(--border); border-radius: 6px;
+        padding: 12px 14px; overflow-x: auto; font-family: var(--mono); font-size: 13px; line-height: 1.55; }
+  table { border-collapse: collapse; width: 100%; margin: 12px 0 18px; font-size: 14px; }
+  th, td { border: 1px solid var(--border); padding: 8px 10px; vertical-align: top; text-align: left; }
+  th { background: var(--bg-soft); font-weight: 600; }
+  tr:nth-child(even) td { background: #fbfcfd; }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; font-family: var(--mono); }
+  .tag { display: inline-block; padding: 1px 8px; border-radius: 999px;
+         font-size: 12px; font-weight: 600; border: 1px solid var(--border); background: var(--bg-soft); }
+  .tag.accent { color: var(--accent); background: var(--accent-soft); border-color: #b6e3ff; }
+  .tag.warn   { color: var(--warn);   background: var(--warn-soft); border-color: #eac54f; }
+  .tag.ok     { color: var(--ok);     background: var(--ok-soft);   border-color: #aceebb; }
+  .tag.bad    { color: var(--bad);    background: var(--bad-soft);  border-color: #ff8182; }
+  blockquote { border-left: 3px solid var(--accent); margin: 12px 0; padding: 6px 14px;
+               background: var(--accent-soft); color: #24292f; border-radius: 0 4px 4px 0; }
+  blockquote.warn { border-color: #eac54f; background: var(--warn-soft); }
+  blockquote.bad  { border-color: #ff8182; background: var(--bad-soft); }
+  blockquote.ok   { border-color: #aceebb; background: var(--ok-soft); }
+  hr { border: none; border-top: 1px solid var(--border); margin: 28px 0; }
+  ul, ol { padding-left: 22px; }
+  li { margin: 3px 0; }
+  .toc { background: var(--bg-soft); border: 1px solid var(--border); border-radius: 8px;
+         padding: 14px 22px; margin: 20px 0 28px; font-size: 14.5px; }
+  .toc a { color: var(--accent); text-decoration: none; }
+  .toc a:hover { text-decoration: underline; }
+  .footnote { font-size: 13px; color: var(--muted); margin-top: 8px; }
+  .em { color: var(--accent); font-weight: 600; }
+  .gate-card { border: 2px solid var(--accent); border-radius: 8px; padding: 14px 18px;
+               background: var(--accent-soft); margin: 16px 0; }
+  .legend span { display: inline-block; margin-right: 12px; font-size: 13px; }
+  .swatch { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 4px; vertical-align: middle; }
+</style>
+</head>
+<body>
+
+<h1>PersonalPlan / MAPLE 实验方案 v2（final）</h1>
+<p class="subtitle">对齐 IPM 投稿 <code>main.pdf</code> §5 + 整合 10 篇近期 SFT/GRPO 实践证据 + 数据集真实形态</p>
+<p class="meta">
+  日期：2026-05-15　·　版本：v2（取代 v1）<br/>
+  数据集：<code>multi_agent_datasets/multi_agent_dataset_filtered_qap.jsonl</code>（3,043 条 / 1,730 唯一 question_id）<br/>
+  硬件：单卡 NVIDIA H20 96 GB VRAM（与论文 §5.2 实现一致）
+</p>
+
+<blockquote class="ok">
+<strong>这一版相对 v1 的关键修订</strong>
+<ol style="margin:6px 0 0 0">
+  <li><strong>数据切分按 <code>question_id</code> 切</strong>（不能按行切，否则同一 query 不同 profile 会跨 train/test 形成泄漏）。</li>
+  <li><strong>恢复 Dev 集</strong>（10%），但目的明确：(a) SFT 期间监控 + 选 ckpt；(b) <strong>SFT→GRPO gate 的 pass@1 vs pass@8 诊断</strong>；(c) GRPO 期间选 ckpt。</li>
+  <li><strong>GRPO 走 dev-based ckpt selection</strong>（Tülu 3 / DAPO 已验证：training reward 与 dev metric 可能严重不相关）。</li>
+  <li>砍掉之前那些"自动 early stop 多触发条件"的过度设计。</li>
+  <li>所有数字基于 <em>真实数据</em>跑了一次 stratified split（seed=42）后写下。</li>
+</ol>
+</blockquote>
+
+<div class="toc">
+<strong>目录</strong>
+<ol>
+  <li><a href="#design">设计原则与四个 RQ</a></li>
+  <li><a href="#data">数据集与划分（基于真实文件 3,043 条）</a></li>
+  <li><a href="#train">训练计划（SFT → 诊断 gate → GRPO）</a></li>
+  <li><a href="#baselines">Baseline 矩阵</a></li>
+  <li><a href="#eval">评估方法（三层协议 · Headline 12 项 · 总 22 项）</a></li>
+  <li><a href="#rqmap">RQ → 实验映射</a></li>
+  <li><a href="#schedule">时间表与人员分工</a></li>
+  <li><a href="#risk">风险与备选方案</a></li>
+</ol>
+</div>
+
+<!-- =========================================================== -->
+<h2 id="design">1. 设计原则与四个 RQ</h2>
+
+<h3>1.1 四个核心研究问题</h3>
+<table>
+<thead><tr><th>RQ</th><th>问题</th><th>主要支撑</th></tr></thead>
+<tbody>
+<tr><td>RQ1</td><td>PersonalPlan 是否优于前沿 zero-shot LLM、prompt-based planner、通用/教育 MAS？</td><td>Main results 表</td></tr>
+<tr><td>RQ2</td><td>不同 learner profile 下如何适配？</td><td>Profile-sensitivity 表 + case study</td></tr>
+<tr><td>RQ3</td><td>PAD / SDP / Joint Alignment / GRPO 各阶段贡献？</td><td>Component ablation</td></tr>
+<tr><td>RQ4</td><td>GRPO 四项 reward 互动 + Pareto 控制？</td><td>Reward weight sweep</td></tr>
+</tbody>
+</table>
+
+<h3>1.2 七条硬性约束</h3>
+<ol>
+  <li><strong>统一 backbone</strong>：所有 trainable / same-backbone reference 用 <code>Qwen3-32B-Instruct</code>（保 v1 同尺寸 backbone 候选见 §8.2）。</li>
+  <li><strong>统一 plan schema</strong>：所有 baseline 输出同一 JSON（<code>agents / subtasks / steps / execution_order</code>）。</li>
+  <li><strong>统一推理 prompt</strong>：用 GP 在 5/14 完成的 inference prompt（4 处最小改动版）。</li>
+  <li><strong>判卷者跨模型族</strong>：GPT-5 主判 + Claude Opus 4.6 复核，order randomization + criterion-by-criterion。</li>
+  <li><strong>按 question_id 切分</strong>：Test ∩ Train = Test ∩ Dev = Dev ∩ Train = ∅；切分键是 <code>question_id</code>，不是行号（防止同 query 不同 profile 形成泄漏）。</li>
+  <li><strong>SFT 与 GRPO 共享 Train</strong>（10 篇近期 paper 中 9 篇这么做）；Dev 仅作 ckpt selection 与 gate；Test 全程封存。</li>
+  <li><strong>GRPO 训练期不调 LLM judge</strong>：所有 reward 都是规则式 O(|P|) Python；LLM judge 仅在最终 Test 评估时调用。</li>
+</ol>
+
+<!-- =========================================================== -->
+<h2 id="data">2. 数据集与划分（基于真实文件 3,043 条）</h2>
+
+<h3>2.1 数据集真实形态</h3>
+<p>文件 <code>multi_agent_dataset_filtered_qap.jsonl</code>（3,043 条）每行字段：</p>
+<pre>{
+  "question_id": "1732236",       # Stack Overflow 问题 ID
+  "profile_index": 0,             # 该 query 的 profile 变体序号
+  "plan": "{...Python-dict-str...}"  # 完整 plan JSON（含 input.query / input.learner / output.{agents, subtasks, execution_order}）
+}</pre>
+
+<table>
+<thead><tr><th>统计项</th><th class="num">数量</th><th>备注</th></tr></thead>
+<tbody>
+<tr><td>总行数</td><td class="num">3,043</td><td>每行 = (query, profile) 一对</td></tr>
+<tr><td>唯一 question_id</td><td class="num">1,730</td><td>同一 query 可能对多个 profile</td></tr>
+<tr><td>1 profile 的 qid 数</td><td class="num">759</td><td>占 43.9%，只有"无 profile"基线</td></tr>
+<tr><td>2 profiles 的 qid 数</td><td class="num">720</td><td>41.6%，最常见的"profile 0 + profile 1"</td></tr>
+<tr><td>3 profiles 的 qid 数</td><td class="num">183</td><td>10.6%</td></tr>
+<tr><td>4 profiles 的 qid 数</td><td class="num">53</td><td>3.1%</td></tr>
+<tr><td>5 profiles 的 qid 数</td><td class="num">7</td><td>0.4%</td></tr>
+<tr><td>6 profiles 的 qid 数</td><td class="num">8</td><td>0.5%</td></tr>
+<tr><td>Profile_index 分布</td><td colspan="2" class="num">0: 1727 · 1: 972 · 2: 253 · 3: 68 · 4: 15 · 5: 8</td></tr>
+</tbody>
+</table>
+
+<blockquote class="warn">
+<strong>为什么必须按 question_id 切</strong>：若按行随机切，1 个 query 的 profile 0 落到 train、profile 1 落到 test → 模型在 train 上已经"见过这个 query"，test 时算泄漏。按 <code>question_id</code> 分组切才能保证 test 的 query 完全没见过。
+</blockquote>
+
+<h3>2.2 实际划分（已用 seed=42 跑出，<code>build_splits.py</code> 已物化）</h3>
+<p>使用<strong>手写的分层 shuffle</strong>（<em>不</em>调 sklearn 的 <code>StratifiedShuffleSplit</code>），分层键 = <em>该 qid 拥有的 profile 数</em>，每个桶内 <code>random.Random(42).shuffle</code> 后按 <code>round(n·0.10)</code> 切 test、再 <code>round(n·0.10)</code> 切 dev，剩余给 train。这样保证 1-/2-/3-/...-variant qid 在 train/dev/test 上比例一致：</p>
+
+<table>
+<thead><tr><th>Split</th><th class="num">qid 数</th><th class="num">行数</th><th>比例</th><th>用途</th></tr></thead>
+<tbody>
+<tr><td><strong>Train</strong></td><td class="num">1,384</td><td class="num">2,433</td><td>80%</td><td>SFT (Stage 1a/1b/2) + GRPO (Stage 3) 共享</td></tr>
+<tr><td><strong>Dev</strong></td><td class="num">173</td><td class="num">305</td><td>10%</td><td>SFT 期 dev loss / dev SV 监控 + best-ckpt 选择；<br/><strong>SFT→GRPO gate 的 pass@1 vs pass@8 诊断</strong>；<br/>GRPO 期 dev composite 监控 + best-ckpt 选择</td></tr>
+<tr><td><strong>Test</strong></td><td class="num">173</td><td class="num">305</td><td>10%</td><td>仅最终评估</td></tr>
+<tr><td colspan="5" style="background:var(--bg-soft)"><strong>Test 切片</strong>（不另取数据）</td></tr>
+<tr><td>　└ 人工 κ/ICC 子集</td><td class="num">—</td><td class="num">100</td><td>—</td><td>GPT-5/Claude 与人工的 κ ≥ 0.65 / ICC ≥ 0.7 校准</td></tr>
+<tr><td>　└ Profile-sensitivity 子集</td><td class="num">25</td><td class="num">~75–125</td><td>—</td><td>从 Test 里抽 ≥3 profile variants 的 qid（实际有 <strong>25 个</strong>），每 qid 跑 3 profile</td></tr>
+<tr><td>　└ Case-study 子集</td><td class="num">5</td><td class="num">~10</td><td>—</td><td>5 个 query 主题多样化的 case（每个最好同时有 ≥2 profile 变体，便于做 profile vs no-profile 对比图）</td></tr>
+</tbody>
+</table>
+
+<p><strong>具体实现脚本（已落地为 <code>build_splits.py</code>，跑一次冻结结果）</strong>：</p>
+<pre>import json, random
+from collections import defaultdict
+
+SEED = 42
+qid_to_profs = defaultdict(set)
+with open("multi_agent_dataset_filtered_qap.jsonl") as f:
+    for line in f:
+        d = json.loads(line)
+        qid_to_profs[str(d["question_id"])].add(int(d["profile_index"]))
+
+strata = defaultdict(list)
+for q, profs in qid_to_profs.items():
+    strata[len(profs)].append(q)
+
+rng = random.Random(SEED)                       # 独立 RNG 实例，避免被外部 random state 干扰
+train_q, dev_q, test_q = [], [], []
+for k in sorted(strata.keys()):                 # 排序遍历桶，保证跨机器 deterministic
+    ql = strata[k]
+    rng.shuffle(ql)
+    n = len(ql); n_test = round(n*0.10); n_dev = round(n*0.10)
+    test_q  += ql[:n_test]
+    dev_q   += ql[n_test : n_test + n_dev]
+    train_q += ql[n_test + n_dev:]
+
+json.dump({"train_qids": train_q, "dev_qids": dev_q, "test_qids": test_q},
+          open("splits/maple_split_v1.json", "w"), indent=2)
+# 行级 split 由 qid 集合派生，禁止直接切行
+# 派生后写入：SFT/data/{pad,sdp}/{train,dev,test}.jsonl 与 GRPO/data/grpo/{train,dev,test}.jsonl</pre>
+
+<blockquote class="ok">
+<strong>实际跑出的分桶结果（与上表完全一致）</strong>：每个 nprof 桶按 <code>round(n·0.10)</code> 比例切给 test/dev/train。<br/>
+<code>nprof=1 (759 qid)</code> → 76 / 76 / 607；
+<code>nprof=2 (720)</code> → 72 / 72 / 576；
+<code>nprof=3 (183)</code> → 18 / 18 / 147；
+<code>nprof=4 (53)</code> → 5 / 5 / 43；
+<code>nprof=5 (7)</code> → 1 / 1 / 5；
+<code>nprof=6 (8)</code> → 1 / 1 / 6。<br/>
+合计 173 / 173 / 1,384 qid 与 305 / 305 / 2,433 行。详细分布报告见 <code>DATA_SPLIT_REPORT_2026-05-15.html</code>（由 <code>build_split_report.py</code> 生成）。
+</blockquote>
+
+<h3 id="stage-usage">2.3 Train 在每个训练阶段如何使用</h3>
+<p>Train 2,433 行（每行 = query+profile+gold_plan 三元组）按下表在四个阶段被反复使用：</p>
+
+<table>
+<thead><tr>
+<th>阶段</th>
+<th>用 Train 的哪部分</th>
+<th>模型输入</th>
+<th>gold_plan 用法</th>
+<th>训练信号</th>
+<th>Ep</th>
+</tr></thead>
+<tbody>
+<tr>
+<td><strong>Stage 1a</strong> LoRA-PAD</td>
+<td>全部 2,433</td>
+<td><code>(query, profile)</code></td>
+<td>拆出 <code>(agents★, subtasks★)</code> 作 teacher forcing 目标</td>
+<td>NLL on <code>(agents, subtasks)</code> tokens</td>
+<td class="num">3</td>
+</tr>
+<tr>
+<td><strong>Stage 1b</strong> LoRA-SDP</td>
+<td>全部 2,433</td>
+<td><code>(query, profile, agents★, subtasks★)</code></td>
+<td>拆出 <code>(steps★, execution_order★)</code> 作 teacher forcing 目标</td>
+<td>NLL on <code>(steps, execution_order)</code> tokens</td>
+<td class="num">2</td>
+</tr>
+<tr>
+<td><strong>Stage 2</strong> Joint Align A（修 PAD）</td>
+<td>全部 2,433</td>
+<td>PAD 采 2 scaffold → 冻结 SDP 各生成 plan</td>
+<td>用 gold 算 plan reward，挑 chosen/rejected scaffold</td>
+<td>DPO on PAD（β=0.1）</td>
+<td class="num">K=1</td>
+</tr>
+<tr>
+<td><strong>Stage 2</strong> Joint Align B（修 SDP）</td>
+<td>全部 2,433</td>
+<td><code>(query, profile, agents PAD, subtasks PAD)</code></td>
+<td><code>(steps★, exec_order★)</code> 作 teacher forcing</td>
+<td>NLL on-policy SFT（lr 5e-5, 1 ep）</td>
+<td class="num">K=1</td>
+</tr>
+<tr style="background:var(--warn-soft)">
+<td><strong>诊断 Gate</strong></td>
+<td>Dev 100 子集</td>
+<td><code>(query, profile)</code></td>
+<td>用 gold 算"pass"判定（见 §3.4）</td>
+<td><strong>无梯度</strong>，仅决策"过 / 不过"</td>
+<td>—</td>
+</tr>
+<tr>
+<td><strong>Stage 3</strong> GRPO</td>
+<td>全部 2,433</td>
+<td>π_θ 采 G=8 个 plan</td>
+<td>仅在 R_struct 的 StructSim 项里用作参考</td>
+<td>GRPO clipped surrogate + KL anchor 到 π_SFT</td>
+<td class="num">1</td>
+</tr>
+<tr style="background:var(--accent-soft)">
+<td><strong>Dev 监控</strong>（贯穿）</td>
+<td>Dev 305</td>
+<td><code>(query, profile)</code></td>
+<td>SFT 时算 NLL；GRPO 时算 dev composite</td>
+<td>无梯度，仅 ckpt selection</td>
+<td>—</td>
+</tr>
+<tr style="background:var(--ok-soft)">
+<td><strong>Test</strong>（仅末尾）</td>
+<td>Test 305</td>
+<td><code>(query, profile)</code></td>
+<td>GED-sim / Sati. pairwise / Tier 2 执行</td>
+<td>无梯度</td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+
+<blockquote>
+<strong>§2.3 符号说明</strong>
+<ul style="margin:6px 0 0 0">
+<li><code>★</code>（上标星号）= "gold" / "ground-truth" / "标准答案"。例如 <code>agents★</code> 指 MAPLE 数据集里 <code>plan.output.agents</code> 字段那个真实标签；模型在 SFT 阶段被监督去复现这个 <code>★</code> 版本。</li>
+<li><code>(query, profile)</code> = 输入元组，分别对应 <code>plan.input.query</code> 和 <code>plan.input.learner</code>（含 about_me + top_tags）。</li>
+<li><code>(agents★, subtasks★, steps★, execution_order★)</code> = gold plan 的四个组成部分；按论文方法分成 <em>scaffold</em>（agents+subtasks，由 PAD 学）和 <em>execution</em>（steps+execution_order，由 SDP 学）。</li>
+<li><code>K</code> = Joint Alignment 的 outer iteration 次数（论文 §4 设 K∈{1,2}，我们用 K=1）。</li>
+<li><code>π_PAD</code> / <code>π_SDP</code> / <code>π_SFT</code> = 三个阶段的策略模型；<code>π_SFT</code> 是 Stage 2 出口、GRPO 的初始化与 KL 锚点。</li>
+<li><code>Teacher forcing</code> = 训练时把 gold token 作为模型当前步的输入（即"喂答案"），让模型预测下一个 gold token；与 GRPO 阶段"自己采样"相对。</li>
+</ul>
+</blockquote>
+
+<!-- =========================================================== -->
+<h2 id="train">3. 训练计划（SFT → 诊断 Gate → GRPO）</h2>
+
+<pre>Stage 1a: LoRA-PAD (3ep)  ──┐
+Stage 1b: LoRA-SDP (2ep)  ──┤  → π_PAD , π_SDP
+Stage 2 : Joint Align K=1 ──┘  → π_SFT  （存 best-dev ckpt）
+                            │
+              <strong>★ 诊断 Gate（§3.4）</strong>：在 Dev 100 上测 pass@1 / pass@8
+                            │
+                  pass@8 / pass@1 ≥ 1.5 ?
+                            │
+                ┌───────────┴───────────┐
+              No                       Yes
+                │                       │
+        修 SFT / 数据 / hparam      Stage 3: GRPO (1ep)
+                                  ↓
+                            选 best-dev ckpt → π_θ</pre>
+
+<h3>3.1 Stage 1 — 分层 SFT（LoRA-PAD + LoRA-SDP）</h3>
+
+<table>
+<thead><tr><th>超参</th><th>LoRA-PAD</th><th>LoRA-SDP</th><th>说明</th></tr></thead>
+<tbody>
+<tr><td>Backbone</td><td colspan="2"><code>Qwen3-32B-Instruct</code>（frozen，bf16 ≈ 65 GB）</td><td>96 GB 卡可装</td></tr>
+<tr><td>LoRA rank r / α / dropout</td><td>16 / 32 / 0.05</td><td>16 / 32 / 0.05</td><td>论文 §5.2 锁定 + ben 5/14 验证</td></tr>
+<tr><td>Target modules</td><td colspan="2"><code>all-linear</code></td><td>—</td></tr>
+<tr><td>Optimizer</td><td colspan="2">paged 8-bit AdamW</td><td>32B + bf16 + 8-bit ≈ 装得下</td></tr>
+<tr><td>Learning rate / scheduler</td><td colspan="2">1e-4 / cosine + warmup_ratio 0.02</td><td>论文 §5.2</td></tr>
+<tr><td>Weight decay</td><td colspan="2">0.01</td><td>—</td></tr>
+<tr><td>Per-device batch / grad_accum</td><td colspan="2">2 / 8（effective 16）</td><td>—</td></tr>
+<tr><td>Max seq length</td><td colspan="2">3,072</td><td>覆盖 plan 长度 P95</td></tr>
+<tr><td>Epochs</td><td class="num">3</td><td class="num">2</td><td>论文 §5.2 锁定值，10 篇调研在 1–5 区间</td></tr>
+<tr><td>bf16 + gradient checkpointing</td><td colspan="2">enabled</td><td>—</td></tr>
+<tr><td>预估耗时</td><td class="num">~22 h</td><td class="num">~14 h</td><td>2,433 行 / 16 eff batch = 152 step/ep</td></tr>
+</tbody>
+</table>
+
+<h4>Dev 监控（不 early stop，只选 ckpt）</h4>
+<ul>
+  <li><strong>每 50 step</strong> 算一次 Dev NLL（仅 target tokens：PAD 算 agents+subtasks tokens；SDP 算 steps+execution_order tokens）。3 ep = ~9 个 eval point，2 ep = ~6 个。</li>
+  <li><strong>每 epoch 末</strong>额外采样 50 条 Dev 跑生成，算 SV（schema validity）和 AR（acyclicity rate）。两项是廉价的，每次几分钟。</li>
+  <li><strong>Checkpoint 选择</strong>：训完所有 epoch，挑 <em>min(dev_NLL)</em> 且 dev_SV ≥ 0.85 的 ckpt 作为该 Stage 出口。</li>
+  <li><strong>Early stop 仅在发散</strong>：dev NLL 连续 2 次升 > 10% 或出现 NaN → 手动停。否则训完计划 epoch。</li>
+</ul>
+
+<h4 id="sft-logging">Stage 1 实验记录与评估</h4>
+
+<p><strong>(1) 训练过程 logging</strong>——建议用 W&amp;B（SHC 5/14 已在 7B GRPO 上跑通），TensorBoard 作备份，本地存 JSONL 防云端断网。</p>
+<table>
+<thead><tr><th>频率</th><th>字段</th><th>说明</th></tr></thead>
+<tbody>
+<tr>
+<td>每 1 step</td>
+<td><code>train/loss</code> · <code>train/lr</code> · <code>train/grad_norm</code> · <code>train/tokens_seen</code> · <code>train/throughput_tok_per_s</code> · <code>system/gpu_mem_mb</code> · <code>system/gpu_util_pct</code></td>
+<td>常规训练曲线。<code>grad_norm</code> 出现 NaN/Inf → 立即停查</td>
+</tr>
+<tr>
+<td>每 50 step</td>
+<td><code>dev/nll_target_tokens</code>（在 Dev 305 全集上算）</td>
+<td>PAD 算 (agents, subtasks) tokens 的 NLL；SDP 算 (steps, execution_order) tokens 的 NLL；不算 prompt 部分</td>
+</tr>
+<tr>
+<td>每 epoch 末</td>
+<td><code>dev/sv_rate</code> · <code>dev/ar_rate</code> · <code>dev/dc_mean</code> · <code>dev/atr_mean</code>（采样 100 条 Dev 生成后 rule-based 算）</td>
+<td>SV/AR 是 0/1 比例；DC/ATR 是 [0,1] 均值</td>
+</tr>
+<tr>
+<td>每 epoch 末</td>
+<td><code>dev/sample_examples</code>（任意 5 条原始生成 plan 文本，存到 W&amp;B Table）</td>
+<td>人眼抽查；catch tokenizer 异常、特殊字符问题</td>
+</tr>
+</tbody>
+</table>
+
+<p><strong>(2) Checkpoint metadata</strong>——每存一个 ckpt 同时落盘 <code>metadata.json</code>：</p>
+<pre>{
+  "stage": "stage1a_PAD",            // 或 "stage1b_SDP" / "stage2_JA"
+  "step": 350,
+  "epoch": 2.3,
+  "wall_clock_h": 15.2,
+  "dev_nll": 1.42,
+  "dev_sv": 0.91,
+  "dev_ar": 0.84,
+  "dev_dc_mean": 0.78,
+  "dev_atr_mean": 0.66,
+  "hparams": {"lr": 1e-4, "lora_r": 16, ...},  // 完整 hparam 快照
+  "git_sha": "abc123",                          // 代码版本
+  "data_split_sha": "xyz789",                   // splits/maple_split_v1.json 的 SHA
+  "ckpt_path": "ckpt/stage1a_PAD/step_350"
+}</pre>
+
+<p><code>data_split_sha</code> 这条是<strong>必须的</strong>——后续做 ablation 或重跑时核对 split 是否一致，防止"我之前在哪个 split 上拿到的这个分数"找不回。</p>
+
+<p><strong>(3) 阶段评估指标矩阵</strong></p>
+<table>
+<thead><tr><th>指标</th><th>何时算</th><th>计算方式</th><th>用途</th></tr></thead>
+<tbody>
+<tr><td>Dev NLL</td><td>每 50 step</td><td>cross-entropy on target tokens（rule-based, 廉价）</td><td>训练曲线监控，best ckpt 选择主信号</td></tr>
+<tr><td>Dev SV / AR</td><td>每 epoch 末（100 条采样）</td><td>JSON parse + 顶层 schema 4 key check（SV）；NetworkX DAG check（AR）</td><td>NLL 与生成质量解耦的廉价校验</td></tr>
+<tr><td>Dev DC / ATR / TBV</td><td>每 epoch 末</td><td>详见 §5.2 规则式指标定义（6 项）</td><td>更精细的 plan 结构信号</td></tr>
+<tr><td>Dev GED-sim</td><td>仅 Stage 2 末（Gate 前一次）</td><td>详见 §5.2；要算 graph edit distance，每条 ~1 秒</td><td>结构相似度上限，作为 Gate 的额外参考</td></tr>
+<tr><td><strong>LLM judge: Pers./Ped./Feas./Sati.</strong></td><td><strong>仅 Stage 2 末</strong>（Gate 前一次 sanity check，100 条 Dev 子集）</td><td>详见 §5.2 + §5.2.1 rubrics</td><td>SFT 阶段不在训练循环里调 judge（贵且慢）；只在 Gate 前跑一次确认 LLM 判定的 Pers./Ped./Feas. 与 rule-based 信号一致。PVS/PNG/JCC 只在 Test 阶段算</td></tr>
+<tr><td>pass@1 / pass@8</td><td>Stage 2 末（Gate 诊断）</td><td>见 §3.4 公式</td><td>SFT→GRPO 启动决策</td></tr>
+</tbody>
+</table>
+
+<p><strong>(4) SFT 阶段特有注意事项</strong></p>
+<ol>
+<li><strong>LoRA adapter 保存陷阱</strong>（ben 5/14 实测）：autotrain / peft 默认会自动 resize tokenizer，导致 adapter 文件里包含完整 token embedding（几十 MB → 1.9 GB）。加载时 base model 不知道要 resize → 报形状不匹配。解决：在加载脚本里检测 <code>len(adapter_tokenizer)</code> 是否等于 <code>base.get_input_embeddings().weight.shape[0]</code>，不一致就 resize。</li>
+<li><strong>SDP 训练用 gold scaffold（不是 PAD 输出）</strong>：这是 exposure bias 的来源，但论文 §4 明确这么做，由 Stage 2 Joint Alignment 修。<em>不要</em>在 Stage 1b 阶段就改成喂 PAD 输出——会破坏可比性。</li>
+<li><strong>Dev NLL 单降 ≠ 生成质量升</strong>：模型可能学会预测"高频 token 序列"但生成时仍然崩溃。所以 SV/AR 廉价抽测是 NLL 的<em>必要补充</em>，不能省。</li>
+<li><strong>不要在 SFT 期间调 LLM judge</strong>：(a) 慢（一次 100 条要 5–10 分钟），(b) 贵（每 50 step 算就是 ~100 个 eval point × 100 条 × 2 judge = 20,000 调用），(c) 训练循环和最终评估共用 judge 会形成弱泄漏（虽然在 dev 上）。LLM judge 只在 Stage 2 末跑一次 sanity，正式 judge 留给 Test。</li>
+<li><strong>Stage 2 Phase A 的 reward 怎么算</strong>：直接对采样到的 scaffold 与 gold scaffold 算结构相似度 (agents multiset Jaccard + subtask name Jaccard，等权)，<em>不</em>调 SDP、<em>不</em>调 LLM judge。两点理由：(a) Phase A 的论文动机是修 PAD↔SDP coordination bias，结构信号最贴这个动机；(b) 把 R_pers / R_ped 留给 GRPO 独享，消融 RQ3 时能干净分离"Phase A 贡献 vs GRPO 贡献"，避免同一 reward 在 DPO 和 GRPO 里被优化两遍。R_pers / R_ped 仍在 §3.3 GRPO 阶段全套使用。</li>
+<li><strong>梯度检查点必开</strong>：32B + bf16 + LoRA 不开 grad checkpoint 直接 OOM。开了之后步速降 ~30%，但能装下。</li>
+</ol>
+
+<h3>3.2 Stage 2 — Joint Alignment（K=1，修 exposure bias）</h3>
+<p>对应 <code>4-Methodology.tex</code>:112–139。一个 outer iteration 内交替两个 phase：</p>
+<table>
+<thead><tr><th>Phase</th><th>动作</th><th>损失</th></tr></thead>
+<tbody>
+<tr>
+<td>Phase A（修 PAD）</td>
+<td>当前 PAD 采 2 个 scaffold → 用 <strong>scaffold-vs-gold R_struct</strong>（agents 多重集 Jaccard ½ + subtask 名称集 Jaccard ½）打分 → 挑 chosen/rejected scaffold。<em>不</em>调 SDP，纯 rule-based、O(\|scaffold\|)。</td>
+<td>DPO on PAD：<code>L = -E[log σ(β·Δ_PAD)]</code>, β=0.1, lr 5e-5</td>
+</tr>
+<tr>
+<td>Phase B（修 SDP）</td>
+<td>用 PAD（Phase A 更新版）采样 scaffold 作 input</td>
+<td>NLL on-policy SFT, 1 ep, lr 5e-5</td>
+</tr>
+</tbody>
+</table>
+<p><strong>预算</strong>：≤ Stage 1 的 20%（论文承诺），即 ≤ 7 h；不做 early stop，跑完即用。</p>
+
+<blockquote>
+<strong>§3.2 符号说明（DPO 公式 <code>L = -E[log σ(β·Δ_PAD)]</code>）</strong>
+<ul style="margin:6px 0 0 0">
+<li><code>L</code> = 损失函数（要最小化）。</li>
+<li><code>E[·]</code> = 在训练样本上取期望（实操就是 mini-batch 均值）。</li>
+<li><code>σ(x) = 1/(1+e^(-x))</code> = sigmoid 函数，把任意实数压到 (0,1)。</li>
+<li><code>β = 0.1</code> = DPO 温度系数；β 越大对偏好差距越敏感（论文用 0.1，主流值 0.1–0.5）。</li>
+<li><code>Δ_PAD = Δ_PAD^{w,l}</code> = chosen scaffold (<code>w</code>) 与 rejected scaffold (<code>l</code>) 之间的 log-likelihood 差。具体定义见论文 eq. 在 <code>4-Methodology.tex</code>:130–137：<br/>
+&nbsp;&nbsp;<code>Δ_PAD^{w,l} = log[π_PAD(w|q,p) / π_ref(w|q,p)] − log[π_PAD(l|q,p) / π_ref(l|q,p)]</code></li>
+<li><code>w</code> / <code>l</code> = winner / loser 两个 scaffold。判定方式：直接对每个 scaffold 算 <strong>scaffold-level R_struct = 0.5·Jaccard(agent_roles) + 0.5·Jaccard(subtask_names)</strong>（vs gold scaffold），高者为 w，低者为 l。相等则丢弃这对样本。</li>
+<li><code>π_ref</code>（DPO 里）= 上一轮 PAD checkpoint（不是 GRPO 的 π_SFT）；每个 outer iteration 开始时刷新。</li>
+</ul>
+</blockquote>
+
+<blockquote class="warn">
+<strong>ben 5/14 已踩过的坑</strong>：DPO 数据若用 autotrain，<code>chosen/rejected</code> 必须是 Python list 字符串而非 JSON 文本；<code>delta_ll</code> 字段不能有 <code>Infinity</code>；adapter 含 embedding 时需要在加载脚本里自动 resize base model token embedding。详见 <code>5_14/ben/問題.md</code>。
+</blockquote>
+
+<h3 id="gate">3.4 ★ 诊断 Gate：pass@1 vs pass@8 on Dev</h3>
+
+<div class="gate-card">
+<p style="margin-top:0"><strong>动机</strong>：GRPO 是"对同一 prompt 采样多个、用 reward 把好的概率推高"。如果 SFT 后模型采样多次也几乎不出好答案，GRPO 救不了。这个 gate 是<em>在烧 5–14 天 GRPO 之前</em>的强制 go/no-go。</p>
+<p>该方法来自 grpo_session_summary.html §7–§8（pass@n 诊断），是 2025 RL 训练前的标准 sanity check。</p>
+</div>
+
+<h4>(1) "pass" 的可计算定义</h4>
+<p>对一个生成的 plan P，定义：</p>
+<pre>pass(P) =  SV(P) == 1          # JSON schema 合法
+       AND has_cycle(P) == False   # DAG
+       AND DC(P) >= 0.5           # 至少 50% 依赖指向存在的 step
+       AND ATR(P) >= 0.5          # agent-tool 至少半数合理</pre>
+<p>全规则式、O(|P|) Python、无 LLM judge。</p>
+
+<h4>(2) 采样协议</h4>
+<table>
+<thead><tr><th>指标</th><th>采样设置</th></tr></thead>
+<tbody>
+<tr><td>pass@1</td><td>从 Dev 抽 100 条 prompt，temperature=0，每条采 1 个 plan</td></tr>
+<tr><td>pass@8</td><td>同一批 100 条 prompt，temperature=0.9 / top_p=0.95，每条采 8 个 plan</td></tr>
+</tbody>
+</table>
+<p>定义：<code>pass@1 = (#prompts with pass(P_1)=True) / 100</code>；<code>pass@8 = (#prompts with at least one pass(P_i)=True out of 8) / 100</code>。</p>
+
+<h4>(3) 判定阈值</h4>
+<table>
+<thead><tr><th>场景</th><th>判定</th><th>动作</th></tr></thead>
+<tbody>
+<tr><td>pass@1 &lt; 0.30 且 pass@8 &lt; 0.40</td><td><span class="tag bad">SFT 没学到</span></td><td>不进 GRPO。回头修：数据质量？LoRA r 太小？epoch 不够？换更强 backbone？</td></tr>
+<tr><td>pass@1 ≥ 0.30，pass@8 / pass@1 ≤ 1.2</td><td><span class="tag warn">SFT 已饱和</span></td><td>采样多样性太低，GRPO 难有空间。考虑：提高 temperature、用更弱的 SFT（减少 epoch）、或直接验收当前 π_SFT 不跑 GRPO</td></tr>
+<tr><td>pass@1 ≥ 0.30，<strong>pass@8 / pass@1 ≥ 1.5</strong></td><td><span class="tag ok">适合 GRPO</span></td><td><strong>启动 Stage 3</strong>；GRPO 的工作就是把 pass@8 里的好 plan 推成 pass@1</td></tr>
+<tr><td>pass@1 ≥ 0.80（已经很好）</td><td><span class="tag accent">已达上限</span></td><td>GRPO 增量有限，可以做但优先做 ablation 而非主训练</td></tr>
+</tbody>
+</table>
+
+<h4>(4) Gate 报告模板（必须保存到 <code>runs/sft_gate_report.json</code>）</h4>
+<pre>{
+  "checkpoint": "stage2_K1_final",
+  "dev_subset_size": 100,
+  "pass_at_1": 0.42,
+  "pass_at_8": 0.71,
+  "ratio_8_to_1": 1.69,
+  "decision": "PROCEED_TO_GRPO",
+  "raw_metrics": {
+    "pass_at_1_breakdown": {"SV":0.95, "AR":0.85, "DC>=0.5":0.62, "ATR>=0.5":0.58},
+    "pass_at_8_breakdown": {"SV":0.99, "AR":0.97, "DC>=0.5":0.83, "ATR>=0.5":0.79}
+  }
+}</pre>
+<p>不通过 → 不允许提交 GRPO 训练 job；这是 hard gate。</p>
+
+<h3>3.3 Stage 3 — GRPO（dev-based ckpt selection）</h3>
+
+<p>对应 <code>4-Methodology.tex</code>:146–214 + SHC 5/14 在 7B 上验证的 recipe，把模型换 32B。</p>
+
+<table>
+<thead><tr><th>超参</th><th>值</th><th>来源 / 理由</th></tr></thead>
+<tbody>
+<tr><td>策略初始化</td><td>π_SFT（Stage 2 出口的 best-dev ckpt）</td><td>论文锁定</td></tr>
+<tr><td>KL anchor π_ref</td><td>固定为 π_SFT，<strong>不</strong>移动</td><td>论文 §4 锁定（PlanTuning 与 WebAgent-R1 也是 pinned）</td></tr>
+<tr><td>num_generations G</td><td class="num">8</td><td>论文 §5.2；调研 10 篇里 G ∈ {4, 5, 8, 8, 4}，G=8 是主流</td></tr>
+<tr><td>β（KL 系数）</td><td class="num">0.04</td><td>DeepSeekMath 原值，论文锁定（注：调研里 PlanTuning 0.01 / Pedagogy 0.001 更低，可作 ablation）</td></tr>
+<tr><td>ε（PPO clip）</td><td class="num">0.2</td><td>标准</td></tr>
+<tr><td>learning rate</td><td class="num">5e-6</td><td>SHC 7B 实测，调研区间 5e-7~1e-5 居中</td></tr>
+<tr><td>lr scheduler</td><td>cosine, warmup 0.03</td><td>—</td></tr>
+<tr><td>temperature / top-p</td><td>0.9 / 0.95</td><td>rollout 多样性，与 Gate 诊断一致</td></tr>
+<tr><td>max_completion_length</td><td class="num">3,500</td><td>plan 均长 1,000–1,200 tok，留 ~3× 余量</td></tr>
+<tr><td>per_device_batch / grad_accum</td><td>1 / 8</td><td>effective 8 prompts × G=8 = 64 completions / update</td></tr>
+<tr><td>Epochs</td><td class="num">1</td><td>论文锁定；2,433 / 8 prompts ≈ 304 update / epoch</td></tr>
+<tr><td>use_vllm</td><td><span class="tag bad">关</span></td><td>SHC 5/14 实测 vllm 0.20.2 与 torch 2.12 ABI 冲突</td></tr>
+<tr><td>预估耗时</td><td class="num">~12–14 天</td><td>线性放大：SHC 7B 50 条 54 min →  32B 2,433 条 (2433/50)×(32B/7B 慢 4–5×)</td></tr>
+<tr><td>显存压力</td><td colspan="2">G=8 + max_completion 3500 + 32B → 峰值 ~95–105 GB，<strong>卡线</strong>。降险方案：G=4 / 换 Qwen3-30B-A3B MoE（详见 §8.2）</td></tr>
+</tbody>
+</table>
+
+<blockquote>
+<strong>§3.3 GRPO 符号说明（超参表）</strong>
+<ul style="margin:6px 0 0 0">
+<li><code>π_θ</code> = 当前在训的策略模型；θ 是可训参数（这里 = LoRA 权重）。GRPO 训练过程 = 不断更新 θ 让 reward 期望升高。</li>
+<li><code>π_SFT</code> = SFT 阶段结束的策略（Stage 2 出口）；GRPO 既用它作初始化，<em>又</em>把它作为 KL 锚点（参考 anchor），见下条。</li>
+<li><code>π_ref</code> = KL 锚点（reference policy）。我们把它<strong>固定为 π_SFT 不动</strong>（pinned），论文 §4 锁定这种做法。每一步训练计算 <code>KL(π_θ ‖ π_ref)</code>，让 π_θ 不会跑得离 π_SFT 太远（防止把 SFT 阶段学到的 personalization / pedagogy 遗忘）。</li>
+<li><code>G</code> = num_generations，单个 prompt 在 GRPO 阶段采样多少个 plan。论文 G=8。group-relative advantage 就是在这 G 个样本内做 z-score。</li>
+<li><code>β</code>（这里指 GRPO 的 KL 系数，不是 DPO 的 β）= KL 项在 loss 里的权重。<code>L = - clipped_surrogate + β·KL</code>。β 越大 π_θ 越被钉死在 π_SFT 附近；β=0 就是完全放飞。</li>
+<li><code>ε</code> = PPO 风格的 importance-ratio clip 阈值；标准值 0.2，限制单步策略更新幅度。具体见论文 eq. 在 <code>4-Methodology.tex</code>:207–214。</li>
+<li><code>1 step</code> / <code>1 update</code> = 处理 effective_batch_size 个 prompts × G 个 generations 的一次梯度更新。我们 effective_batch=8，G=8 → 一次 update 处理 64 个 plan。</li>
+<li><code>1 epoch</code> = Train 全部 prompts 都被采样一次（≈ 2,433 / 8 ≈ 304 次 update）。</li>
+</ul>
+</blockquote>
+
+<h4>Reward 函数（4 项，全规则式；与 <code>GRPO/Dynamic_weighting/reward_design.html</code> 严格对齐）</h4>
+<pre>R_struct = mean( DAG , DC , ATR , StructSim(plan, gold★) )         # 等权 0.25 each
+R_pers   = |grounded_steps| / |steps|                              # ∈ [0, 1]，无上限
+R_ped    = mean( PhaseCov_v2(plan) , PlanSizeQuality(plan) )       # 数据驱动 v2，无 precedence_pairs
+R_hard   = -10.0 · I[ schema_invalid ∨ has_cycle ∨ invalid_tool_call ]
+
+R_total  = w_s·z_g(R_struct) + w_p·z_g(R_pers) + w_e·z_g(R_ped) + R_hard
+其中 z_g(·) = 按 question_id 分组的 group-wise z-score（GDPO 风格）
+启动权重 (w_s : w_p : w_e) = (1/3 : 1/3 : 1/3)，由 HypervolumeReweighter 每 100 步动态更新
+（前 50 步为 warmup 期不更新；R_hard 不进 z-score、不进 reweighter，直接加 −10）</pre>
+
+<blockquote>
+<strong>§3.3 Reward 符号说明</strong>
+<p style="margin:4px 0"><em>四项 reward（每个采样的 plan 算一个标量）</em></p>
+<ul style="margin:4px 0 8px 0">
+<li><code>R_struct ∈ [0,1]</code> — <strong>结构性</strong> reward。四子项<strong>等权</strong>（reward_design §1.2 锁定为 0.25 each，与旧 0.30·StructSim 版本不一致）：
+  <ul>
+    <li><code>DAG ∈ {0,1}</code>：plan 的依赖图是否无环（拓扑排序通过 = 1）</li>
+    <li><code>DC ∈ [0,1]</code>：Dependency Completeness = |D_satisfied| / |D_total|，依赖指向存在 step 的比例</li>
+    <li><code>ATR ∈ [0,1]</code>：Agent-Tool Relevance（详见 §5.2 规则式指标）</li>
+    <li><code>StructSim(plan, gold★) ∈ [0,1]</code>：plan 与 gold 在 5 个 signature（agent roles / subtask names / step ids / dependency edges / tool calls）上的平均 multiset Jaccard 相似度</li>
+  </ul>
+</li>
+<li><code>R_pers ∈ [0, 1]</code> — <strong>个性化</strong> reward（reward_design §2 lite 版）。一个 step 计为 grounded 当且仅当：(1) instruction 含第二人称代词 (you/your/the learner)；(2) 同句内出现 profile signal — learner 的 skill / domain keyword 或 28 个 <em>bridge anchor</em> 之一（如 "your portfolio"、"as a beginner"）；(3) instruction 长度 ≥ <strong>220 chars</strong>（gold p05，防止短语 stuffing）。<br/>
+  <code>|grounded_steps|</code> = 满足三条的 step 数；<code>|steps|</code> = 总 step 数。<strong>旧的 0.8 上限已删</strong> —— group-wise z-score 已经消除量纲，cap 反而压缩梯度。</li>
+<li><code>R_ped ∈ [0,1]</code> — <strong>教学性</strong> reward（reward_design §3 v2，数据驱动重设计）。两子项等权：
+  <ul>
+    <li><code>PhaseCov_v2(plan)</code> = 3-condition 布尔检查 → hits/3：(a) probe 阶段在前 50% 的 subtask 中出现；(b) validate 阶段在 plan 中出现；(c) probe → retrieve_demonstrate → apply → validate 按规范顺序出现。<strong>4 个 phase</strong>（不是旧的 6 个；feedback / consolidate 在 gold 命中率 &lt; 25% 已剔除）。</li>
+    <li><code>PlanSizeQuality(plan)</code> = subtask 数和 step 数各算一个梯形分（subtasks lo=3 hi=5，steps lo=8 hi=13），取均值。纯 L1 信号、不碰 gold。</li>
+  </ul>
+  <strong>旧的 SubPrec / precedence_pairs 已彻底删除</strong> —— gold audit 显示 v1 R_ped 均值 0.51、precedence_pairs holdout 0.001，信号崩盘；v2 gold 均值 0.87、中位数 0.83、94.8% gold ≥ 0.8。
+</li>
+<li><code>R_hard ∈ {-10, 0}</code> — <strong>硬约束</strong> 闸门。任何一条违反 → −10：
+  <ul>
+    <li><code>schema_invalid</code>：JSON 解析失败或缺顶层 key</li>
+    <li><code>has_cycle</code>：依赖图存在环</li>
+    <li><code>invalid_tool_call</code>：step 调用了不在 8 项 <code>ALLOWED_TOOLS</code> 内的工具，或调用了不在该 agent <code>tools</code> 列表里的工具。ALLOWED_TOOLS = {CodeInterpreterTool, CodeDocsSearchTool, FirecrawlSearchTool, FileWriterTool, FileReadTool, DirectoryReadTool, RagTool, ArxivPaperTool}</li>
+  </ul>
+  <code>η = 10.0</code> 经 magnitude 分析锁定（η=1 hard gate 失效 / η=100 advantage 信号塌方）。
+</li>
+</ul>
+
+<p style="margin:4px 0"><em>加权聚合（每个采样独立算一个 R_total，G=8 个组成 advantage 计算的 group）</em></p>
+<ul style="margin:4px 0 0 0">
+<li><code>z_g(R_x)</code> — <strong>group-wise z-score</strong>，<em>按 question_id 分组</em>归一化（GDPO 风格）：<code>z_g(R_x_i) = (R_x_i − μ_x^q) / (σ_x^q + ε_safe)</code>，μ/σ 是同 question_id 下所有采样的 mean / std，<code>ε_safe ≈ 1e-8</code>。比"prompt 内 G 个采样"分组多收一层方差，profile 差异不会被错误归零。</li>
+<li><code>w_s, w_p, w_e</code> = 三项 soft reward 的权重；<strong>启动 1/3 : 1/3 : 1/3</strong>，由 <code>HypervolumeReweighter</code> 每 100 步根据三项 EMA 上的 hypervolume 贡献动态重平衡（前 50 步 warmup 不动）。这取代了旧的固定 0.55 : 0.25 : 0.20。</li>
+<li><code>R_hard</code> 不做 z-score、不进 reweighter，直接以 −10 加进 R_total；目的是让硬违规<em>压倒性</em>把 advantage 压成负值，而不是被 normalize 掉或被 reweighter 稀释。</li>
+<li><strong>R_total 不是给单个采样独立打分的指标</strong>，它是要丢进 GRPO advantage 公式的：<code>A_i = (R_total_i − mean(R_total)) / (std(R_total) + ε)</code>。注意这是 group-relative 的 outer 标准化，前面 <code>z_g(·)</code> 是分项 inner 标准化，两层独立。</li>
+</ul>
+</blockquote>
+
+<blockquote>
+<strong>Dev composite 公式里为什么用 "raw"（不 z-score）？</strong><br/>
+监控用的 <code>Dev_composite = (R_struct_raw + R_pers_raw + R_ped_raw)/3 + (1 − HardViolRate)</code> 用的是原始值（_raw 后缀），不 z-score。<br/>
+原因：z-score 是 <em>同一 prompt 同一 group 内</em>的相对量，跨 checkpoint 没意义；监控要在 <em>不同时间点</em>对比 dev 表现，必须用绝对值。<code>HardViolRate</code> = Dev 100 条里至少一项硬违规的比例。
+</blockquote>
+
+<h4>Dev-based checkpoint selection（GRPO 关键）</h4>
+<blockquote>
+<strong>为什么 GRPO 必须用 dev 选 ckpt</strong>：grpo_session_summary §4 + §10 + DAPO 论文都明确指出—— <em>training reward 与 dev metric 经常不相关</em>。GRPO 训练 reward 一直涨可能是 reward hacking（输出更长、更多 keyword stuffing），dev composite 上的真实质量可能在某点之后就开始下降。所以选 ckpt 的依据必须是 dev，不是 training reward。
+</blockquote>
+
+<table>
+<thead><tr><th>频率</th><th>动作</th><th>指标</th></tr></thead>
+<tbody>
+<tr><td>每 1 step</td><td>log training stats</td><td>training reward / reward_std / KL(π_θ ‖ π_SFT) / entropy / clip_ratio / completion_length / hard_violation_rate</td></tr>
+<tr><td>每 30 step</td><td>采 Dev 100 子集 × 1 sample → 算 dev composite</td><td><code>Dev_composite = (R_struct_raw + R_pers_raw + R_ped_raw)/3 + (1 − HardViolRate)</code></td></tr>
+<tr><td>每 30 step</td><td>采 Dev 100 子集 × 8 sample → 算 dev pass@8</td><td>追踪上界、判 reward hacking（详见下面）</td></tr>
+<tr><td>每 30 step</td><td>存 ckpt</td><td>1 ep = 304 update → 约 10 个 ckpt</td></tr>
+<tr><td>训练结束</td><td>挑 best ckpt</td><td><strong>argmax over dev_composite</strong></td></tr>
+</tbody>
+</table>
+
+<h4>训练异常停机条件（不是 ckpt 选择，是救火）</h4>
+<ol>
+  <li><strong>KL 失控</strong>：KL(π_θ ‖ π_SFT) &gt; 10·β = 0.4，连续 3 次 eval → 停机查 lr</li>
+  <li><strong>NaN / Inf</strong>：reward 或 loss 出现 NaN → 立即停</li>
+  <li><strong>Reward hacking 早期信号</strong>：training_reward 升 ≥ 50% <em>但</em> dev_composite 跌 ≥ 10% 持续 3 次 eval → 停机查 reward 函数</li>
+  <li><strong>Mode collapse</strong>：reward_std 连续 3 次 eval 跌 &gt; 70% 且 entropy 跌 &gt; 50% → 停机查 temperature / KL</li>
+</ol>
+<p>这四条都是<em>safety net</em>，正常训练下不会触发；触发了通常是 bug 不是模型不行。</p>
+
+<h4 id="grpo-logging">Stage 3 实验记录与评估</h4>
+
+<p>GRPO 阶段的记录密度<strong>显著高于 SFT</strong>，原因是 (a) reward hacking 必须靠多信号联合监控才能识别，(b) GRPO 一次跑 ~14 天，中间挂了能从最近 ckpt 续比从头训省天。</p>
+
+<p><strong>(1) 训练过程 logging — 每 1 step（约每 50 秒一个 step）</strong></p>
+<table>
+<thead><tr><th>类别</th><th>字段</th><th>用途</th></tr></thead>
+<tbody>
+<tr>
+<td>Reward（聚合）</td>
+<td><code>train/reward_mean</code> · <code>train/reward_std</code> · <code>train/reward_min</code> · <code>train/reward_max</code></td>
+<td>整体走势；<code>reward_std</code> 跌即将 mode collapse</td>
+</tr>
+<tr>
+<td>Reward（分项）</td>
+<td><code>train/r_struct_raw</code> · <code>train/r_pers_raw</code> · <code>train/r_ped_raw</code> · <code>train/r_hard_rate</code>（违规比例）</td>
+<td>分项走势对比；如果 R_pers 急涨但 R_struct 跌 → personalization 在 hack</td>
+</tr>
+<tr>
+<td>Reward（分量子项）</td>
+<td><code>train/r_struct/{dag,dc,atr,structsim}</code> · <code>train/r_ped/{phasecov_v2,plan_size_quality}</code> · <code>train/reweighter/{w_s,w_p,w_e}</code>（动态权重快照）</td>
+<td>更细的 ablation 信号；某子项突然主导整体 reward = reward 设计有偏</td>
+</tr>
+<tr>
+<td>策略动态</td>
+<td><code>train/kl_to_pi_sft</code> · <code>train/entropy</code> · <code>train/clip_ratio</code>（PPO 触发率）</td>
+<td>KL 失控、entropy 塌方、clip 过频 → safety net 触发依据</td>
+</tr>
+<tr>
+<td>生成形态</td>
+<td><code>train/completion_length_mean</code> · <code>train/completion_length_max</code> · <code>train/timeout_rate</code>（超 max_completion 截断率）· <code>train/invalid_json_rate</code></td>
+<td>length 爆涨 = verbosity hacking 信号；timeout > 5% = max_completion 设小了</td>
+</tr>
+<tr>
+<td>梯度</td>
+<td><code>train/loss</code> · <code>train/grad_norm</code> · <code>train/lr</code></td>
+<td>NaN/Inf 立即停</td>
+</tr>
+<tr>
+<td>系统</td>
+<td><code>system/gpu_mem_mb</code> · <code>system/gpu_util_pct</code> · <code>system/step_time_s</code></td>
+<td>OOM 前兆 + 估算剩余时间</td>
+</tr>
+</tbody>
+</table>
+
+<p><strong>(2) Dev 监控 — 每 30 step（约每 25 分钟一次，单次 eval ~3 分钟）</strong></p>
+<table>
+<thead><tr><th>字段</th><th>计算方式</th><th>用途</th></tr></thead>
+<tbody>
+<tr>
+<td><code>dev/composite</code></td>
+<td><code>(R_struct_raw + R_pers_raw + R_ped_raw)/3 + (1 − HardViolRate)</code>；在 Dev 100 子集上 1 sample/prompt 算</td>
+<td><strong>选 best ckpt 的核心信号</strong></td>
+</tr>
+<tr>
+<td><code>dev/pass_at_1</code> · <code>dev/pass_at_8</code></td>
+<td>同 §3.4 Gate 定义</td>
+<td>追踪 GRPO 是否真的在把 pass@8 里的好 plan 推成 pass@1</td>
+</tr>
+<tr>
+<td><code>dev/r_*_raw</code>（分项）</td>
+<td>SV / AR / DC / ATR / StructSim / R_pers / R_ped 各自的 raw 均值</td>
+<td>判断哪个 reward 分量在拉动 dev_composite</td>
+</tr>
+<tr>
+<td><code>dev/length_mean</code></td>
+<td>Dev 100 上生成的平均 plan token 数</td>
+<td>与 <code>train/completion_length_mean</code> 对照：训练 length 涨但 dev length 平 = SFT 阶段 length 已对齐，GRPO 在搞别的；两者都涨 = verbosity hacking 嫌疑大</td>
+</tr>
+</tbody>
+</table>
+
+<p><strong>(3) Checkpoint 保存策略</strong></p>
+<ul>
+<li>每 30 step（= 每次 dev eval 后）存一个 ckpt + 同 metadata.json（字段与 §3.1 SFT 类似，额外记 <code>dev_composite</code> / <code>dev_pass_at_8</code> / <code>train/r_hard_rate</code> 历史平均）</li>
+<li>1 epoch ≈ 304 update → ~10 个 ckpt；每个 LoRA adapter ~155 MB，加 optimizer state 共 ~500 MB → 总 ~5 GB，磁盘可承受</li>
+<li>训练结束后<strong>不</strong>立刻挑 ckpt，先在 W&amp;B 上画 <code>train/reward_mean</code> vs <code>dev/composite</code> 二维曲线（参考 grpo_session_summary §4 提到的 "proxy-vs-gold curve"），目视判断是否有 reward hacking 拐点</li>
+<li>最终挑 ckpt：<code>argmax over dev/composite</code>，但<em>排除</em> training reward 与 dev composite 偏离 &gt; 30% 的 ckpt（reward hacking 嫌疑区）</li>
+</ul>
+
+<p><strong>(4) GRPO 阶段评估指标矩阵</strong></p>
+<table>
+<thead><tr><th>指标</th><th>何时算</th><th>计算频率</th><th>用途</th></tr></thead>
+<tbody>
+<tr><td>训练统计量（reward / KL / entropy 等 12 项）</td><td>每 1 step</td><td>~17,000 个 data point / 14 天</td><td>实时监控 + safety net 触发依据</td></tr>
+<tr><td>Dev composite</td><td>每 30 step</td><td>~10 个 eval point</td><td>选 best ckpt</td></tr>
+<tr><td>Dev pass@1 / pass@8</td><td>每 30 step</td><td>同上</td><td>验证 GRPO 把"会做"推成"自然做"</td></tr>
+<tr><td>5 项结构指标（SV/AR/DC/ATR/GED-sim）</td><td>训练结束</td><td>1 次（best ckpt 在 Dev 305 全集）</td><td>π_θ 出口验收</td></tr>
+<tr><td><strong>LLM judge: Pers./Ped./Feas./Sati.</strong></td><td>训练结束</td><td>1 次（best ckpt 在 Dev 305 全集）</td><td>π_θ 出口验收，与 Stage 2 末同样测一遍对比"GRPO 带来的提升"。PVS / PNG / JCC 留到 Test 阶段</td></tr>
+<tr><td>Test 评估</td><td>全部完成后</td><td>1 次（Test 305 全集）</td><td>最终汇报；含 Pareto sweep 与 ablation 所有变体</td></tr>
+</tbody>
+</table>
+
+<p><strong>(5) Reward Hacking 检测信号（必须每天人工看一次）</strong></p>
+<p>这是 GRPO 特有的危险——training reward 一直涨但 dev 不动甚至跌。grpo_session_summary §4 给的 proxy-vs-gold 曲线判定是黄金标准：</p>
+<table>
+<thead><tr><th>信号</th><th>含义</th><th>动作</th></tr></thead>
+<tbody>
+<tr><td><code>train/reward_mean</code> ↑↑↑ <em>且</em> <code>dev/composite</code> ↓ 或 平</td><td>Reward 在涨但 dev 真实质量没跟上 → 经典 reward hacking</td><td>立即停查 reward 函数；最常见是 R_pers 或 R_struct 的某子项被钻空</td></tr>
+<tr><td><code>train/completion_length_mean</code> 增长 &gt; 30% 而 <code>dev/composite</code> 平</td><td>Verbosity hacking：模型靠输出更长的 plan 撞中更多 reward keyword</td><td>给 R_total 加 length penalty（如 <code>-0.01·max(0, len-2000)</code>）</td></tr>
+<tr><td><code>train/r_pers_raw</code> 急涨但 <code>train/r_struct_raw</code> 跌</td><td>Persona-keyword stuffing：模型把 profile keyword 塞进短 step 拿 R_pers，但结构崩了。注意新版 R_pers 已无 0.8 cap，stuffing 信号会更明显</td><td>提高 R_pers 的 220 char 长度阈值（如调到 280）；或在 grounded_step 检测里加"必须含动词"的句法要求</td></tr>
+<tr><td><code>train/r_ped/phasecov_v2</code> 触顶 1.0 但 <code>train/r_struct_raw</code> 跌</td><td>Phase keyword spamming：模型把 4 个 phase keyword 堆砌到 plan 里通过 3-condition 检查</td><td>提高 phase 检测的 lexical signature 严格度；或加 step-count 下限避免微型 plan 蹭满 4 phase</td></tr>
+<tr><td><code>train/r_ped/plan_size_quality</code> 异常高但 <code>dev/composite</code> 平</td><td>Size-gaming：模型把 subtask / step 数往梯形函数的 plateau 区间硬凑</td><td>把梯形改成更窄的 sweet spot（subtasks lo=3 hi=4、steps lo=9 hi=11）；或加 plan diversity 检查</td></tr>
+<tr><td><code>train/r_hard_rate</code> 升而非降</td><td>反常 — hard gate 应该惩罚模型不去违规；如果违规比例升说明 reward 信号被 hack 到无视 hard gate</td><td>提 η 从 10 到 20；查 batch 内 advantage 是不是 -10 都被 normalize 抵消了</td></tr>
+<tr><td>Dev 上 generated plan 都长得像同一个 template</td><td>Mode collapse — 模型把所有 query 都塞进一个模板</td><td>提高 temperature；降 β（限制对 π_SFT 的回拉）；最坏情况停训重新调 reward 权重</td></tr>
+</tbody>
+</table>
+
+<p><strong>(6) GRPO 阶段特有注意事项</strong></p>
+<ol>
+<li><strong>不要在训练循环里调 LLM judge</strong>：(a) 100 条 judge call 一次几分钟，每 30 step 一次就是 28 小时纯 judge call/14 天训练；(b) judge 自身有 verbosity / position bias，把它喂回训练 = 双重 hack 面（grpo_session_summary §3）。所有 reward 全规则式 O(|P|) Python，论文 §4 明确这么要求。</li>
+<li><strong>Loss mask（重要）</strong>：GRPO loss 只在 <em>模型生成的 plan token</em> 上算梯度，不在 prompt token 上。如果用 TRL，<code>GRPOTrainer</code> 默认正确；如果用 verl / 自实现，确认 mask 是 <code>completion_mask</code> 而不是 <code>response_mask</code>（参考 WebAgent-R1 与 Aligning-Pedagogy 都强调这点）。</li>
+<li><strong>KL anchor 一定要固定到 π_SFT</strong>：论文 §4 明确要求。<em>不要</em>用 TRL 默认的 "ref model 每 N 步刷新"——那是 PPO 风格不是论文要的。Aligning-Pedagogy 用 moving anchor，但论文坚持 pinned。</li>
+<li><strong>training reward 不代表模型变好</strong>：DAPO 论文里专门讲过 training reward 和 validation accuracy 可以"相关性接近 0"。所以<em>必须</em>看 dev composite 而不是只看 train reward。这是 grpo_session_summary §10 的核心警告。</li>
+<li><strong>Dev composite 用 raw 不用 z-score</strong>：训练用 z-score 是为了同 prompt 内 G=8 个 sample 比较；dev 监控是要在<em>不同时间点</em>之间比较，必须用绝对值（raw），否则不同 ckpt 不可比。</li>
+<li><strong>vLLM 加速 rollout 谨慎</strong>：SHC 5/14 实测 vllm 0.20.2 与 torch 2.12 ABI 不兼容，直接关 vllm 走 transformers <code>generate()</code> 慢但稳。如果之后换 verl 框架可以重启 vllm；但<em>先确保稳定再上加速</em>。</li>
+<li><strong>断点恢复必须包含 RNG state</strong>：14 天训练中间挂了，恢复时要 load 完整 optimizer state + RNG state，否则采样序列变了 = 实际上是新训练。<code>torch.save({"model": ..., "optimizer": ..., "rng_state": torch.get_rng_state(), "cuda_rng_state": torch.cuda.get_rng_state_all()})</code>。</li>
+<li><strong>Reward 权重一改就要重训</strong>：RQ4 的 5 个 Pareto run 都是 continue-train 0.3 ep 从主 π_θ 接着训，<em>不是</em>从 SFT 重头训。这样 5 个 run 共享同一起点，对比才公平。</li>
+</ol>
+
+<h3>3.5 RQ4 — Pareto 曲线扫参（GRPO 完成后做）</h3>
+<p>不重训，从主 GRPO 完成的 π_θ continue 0.3 epoch（约 1.5 天 / 个）。<strong>扫参时 freeze HypervolumeReweighter</strong>，把 (w_s, w_p, w_e) 固定为表中值，否则 reweighter 会把权重又拉回去。</p>
+<table>
+<thead><tr><th>Run</th><th>(w_s, w_p, w_e)</th><th>预期观察</th></tr></thead>
+<tbody>
+<tr><td>P0（主）</td><td>(1/3, 1/3, 1/3)</td><td>主表数据（与 GRPO 初始权重一致；与动态版做对照）</td></tr>
+<tr><td>P-struct</td><td>(0.80, 0.10, 0.10)</td><td>SV / AR / DC / GED-sim 上界</td></tr>
+<tr><td>P-pers</td><td>(0.30, 0.50, 0.20)</td><td>Pers. 上界，预期 SV 下降</td></tr>
+<tr><td>P-ped</td><td>(0.30, 0.20, 0.50)</td><td>R_ped phase coverage v2 上界</td></tr>
+<tr><td>P-balanced</td><td>(0.40, 0.30, 0.30)</td><td>中庸位（非均匀）</td></tr>
+</tbody>
+</table>
+<p><strong>Figure 4（三面板 Pareto，参考 EVALUATION_DESIGN §7.3）</strong>：(a) Pers. vs DC、(b) Pers. vs R_ped、(c) Pers. vs EVR（Tier-2 在线执行率）。每个面板 5 个数据点 + 帕累托前沿包络线，参考 Aligning-Pedagogy（#20）的 λ Pareto 图风格。</p>
+
+<!-- =========================================================== -->
+<h2 id="baselines">4. Baseline 矩阵（精简到 8 行 + Ours = 9 行）</h2>
+
+<p>对齐 <code>Baselines/baseline_design_v1.html</code> 和 <code>Baselines/README.md</code>。<strong>v3 设计相对原 §4 大幅收缩</strong>：T2（开源 LLM 直跑）和 T3（prompt-based planner ReAct/PaS/ToT/Reflexion/Self-Refine）暂时<em>不</em>进主表，留给后续工作或 sensitivity check。理由：(a) v15 数据集 + v3 评估方法已经把工作量推到 6 周，再加 11 行 zero-shot baseline 没有判卷预算；(b) 论文核心对比已经被 T1×3（闭源旗舰）+ T4×2（通用 MAS）+ T5×3（教育 MAS）三组覆盖。</p>
+
+<p class="legend">
+<span><span class="swatch" style="background:#dafbe1;border:1px solid #aceebb"></span>已跑通 / 主方法</span>
+<span><span class="swatch" style="background:#fff8c5;border:1px solid #eac54f"></span>跑通但保真度待提</span>
+<span><span class="swatch" style="background:#ffebe9;border:1px solid #ff8182"></span>等 API 凭证</span>
+</p>
+
+<h3>4.1 Baseline 总览（9 行）</h3>
+<table>
+<thead>
+<tr><th>#</th><th>Tier</th><th>方法</th><th>协调模式</th><th>Backbone</th><th>领域适配 / 内部 prompt</th><th>实现状态</th></tr>
+</thead>
+<tbody>
+<tr><td>1</td><td rowspan="3">T1<br/><em>闭源 LLM 直跑</em><br/><em>测 backbone 上限</em></td><td>GPT-5</td><td>单 LLM, 1 次调用</td><td>OpenAI（bianxie.ai 代理）</td><td rowspan="3">PREAMBLE + §5 + §9 + §12（同 T4；只锁任务描述 / 工具池 / schema / closing，不传教法论）</td><td><span class="tag bad">⏳ 待 API 凭证</span></td></tr>
+<tr><td>2</td><td>Claude Opus 4.6</td><td>单 LLM, 1 次</td><td>Anthropic（bianxie.ai 代理）</td><td><span class="tag bad">⏳ 待 API 凭证</span></td></tr>
+<tr><td>3</td><td>Qwen3-Max</td><td>单 LLM, 1 次</td><td>DashScope（<code>qwen3-max-2025-09-23</code> dated snapshot）</td><td><span class="tag ok">✅ 已可调用</span></td></tr>
+<tr><td>4</td><td rowspan="2">T4<br/><em>通用 MAS 框架</em><br/><em>测通用 MAS 在教学领域可迁移性</em></td><td>AutoGen</td><td>1 AssistantAgent（框架不预设角色）</td><td>qwen3-32b（DashScope）</td><td>任务描述 = AssistantAgent.system_message（PREAMBLE + §5 + §9 + §12）</td><td><span class="tag ok">✅ 已跑通</span></td></tr>
+<tr><td>5</td><td>AutoAgents</td><td>Manager + N 动态 agent</td><td>qwen3-32b</td><td>Manager 完全从 task 动态生成角色（唯一真正"读任务、自决 topology"的框架），CreateRoles / CheckRoles / CreatePlan 多步提示</td><td><span class="tag ok">✅ 跑通（论文原仓库代码，子进程隔离）</span></td></tr>
+<tr><td>6</td><td rowspan="3">T5<br/><em>教育领域 MAS</em><br/><em>测领域专用 MAS</em></td><td>EduPlanner (ported)<br/><small>Zhang et al., 2025</small></td><td>3-agent 对抗循环</td><td>qwen3-32b</td><td>论文 prompt + CIDDP rubric；programming Skill-Tree 替换原版 math Skill-Tree</td><td><span class="tag ok">✅ 跑通（按论文方法复现，论文源码不完整）</span></td></tr>
+<tr><td>7</td><td>GenMentor<br/><small>Wang et al., WWW 2025</small></td><td>4-module 流水线（M1–M4，跳过 M5 chatbot tutor）</td><td>qwen3-32b</td><td>论文 prompt（langchain 1.3 + langgraph 1.2 stack；不跑完整 RAG 与 webapp）</td><td><span class="tag warn">🟡 跑通（自实现简化版，待替换原仓库）</span></td></tr>
+<tr><td>8</td><td>AOP<br/><small>Li et al., ICLR 2025</small></td><td>meta-agent + 4 worker + LLM-as-judge replan loop</td><td>qwen3-32b</td><td>论文 prompt（reward MLP 未发布，<strong>用 LLM-as-judge 替代</strong>仍 zero-shot）</td><td><span class="tag ok">✅ 已跑通</span></td></tr>
+<tr><td>9</td><td>Ours</td><td><strong>PersonalPlan</strong></td><td>单 LLM + 12 段精炼 prompt（§1–§12）</td><td>Qwen3-32B-Instruct（PAD/SDP LoRA + GRPO，§3 训练流程）</td><td>§1–§12 推理 prompt（领域专用，含教法论）</td><td><span class="tag ok">⭐ 主方法</span></td></tr>
+</tbody>
+</table>
+
+<blockquote>
+<strong>所有 baseline 均 zero-shot inference</strong>：无 SFT / RLHF / DPO / 参数更新；AOP 原论文用预训练 SimilarityMLP，上游未发布权重，用 LLM-as-judge 替代仍属 zero-shot。Ours 是唯一做训练的方法 —— RQ3 ablation 与 RQ4 Pareto 都在 Ours 内部做。
+</blockquote>
+
+<h3>4.2 公平比较：固定什么，不固定什么</h3>
+<p>采用 AgentBench / SWE-bench / AutoGen / MetaGPT 论文实验的标准做法：<strong>固定任务/输入/输出 schema/评估，不固定 baseline 内部 prompt</strong>。理由：每个 baseline 的内部 prompt 是其方法的一部分，强加我们的 12 段 prompt = 把别人的方法替换成我们的方法。</p>
+
+<table>
+<thead><tr><th>维度</th><th>是否固定</th><th>说明</th></tr></thead>
+<tbody>
+<tr><td>任务陈述</td><td><span class="tag ok">✅ 固定</span></td><td>所有 T1 / T4 收到完全相同的任务描述包（PREAMBLE + §5 + §9 + §12）</td></tr>
+<tr><td>输入数据 (query + learner)</td><td><span class="tag ok">✅ 固定</span></td><td><code>multi_agent_dataset_filtered_qap_v15_goodplus.jsonl</code>（3,043 条 v15 Good+）逐条 mapping</td></tr>
+<tr><td>输出 schema (§9)</td><td><span class="tag ok">✅ 固定</span></td><td>评估管线需要可比输出；T5 通过 post-hoc 翻译统一映射到 §9 schema</td></tr>
+<tr><td>工具池（8 项 ALLOWED_TOOLS）</td><td><span class="tag ok">✅ 固定</span></td><td>避免幻觉工具名；与 §3.3 R_hard 工具列表一致</td></tr>
+<tr><td>评估标准</td><td><span class="tag ok">✅ 固定</span></td><td>§5 Headline-12 + 全 22 项指标；所有 baseline 同口径</td></tr>
+<tr><td>Backbone 模型</td><td><span class="tag accent">🟢 类内统一</span></td><td>T1 各自闭源旗舰；<strong>T4 / T5 全部用 <code>qwen3-32b</code></strong>，对齐 PersonalPlan 微调基座 — 让 T4/T5 vs Ours 的对照只差"方法"，不差"backbone 模型族"</td></tr>
+<tr><td>Baseline 内部 prompt</td><td><span class="tag bad">❌ 不固定</span></td><td>AutoAgents Manager 的 CreateRoles/CheckRoles/CreatePlan、AOP meta-agent 三原则、EduPlanner CIDDP、GenMentor 4-module 提示 — 各自论文方法的核心，强制替换 = 替换方法本身</td></tr>
+<tr><td>Prompt 输入分层</td><td><span class="tag accent">🟢 分层固定</span></td><td><strong>T1/T4 收完整任务描述包</strong>（PREAMBLE + §5 + §9 + §12，<em>不传</em>教法论 §1–§4/§6–§8/§11 也不传 §10 示例，避免引诱框架去 imitate Ours 的 plan-shape）；<strong>T5 只收 (query, learner) 原始输入</strong>，让论文 entry point 走自己的 prompt</td></tr>
+</tbody>
+</table>
+
+<h3>4.3 实现栈与单条耗时</h3>
+<table>
+<thead><tr><th>Baseline</th><th>实现路径</th><th>Python env</th><th>单条耗时</th></tr></thead>
+<tbody>
+<tr><td>T1.1 / T1.2 / T1.3</td><td>共用 <code>baselines/t1/plan.py</code> + <code>run.py</code>，只通过 <code>--backend</code> 切</td><td>主 env</td><td>~30 s</td></tr>
+<tr><td>T4.1 AutoGen</td><td><code>autogen-agentchat ≥ 0.4</code> pip 包</td><td>主 env</td><td>~30 s</td></tr>
+<tr><td>T4.2 AutoAgents</td><td>子进程跑 <code>external/AutoAgents</code> 上游代码（pinned litellm 0.7.5 / pydantic 1.10.7）</td><td><code>.venvs/autoagents_310</code></td><td>~11 min</td></tr>
+<tr><td>T5.1 EduPlanner</td><td>论文 prompt 内联，无 runtime 依赖</td><td>主 env</td><td>~48 s</td></tr>
+<tr><td>T5.2 GenMentor</td><td>子进程跑 <code>external/gen-mentor/backend/</code> 上游 M1–M3 + 自写 M4 §9 assembly</td><td><code>.venvs/genmentor_310</code></td><td>~2:30</td></tr>
+<tr><td>T5.3 AOP</td><td>子进程跑 <code>external/Agent-Oriented-Planning/</code>；reward MLP 替换为 LLM-as-judge</td><td>主 env（patched via <code>aop_patch.py</code>）</td><td>~40 s</td></tr>
+</tbody>
+</table>
+
+<p><strong>3,043 × 8 baseline 全量推理预算估算</strong>（不含 Ours）：T1×3 + T4.1 + T5.1 + T5.3 ≈ 0.5 h/baseline × 5 = ~7.5 h；T5.2 ≈ 2.5 min × 3,043 = ~127 h；T4.2 ≈ 11 min × 3,043 = ~560 h（必须并行 / 分片，可考虑只在 100 条 Tier-2 子集跑）。<strong>T4.2 AutoAgents 是单一最大开销</strong>，如果整体时间紧，考虑只跑 305 Test + 100 Tier-2 子集而非 3,043 全量。</p>
+
+<h3>4.4 输出与断点续跑</h3>
+<p>所有 baseline 输出到 <code>evaluation_results/baselines/&lt;name&gt;/</code>：</p>
+<pre>plans.jsonl           每行 {"question_id", "profile_index", "generated_plan": {...§9 JSON...}}
+failures.jsonl        每行 {"key", "error", "traceback"}
+progress.json         断点续跑状态（中断后重跑同命令跳过已完成）
+native_outputs.jsonl  T4.2 / T5 才有；记录上游 paper method 的 native 中间产物（用于 schema 翻译审计）</pre>
+
+<blockquote>
+<strong>已被替换 / 删除的 baseline 候选</strong>（vs v1 草案）：
+<ul style="margin:4px 0 0 0">
+<li><strong>T2 开源 LLM 直跑</strong>（DeepSeek-V3.2 / Llama 4 / GLM-5 / Qwen3-32B zero-shot 等 5 行）→ 暂不在主表，留给 sensitivity check 或后续工作。</li>
+<li><strong>T3 prompt-based planner</strong>（ReAct / Plan-and-Solve / ToT / Reflexion / Self-Refine 5 行）→ 同上。</li>
+<li><strong>CAMEL / MetaGPT / AgentVerse</strong>（v1 T4 候选）→ 收缩到 AutoGen + AutoAgents 两个代表性框架。AutoAgents 选中的理由：唯一真正"读任务自决 topology"的通用 MAS。</li>
+<li><strong>AutoGen-GPT5</strong>（v1 框架上限）→ 删，T1.1 已经测了 GPT-5 单 LLM 上限；AutoGen-GPT5 的增量信息有限。</li>
+</ul>
+</blockquote>
+
+<!-- =========================================================== -->
+<h2 id="eval">5. 评估方法（三层协议 · Headline 12 项 · 总 22 项）</h2>
+
+<p>本节与 <code>Evaluation/EVALUATION_DESIGN_2026-05-15.html</code> 严格对齐。完整指标定义、prompt、anti-hack 协议在 EVALUATION_DESIGN §11；本节只列实验需要的列与算什么。</p>
+
+<h3>5.1 三层协议</h3>
+<table>
+<thead><tr><th>层</th><th>对象</th><th>覆盖样本</th><th>指标数</th><th>状态</th></tr></thead>
+<tbody>
+<tr><td>Tier 1 静态 plan</td><td>JSON plan 本身</td><td>Test 305 全集</td><td><strong>11</strong>（6 规则式 + 4 LLM-judge + 1 counterfactual）</td><td><span class="tag ok">规则式已就绪</span> · <span class="tag warn">LLM-judge 待 pilot</span></td></tr>
+<tr><td>Tier 2 在线 MAS</td><td>plan 喂 CrewAI 跑 Teacher↔Student</td><td><strong>100 条分层子集</strong>（<code>splits/maple_tier2_100.json</code>，seed=42，按 category × profile_index 0 vs ≥1 分层）</td><td><strong>4</strong>（EVR + PAS + PQS + r_sol）</td><td><span class="tag ok">SHC Execution 已就绪</span> · <span class="tag warn">PAS/PQS/r_sol 端口实现待 W2</span></td></tr>
+<tr><td>Tier 3 对话级 rubric</td><td>对话 transcript</td><td>Test 305 全集</td><td><strong>2</strong>（Sati + JCC）</td><td><span class="tag ok">lyx 三 prompt 改完</span></td></tr>
+</tbody>
+</table>
+
+<blockquote>
+<strong>Tier-2 student agent 必须 freeze 为 Llama-3.1-8B-Instruct</strong>（EVALUATION_DESIGN §8.1）。所有 method 共用同一个 student，否则 EVR / r_sol 不可比。Teacher = 各 method 自己的 backbone（Ours = Qwen3-32B GRPO 出口）。
+</blockquote>
+
+<h3>5.2 指标定义</h3>
+
+<h4>Tier 1：6 项规则式</h4>
+<table>
+<thead><tr><th>缩写</th><th>定义</th></tr></thead>
+<tbody>
+<tr><td>SV</td><td>Schema Validity：JSON 解析 + 顶层 4 key + 类型全对，1/0</td></tr>
+<tr><td>AR</td><td>Acyclicity Rate：依赖图通过拓扑排序的 plan 比例</td></tr>
+<tr><td>DC</td><td>Dependency Completeness：|D_satisfied| / |D_total|</td></tr>
+<tr><td>ATR</td><td>Agent-Tool Relevance：(I_A→S + I_T→A + I_T→S) / 3</td></tr>
+<tr><td><strong>TBV</strong>（新增）</td><td>Tool-Budget Validity：每个 agent 在 plan 中实际调用的 distinct tool 集合 ⊆ 8 项 ALLOWED_TOOLS 且 ⊆ 该 agent 的 <code>tools</code> 声明集合，全部满足 = 1（详见 EVALUATION_DESIGN §11.1）</td></tr>
+<tr><td>GED-sim</td><td>1 − GED(G', G) / max(|S'|+|O'|, |S|+|O|)</td></tr>
+</tbody>
+</table>
+
+<h4>Tier 1：4 项 LLM-judge（+ 1 counterfactual）</h4>
+<table>
+<thead><tr><th>缩写</th><th>定义</th><th>判卷协议</th></tr></thead>
+<tbody>
+<tr><td>Pers.</td><td>Personalization — skill / goal / background 三子维度，1–5 anchored</td><td rowspan="6">主 GPT-5 + cross-family 复核 Claude Opus 4.6；可选第三 judge Gemini 3 Pro 做 M-judge 乘积；order randomization；子维度独立调用；reference-grounded；100 条人工 κ ≥ 0.65 / ICC ≥ 0.7 / Krippendorff α ≥ 0.5（详见 §5.2.2 与 EVALUATION_DESIGN §8）</td></tr>
+<tr><td><strong>Ped.</strong>（新增）</td><td>Pedagogy — KELE 4 子维度：PRR (prerequisite respect) / NDAR (non-trivial difficulty alignment) / SPR (scaffolding progression) / IAR (interaction-affordance richness)</td></tr>
+<tr><td>Feas.</td><td>Feasibility — dependency order / task decomposition / agent-tool appropriateness</td></tr>
+<tr><td><strong>PVS</strong>（新增）</td><td>Profile-Verifiable Sensitivity：counterfactual probe，比较同一 query 在该 profile vs 打散 profile 下 plan 的 Pers. 差距，定义为 sensitivity = Pers(profile) − Pers(shuffled)</td></tr>
+<tr><td><strong>PNG</strong>（新增）</td><td>Profile-Non-Generic：plan 是否 profile-conditioned 而非 generic template，通过 retrieve 同 query 不同 profile 的 plan 做 distinctness 检测（详见 EVALUATION_DESIGN §11.3）</td></tr>
+<tr><td>Sati.</td><td>profile-conditioned pairwise vs GT，Sati = preference rate（Tier 3）</td></tr>
+</tbody>
+</table>
+
+<h4>Tier 2：4 项在线指标（100 条子集）</h4>
+<table>
+<thead><tr><th>缩写</th><th>定义</th><th>来源</th></tr></thead>
+<tbody>
+<tr><td><strong>EVR</strong></td><td>Execution Validity Rate（5 条件 AND）：coverage ∧ loop-bounded ∧ flow-consistent ∧ CER (capability-execution-match) ∧ CCR (constraint-conformance)。任何一条失败 = 0；全过 = 1</td><td>EVALUATION_DESIGN §5.2 + §11.4</td></tr>
+<tr><td><strong>PAS</strong></td><td>Personalization Adaptation Score = KELE PRR（prerequisite respect rate），post-rollout 算</td><td>KELE EMNLP 2025</td></tr>
+<tr><td><strong>PQS</strong></td><td>Pedagogy Quality Score = mean(NDAR + SPR + IAR)，post-rollout 算</td><td>KELE EMNLP 2025</td></tr>
+<tr><td><strong>r_sol</strong></td><td>post-dialog solve rate：rollout 结束后给 student 一道与 query 对齐的 probe，看是否答对</td><td>Aligning-Pedagogy EMNLP 2025</td></tr>
+</tbody>
+</table>
+
+<h4>Tier 3：Sati + JCC（305 全集）</h4>
+<table>
+<thead><tr><th>缩写</th><th>定义</th></tr></thead>
+<tbody>
+<tr><td>Sati.</td><td>profile-conditioned pairwise vs GT，M-judge 乘积（GPT-5 × Claude Opus 4.6 × Gemini 3 Pro）；Tie 算 0.5；AB 顺序互换跑两次取均值</td></tr>
+<tr><td><strong>JCC</strong>（新增）</td><td>Judge Consistency Coefficient = Krippendorff α 在三个 judge 上算，作 Sati 的 confidence 指标；JCC &lt; 0.5 的样本人工裁决</td></tr>
+</tbody>
+</table>
+
+<h4>Headline-12 主表（论文主图表用）</h4>
+<p>主表选 12 列代表性指标：<strong>SV · AR · DC · ATR · TBV · GED-sim</strong>（6 规则式）+ <strong>Pers. · Ped. · Feas.</strong>（3 LLM-judge）+ <strong>EVR · PAS</strong>（2 Tier-2 头牌）+ <strong>Sati.</strong>（1 Tier-3）。PQS / r_sol / PVS / PNG / JCC 放 appendix 全表（EVALUATION_DESIGN §10.4）。</p>
+
+<h4 id="rubrics">§5.2.1 LLM judge 完整 Rubrics（5/3/1 anchored）</h4>
+<p>每个子维度独立 1–5 Likert，<strong>只接受 1、3、5 三个 anchor 点</strong>（参考 KELE EMNLP 2025 与 Aligning-Pedagogy EMNLP 2025 的稳定做法；偶数分由两个 anchor 平均得到，但 judge 不直接输出 2/4，减少判卷者间不一致）。最终 score = 三个子维度均值，再归一化到 [0,1]：<code>score = (mean − 1) / 4</code>。</p>
+
+<h5>Pers. — Personalization Rubric</h5>
+<table>
+<thead><tr><th>子维度</th><th>5 (Excellent)</th><th>3 (Adequate)</th><th>1 (Poor)</th></tr></thead>
+<tbody>
+<tr>
+<td><strong>Skill Match</strong><br/>plan 起点是否匹配 learner 的实际技能水平</td>
+<td>起步明确建立在 learner.top_tags 涉及的具体技术上，没有解释 learner 显然已掌握的基础；难度阶梯严格按 learner 已声明的 skill 推进</td>
+<td>整体水平大致对齐，但有 1–2 个 step 解释了 learner 已知内容或跳过了关键缺口</td>
+<td>解释 learner 显然已掌握的入门概念（如对 senior dev 解释什么是变量），或反过来跳过关键缺口；plan 与 learner 标签几乎无关</td>
+</tr>
+<tr>
+<td><strong>Goal Orientation</strong><br/>plan 是否朝 query 的核心问题推进</td>
+<td>每个 subtask 都明确服务于 query 的核心问题；plan 末端到达可验证的解决方案</td>
+<td>大致朝目标推进，但有 1–2 个 step 偏题或冗余</td>
+<td>plan 整体偏离 query，或绕了远路；末端没有可验证的解答路径</td>
+</tr>
+<tr>
+<td><strong>Background Adaptation</strong><br/>例子、agent role、解释方式是否适配 learner 背景</td>
+<td>例子用 learner.about_me 里提到的项目/领域类比；agent role 描述明确提到 learner 的背景术语；至少 2 个 step 的 instruction 引用 learner 已有经验</td>
+<td>大体上 neutral 但偶尔提到 learner 背景；agent role 通用</td>
+<td>例子和背景完全无关，agent role 和 instruction 看不出是给这个 learner 写的</td>
+</tr>
+</tbody>
+</table>
+
+<h5>Feas. — Feasibility Rubric</h5>
+<table>
+<thead><tr><th>子维度</th><th>5 (Excellent)</th><th>3 (Adequate)</th><th>1 (Poor)</th></tr></thead>
+<tbody>
+<tr>
+<td><strong>Dependency Ordering</strong><br/>step 顺序与 depends_on 是否合理可执行</td>
+<td>所有 depends_on 指向已存在 step，无环；execution_order 与 depends_on 完全一致；loop block 的条件合理</td>
+<td>大部分顺序合理但有 1 个不必要的依赖，或 execution_order 与 depends_on 偶有不一致</td>
+<td>存在循环依赖或 depends_on 指向不存在 step；execution_order 明显错误</td>
+</tr>
+<tr>
+<td><strong>Task Decomposition</strong><br/>query 是否被分解成合理的可操作 subtask / step</td>
+<td>subtask 边界清晰，step 粒度适中（不太粗也不太细），覆盖核心解题路径</td>
+<td>分解大致合理但有 1 个 subtask 过粗或过细</td>
+<td>subtask / step 划分混乱，无清晰边界；或 plan 太简略以致不可执行</td>
+</tr>
+<tr>
+<td><strong>Agent-Tool Appropriateness</strong><br/>agent 角色与 tool 分配是否合理</td>
+<td>每个 agent 的 role 和 goal 与其执行的 step 高度匹配；tool 仅在确实需要时使用，且 tool 在该 agent 的 tools 列表中</td>
+<td>多数 agent-tool 配对合理，1 个 step 用了不必要的工具或 agent</td>
+<td>agent 角色与 step 不匹配；调用了 agent.tools 列表外的工具；明显的 tool hallucination</td>
+</tr>
+</tbody>
+</table>
+
+<h5>Sati. — Satisfaction (profile-conditioned pairwise vs GT)</h5>
+<p>不是 Likert，是 pairwise comparison。Judge 收到 query + profile + 两个 plan（A = candidate, B = gold；或反之，顺序随机）<em>不告诉 judge 哪个是 gold</em>，回答 "From the perspective of this learner, which plan would they prefer to follow?" 输出 A / B / Tie。</p>
+<p>Rubric 给 judge 的 instruction：</p>
+<pre>Judge from the learner's perspective on these four criteria (in this order of priority):
+1. Skill Match: Which plan starts at a level appropriate to my declared skills, neither
+   over-explaining basics I clearly know, nor skipping prerequisites?
+2. Engagement & Learnability: Which plan is easier to follow, with clearer step-by-step
+   instructions and motivating examples?
+3. Structural Appropriateness: Which plan has a more logical task structure that I can
+   actually execute as a learner?
+4. Personal Relevance: Which plan feels customized to me as a specific learner with my
+   background, rather than a generic template?
+
+Output exactly one of: "A", "B", or "Tie" (only if both are clearly equivalent on all criteria).
+Then provide a 1-sentence justification.</pre>
+<p><strong>评分</strong>：Sati. = (candidate 在 pairwise 中被偏好的比例)。Tie 算 0.5。<em>每个 plan 对要跑两次</em>（A/B 顺序互换），取两次平均消除位置偏差。</p>
+
+<h4 id="judge-protocol">§5.2.2 LLM judge 调用协议（防 reward hacking 与 judge bias）</h4>
+<ol>
+<li><strong>跨模型族</strong>：主判 GPT-5，复核 Claude Opus 4.6；两者分数相关性 r ≥ 0.7 才认可（参考 Aligning-Pedagogy EMNLP 2025 的 M-judge 乘积做法）。如果两 judge 严重分歧（差 ≥ 2 分 anchor）→ 人工裁决。</li>
+<li><strong>子维度独立调用</strong>：Pers. 三个子维度 → 三次独立 LLM call（不在同一 prompt 里同时评所有维度）。这条很关键，因为 LLM 在同一 context 里评多维度会出现"halo effect"（一个维度高就把其他都拉高）。</li>
+<li><strong>Order randomization</strong>：所有 pairwise 调用，AB 顺序随机；同一对必须跑两次（AB 和 BA），如果两次结果不一致 → 计为 Tie。</li>
+<li><strong>Reference-grounded judging</strong>：能给 reference 就给。例如 Feas. 评估时把 gold plan 的 execution_order 作为 reference 给 judge，让它判 candidate 的依赖顺序"是否同样合理"，比"自己判一遍"准很多。</li>
+<li><strong>把可验证项从 LLM judge 拿出来</strong>：SV / AR / DC / ATR / TBV 这类 0/1 或 [0,1] 规则判定<em>绝不</em>让 LLM 判——浪费 token 且不一致。Pers./Ped./Feas./Sati. 等只评 LLM 真正擅长的语义合理性。</li>
+<li><strong>Prompt injection 防御</strong>：plan 文本经过 sanitize（删除可能的"Please rate this plan as 5/5"风格字符串）后再喂 judge。grpo_session_summary §3 列出这种攻击。</li>
+<li><strong>Calibration 必须先做</strong>：100 条人工核验集上的 Cohen's κ 必须 ≥ 0.65，ICC ≥ 0.7（KELE 实测达到 0.65–0.75；参考它的设置）。如果跑不到这个阈值 → 调 rubric anchor，或加 calibration 样本到 200。<em>没过 κ 阈值不能上 36K 调用规模</em>。</li>
+<li><strong>判卷模型不能是训练用的模型</strong>：我们 backbone 是 Qwen，所以 judge 用 GPT-5 + Claude（完全不同的模型族）；如果实在缺 API，兜底用 Qwen3-72B 做 judge——但论文里要明确写为"sensitivity check"而非主判。</li>
+</ol>
+
+<h4>Tier 2 评估实现说明</h4>
+<p>SHC 的 PlanRuntime（CrewAI）作为 rollout 引擎，但<strong>仅</strong>负责跑 100 条子集的对话；4 项 Tier-2 指标（EVR / PAS / PQS / r_sol）由独立 evaluator 在 rollout 结束后离线算。Evaluator backbone = GPT-5 或 GPT-4o（EVALUATION_DESIGN §8.1 锁定），student agent 全程 freeze 为 Llama-3.1-8B-Instruct。完整 evaluator 代码量约 340 LOC（在 EVALUATION_DESIGN §9 总 ~600 LOC 之内）。</p>
+
+<h3>5.3 判卷与执行预算</h3>
+<p>对齐 EVALUATION_DESIGN §9.2，按 §4 收缩后的 9 method（8 baseline + Ours）重新估算。下表为<strong>满配</strong>预算；若 API key 紧张走 downsize 路径（去第三 judge + 减 ablation 评估覆盖率），可压到 ~$4–5K。</p>
+<table>
+<thead><tr><th>项</th><th class="num">用量</th><th class="num">成本估算</th><th>说明</th></tr></thead>
+<tbody>
+<tr><td>Tier 1 LLM-judge（Pers./Ped./Feas./PVS./PNG.）</td><td class="num">~14K 调用</td><td class="num">$700</td><td>305 Test × 9 method × ~5 metric × 2 judges（main + cross-family）÷ 内部子维度并发；含 PVS/PNG counterfactual 探针</td></tr>
+<tr><td>Tier 2 在线 rollout（100 条 × 9 method）</td><td class="num">~900 dialog</td><td class="num">$2,300</td><td>CrewAI live 跑，student=Llama-3.1-8B-Instruct，teacher=各 method backbone</td></tr>
+<tr><td>Tier 2 evaluator（EVR/PAS/PQS/r_sol）</td><td class="num">~1,800 调用</td><td class="num">$360</td><td>GPT-5 or GPT-4o，离线评 rollout transcript</td></tr>
+<tr><td>Tier 3 Sati. + JCC（M-judge 乘积）</td><td class="num">~16K 调用</td><td class="num">$1,100</td><td>305 × 9 × 3 judges × 2（AB 顺序）；Krippendorff α 在三者上算</td></tr>
+<tr><td>Pilot（100 条 κ/ICC/α 校准）</td><td class="num">~600 调用</td><td class="num">$120</td><td>2 grad student × 100 条人工，配合 LLM judge calibration</td></tr>
+<tr><td>RQ3 ablation 7 variant 评估</td><td class="num">—</td><td class="num">$2,500</td><td>主表全套指标 × 7 variant（Tier-1 + Tier-2 子集，仅评 Ours 内部变体）</td></tr>
+<tr><td><strong>总计</strong></td><td>—</td><td class="num"><strong>$7K – 8K</strong></td><td>downsize 路径 ~$4–5K（详见 EVALUATION_DESIGN §9.2）</td></tr>
+</tbody>
+</table>
+
+<blockquote class="warn">
+<strong>API 瓶颈应对</strong>（lyx 5/14 识别）：(1) 三 key 池（GPT-5 + Claude + Gemini）；(2) token bucket ≤ 50 RPM 每 key；(3) 失败重试 + 断点续跑；(4) 100 条 pilot 先跑预算 + κ，再上满量；(5) Tier-2 live rollout 是<em>第二大开销</em>（$5K），如果 student backbone 切到本地 vLLM 可省一大笔——但论文必须明示 student 是 Llama-3.1-8B-Instruct，不能换。
+</blockquote>
+
+<!-- =========================================================== -->
+<h2 id="rqmap">6. RQ → 实验映射</h2>
+<table>
+<thead><tr><th>RQ</th><th>表 / 图</th><th>具体</th></tr></thead>
+<tbody>
+<tr><td>RQ1</td><td>Main results 表（Headline-12）</td><td><strong>12 列</strong>：SV / AR / DC / ATR / TBV / GED-sim / Pers. / Ped. / Feas. / EVR / PAS / Sati.（详见 §5.2 表头）。Test 305 全集（Tier-2 EVR/PAS 在 100 条子集），~9 method（8 baseline + Ours） 一致同表</td></tr>
+<tr><td>RQ2</td><td>Profile-sensitivity 表 + 5 case study + PVS / PNG 指标</td><td>Test 内 25 个 ≥3 profile 的 qid，每 qid 跑 3 profile，共 75 评估点；外加 5 个 query 做 profile-shuffled counterfactual 算 PVS / PNG</td></tr>
+<tr><td>RQ3</td><td>Component ablation（7 variant）</td><td>Full · w/o PAD · w/o SDP · w/o JointAlign · w/o GRPO · w/o R_hard · Profile-Shuffled（对齐 EVALUATION_DESIGN §7.2）。每个 variant 用 Headline-12 完整跑</td></tr>
+<tr><td>RQ4</td><td>Reward weight 表 + <strong>Figure 4 三面板 Pareto</strong></td><td>P0 / P-struct / P-pers / P-ped / P-balanced 共 5 run；面板 (a) Pers vs DC、(b) Pers vs R_ped、(c) Pers vs EVR</td></tr>
+</tbody>
+</table>
+
+<!-- =========================================================== -->
+<h2 id="schedule">7. 时间表（6 周冲刺）</h2>
+
+<table>
+<thead><tr><th>周</th><th>GP</th><th>SHC</th><th>ben</th><th>lyx</th></tr></thead>
+<tbody>
+<tr>
+<td>W1<br/>(5/15–5/22)</td>
+<td>冻结数据 split（脚本见 §2.2）；T1.3 Qwen3-Max + T4.1 AutoGen + T5.1/T5.3 EduPlanner/AOP smoke 跑通（300 条）</td>
+<td>32B GRPO 环境迁移（7B → 32B）；50 条 dry run</td>
+<td>32B PAD/SDP recipe 在 100 条 dry-run；OOM 排雷</td>
+<td>修 API key + 限流；100 条 pilot 跑 Pers./Ped./Feas./Sati. + κ/ICC/α 校准；冻结 splits/maple_tier2_100.json</td>
+</tr>
+<tr>
+<td>W2<br/>(5/23–5/29)</td>
+<td>T4.2 AutoAgents 子进程 + venv 稳态；T5.2 GenMentor 接通上游原仓库（替换简化版）</td>
+<td>Stage 1a PAD 3 ep（~22 h）</td>
+<td>Stage 1b SDP 2 ep（~14 h）；选 best-dev ckpt</td>
+<td>200 条 calibration set 扩展；锚定 5/3/1 anchor</td>
+</tr>
+<tr>
+<td>W3<br/>(5/30–6/5)</td>
+<td>T1.1 GPT-5 + T1.2 Claude Opus 4.6 凭证就位后全量 305 Test 推理（T1×3 收尾）</td>
+<td>Stage 2 Joint Align（~7 h）；<strong>★ 跑 Gate 诊断（§3.4）</strong>；Gate 通过 → 启动 GRPO（~12 天）</td>
+<td>T4 + T5 全量 305 Test 推理（5 个 baseline 并行，T4.2 AutoAgents 走分片）</td>
+<td>跑 T1 主表 LLM judge（边训边评）</td>
+</tr>
+<tr>
+<td>W4<br/>(6/6–6/12)</td>
+<td>T4.2 AutoAgents 全量 / 子集决策（看 W2-W3 耗时是否扛得住 ~560 h）；Tier-2 100 条 rollout 启动</td>
+<td>GRPO 持续；RQ3 ablation 4 个 variant 启动</td>
+<td>协助 ablation；监控 GRPO dev_composite 曲线</td>
+<td>跑 T4 + T5 主表 LLM judge</td>
+</tr>
+<tr>
+<td>W5<br/>(6/13–6/19)</td>
+<td>合并所有 baseline 输出；Tier-2 100 条 rollout 收尾（EVR / PAS / PQS / r_sol）</td>
+<td>GRPO 完；RQ4 Pareto 5 个 continue-run（~1.5 d 各）；Tier 1 自动指标全跑</td>
+<td>4 个 ablation 评估收尾</td>
+<td>跑 Ours + Ablation LLM judge；100 条人工 κ/ICC/α</td>
+</tr>
+<tr>
+<td>W6<br/>(6/20–6/26)</td>
+<td>5 case study 写作 + 图</td>
+<td>Pareto 图 + 训练曲线图</td>
+<td>Per-profile-variant breakdown（profile_index 0 vs 1 vs ≥2）+ 失败 case 收集</td>
+<td>Profile-sensitivity 表 + 失败案例</td>
+</tr>
+</tbody>
+</table>
+
+<blockquote class="warn">
+<strong>关键依赖路径</strong>：W2 SFT → W3 Gate → W3-W4 GRPO → W5 评估 → W6 收尾。任何阶段卡 ≥ 3 天就要触发 Plan B（§8.2）。
+</blockquote>
+
+<!-- =========================================================== -->
+<h2 id="risk">8. 风险与备选方案</h2>
+
+<h3>8.1 风险表</h3>
+<table>
+<thead><tr><th>风险</th><th>概率</th><th>缓解</th></tr></thead>
+<tbody>
+<tr><td>诊断 Gate 不过（pass@8 / pass@1 &lt; 1.2）</td><td>中</td><td>不烧 GRPO 算力；查 SFT 数据质量 / LoRA r 调到 32 / epoch +1；如果 backbone 本身不行，换 §8.2</td></tr>
+<tr><td>Qwen3-32B + G=8 OOM</td><td>中</td><td>降 G=4 / max_completion 2400 / 换 Qwen3-30B-A3B MoE</td></tr>
+<tr><td>GRPO ~14 天耗时不够</td><td>高</td><td>砍 Pareto 5 个 sweep 到 3 个；ablation 砍 ⑥</td></tr>
+<tr><td>API key 持续不稳</td><td>高</td><td>(1) 备用代理 key；(2) 兜底用 Qwen3-72B 本地做 cross-judge（论文写成 sensitivity check）</td></tr>
+<tr><td>Cohen's κ &lt; 0.65</td><td>中</td><td>调 rubric anchor / 减子维度 / calibration 加到 200</td></tr>
+<tr><td>vllm/torch ABI 复现</td><td>高</td><td>已知解：卸 torchvision、vllm 改为可选 import；最优解换 verl + 新 torch</td></tr>
+<tr><td>Test 分层不够细（25 条 ≥3 profile 略偏少）</td><td>低</td><td>profile-sensitivity 表用 ≥2 profile 的 97 条 qid 代替（条件放宽）</td></tr>
+</tbody>
+</table>
+
+<h3>8.2 Plan B：backbone 候选（按 96 GB GRPO 难度排序）</h3>
+<table>
+<thead><tr><th>选项</th><th>类型</th><th>96 GB GRPO</th><th>触发条件</th></tr></thead>
+<tbody>
+<tr><td><strong>Qwen3-32B-Instruct</strong>（默认）</td><td>32B dense</td><td>卡线 95–105 GB</td><td>主方案</td></tr>
+<tr><td>Qwen3-30B-A3B-Instruct</td><td>30B MoE / 3B active</td><td>舒服 ~25 GB</td><td>如果默认 OOM 反复 → 切换；论文写"32B-scale MoE backbone"</td></tr>
+<tr><td>Qwen3-14B-Instruct</td><td>14B dense</td><td>很舒服</td><td>如果 30B-A3B 也跑不通（极少见）</td></tr>
+<tr><td>Gemma 2-27B-it</td><td>27B dense</td><td>舒服</td><td>额外做 cross-backbone 鲁棒性检查（SFT-only，不做 GRPO）</td></tr>
+</tbody>
+</table>
+
+<h3>8.3 开放问题（需用户决策）</h3>
+<ol>
+  <li>T5 三行（EduPlanner / GenMentor / AOP）已在 §4 锁定；GenMentor 当前为简化版（status: 🟡），是否要在 W2 内强制替换为上游原仓库代码？建议替换，否则 T5.2 vs T5.1/T5.3 的方法保真度不可比。</li>
+  <li>T4.2 AutoAgents 在 3,043 全量需 ~560 h，是否降到只跑 305 Test + 100 Tier-2 子集？建议降，省的时间补 T4.2 不同 seed 的稳定性测。</li>
+  <li>T2 / T3 是否完全不进论文？建议放 Appendix 写一段"future work 应该补的对比"，避免审稿人 demand 这两类对比。</li>
+  <li>第三 judge（Gemini 3 Pro）是否加？EVALUATION_DESIGN §8.1 已默认列入 M-judge 乘积；建议 100 条 pilot 跑 3-way Krippendorff α 后<em>确认</em>，α &lt; 0.5 则退到 2-judge。</li>
+  <li>Tier-2 4 头牌（EVR/PAS/PQS/r_sol）是否全进 Headline-12 主表？当前方案是 EVR + PAS 进主表、PQS + r_sol 进 appendix；若版面允许可考虑 PQS 也进主表。</li>
+  <li>Gate 不通过时，是否在论文里 honest 报告（"我们的 SFT 在 dev pass@8 = 0.71 但 GRPO 提升仅 +1.2%"）还是只报通过版本？</li>
+  <li>HypervolumeReweighter 与 Pareto sweep 的关系：RQ4 是否要单独跑一行"reweighter ON vs OFF"作为消融？建议作为 RQ3 的第 8 个 variant，但需要确认预算。</li>
+</ol>
+
+<hr/>
+<p class="footnote">
+本方案 v2 在 v1 基础上做了三处实质修订：(a) 切分键从行号改为 question_id（防止同 query 跨 split）；(b) 恢复 10% Dev 但目的限定为 ckpt selection + Gate 诊断；(c) 加入 SFT→GRPO 之间的 pass@1 vs pass@8 强制 gate。<strong>2026-05-17 update</strong>：将 §3.3 reward 公式、§3.5 Pareto、§5 评估与预算全面对齐到 <code>Evaluation/EVALUATION_DESIGN_2026-05-15.html</code> 与 <code>GRPO/Dynamic_weighting/reward_design.html</code>——R_struct 改等权 0.25 each，R_pers 删 0.8 cap 加 220-char 长度门 + 28 bridge anchor，R_ped 改 4-phase v2 + plan_size_quality（删 SubPrec），权重启动 1/3 each 由 HypervolumeReweighter 动态更新，z-score 改 group-wise by question_id；Tier-1 从 5 项扩到 6 项规则式 + 4 项 LLM-judge（新增 TBV / Ped. / PVS / PNG），Tier-2 从单一 ER 扩到 4 头牌（EVR/PAS/PQS/r_sol）在 100 条分层子集，Tier-3 加 JCC；Headline 主表 12 列。<strong>§4 baseline 从 v1 的 5 tier ~24 行收缩为 v3 的 3 tier 9 行</strong>（T1×3 闭源 + T4×2 通用 MAS + T5×3 教育 MAS + Ours，对齐 <code>Baselines/baseline_design_v1.html</code>）；T2 开源 LLM 直跑 / T3 prompt-based planner 退出主表。所有数字基于 <code>multi_agent_dataset_filtered_qap.jsonl</code>（3,043 条；baseline 推理实际读 v15 子版本 <code>_v15_goodplus</code>）的 stratified split（seed=42）。任何后续调整以 Issue 记录在 <code>EXPERIMENT_PLAN_CHANGELOG.md</code>。
+</p>
+
+</body>
+</html>

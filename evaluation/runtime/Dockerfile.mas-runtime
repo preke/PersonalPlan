@@ -1,0 +1,108 @@
+FROM ubuntu:22.04
+
+ENV DEBIAN_FRONTEND=noninteractive
+ENV TZ=UTC
+ENV DOTNET_NOLOGO=1
+ENV DOTNET_CLI_TELEMETRY_OPTOUT=1
+ENV DOTNET_SKIP_FIRST_TIME_EXPERIENCE=1
+
+# ── Base tools + repos ───────────────────────────────────────────────────────
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        ca-certificates curl gnupg lsb-release \
+        software-properties-common apt-transport-https sudo \
+    && rm -rf /var/lib/apt/lists/*
+
+# Add PostgreSQL PGDG repo
+RUN curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc \
+        | gpg --dearmor -o /usr/share/keyrings/pgdg.gpg \
+    && echo "deb [signed-by=/usr/share/keyrings/pgdg.gpg] https://apt.postgresql.org/pub/repos/apt jammy-pgdg main" \
+        > /etc/apt/sources.list.d/pgdg.list
+
+# ── Python 3.11 + GCC/G++ + Ruby + R + PHP + PostgreSQL ─────────────────────
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        python3.11 python3.11-dev python3-pip \
+        gcc g++ make \
+        ruby ruby-dev \
+        r-base \
+        php php-cli \
+        postgresql-16 postgresql-client-16 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Symlink python3.11 as python3 and python
+RUN update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.11 1 \
+    && ln -sf /usr/bin/python3 /usr/bin/python
+
+# ── Java 17 ─────────────────────────────────────────────────────────────────
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        openjdk-17-jdk-headless \
+    && rm -rf /var/lib/apt/lists/*
+ENV JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
+
+# ── Node.js 20 ───────────────────────────────────────────────────────────────
+RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
+    && apt-get install -y --no-install-recommends nodejs \
+    && rm -rf /var/lib/apt/lists/* \
+    && npm install -g tsx
+
+# ── .NET SDK 8 (C#) ──────────────────────────────────────────────────────────
+RUN curl -fsSL https://packages.microsoft.com/config/ubuntu/22.04/packages-microsoft-prod.deb \
+        -o /tmp/packages-microsoft-prod.deb \
+    && dpkg -i /tmp/packages-microsoft-prod.deb \
+    && rm /tmp/packages-microsoft-prod.deb \
+    && apt-get update && apt-get install -y --no-install-recommends dotnet-sdk-8.0 \
+    && rm -rf /var/lib/apt/lists/*
+
+# ── Kotlin standalone compiler ───────────────────────────────────────────────
+RUN KOTLIN_VERSION=2.0.21 \
+    && curl -fsSL \
+        "https://github.com/JetBrains/kotlin/releases/download/v${KOTLIN_VERSION}/kotlin-compiler-${KOTLIN_VERSION}.zip" \
+        -o /tmp/kotlin-compiler.zip \
+    && apt-get update && apt-get install -y --no-install-recommends unzip \
+    && rm -rf /var/lib/apt/lists/* \
+    && unzip /tmp/kotlin-compiler.zip -d /opt/ \
+    && rm /tmp/kotlin-compiler.zip \
+    && ln -s /opt/kotlinc/bin/kotlinc /usr/local/bin/kotlinc \
+    && ln -s /opt/kotlinc/bin/kotlin  /usr/local/bin/kotlin
+
+# ── Go ───────────────────────────────────────────────────────────────────────
+RUN curl -fsSL https://go.dev/dl/go1.22.4.linux-amd64.tar.gz -o /tmp/go.tar.gz \
+    && tar -C /usr/local -xzf /tmp/go.tar.gz \
+    && rm /tmp/go.tar.gz
+ENV PATH="/usr/local/go/bin:$PATH"
+
+# ── Rust ─────────────────────────────────────────────────────────────────────
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable
+ENV PATH="/root/.cargo/bin:$PATH"
+
+# ── MySQL ────────────────────────────────────────────────────────────────────
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        mysql-server \
+    && rm -rf /var/lib/apt/lists/* \
+    && service mysql start \
+    && mysql -e "CREATE USER 'mas'@'localhost' IDENTIFIED BY 'mas'; CREATE DATABASE teaching; GRANT ALL ON teaching.* TO 'mas'@'localhost'; FLUSH PRIVILEGES;"
+
+# ── R packages (tidyverse core) ──────────────────────────────────────────────
+RUN Rscript -e "install.packages(c('dplyr','tidyr','ggplot2','readr','stringr','purrr','tibble'), repos='https://cloud.r-project.org', quiet=TRUE)"
+
+# ── jsdom (for CSS/DOM teaching) ─────────────────────────────────────────────
+RUN npm install -g jsdom
+
+# ── PostgreSQL setup ─────────────────────────────────────────────────────────
+USER postgres
+RUN /etc/init.d/postgresql start \
+    && psql -c "CREATE USER mas WITH PASSWORD 'mas';" \
+    && psql -c "CREATE DATABASE teaching OWNER mas;" \
+    && psql -c "GRANT ALL PRIVILEGES ON DATABASE teaching TO mas;"
+USER root
+
+# Allow mas user to connect locally without peer auth (insert before default rules)
+RUN PG_HBA=$(find /etc/postgresql -name pg_hba.conf | head -1) \
+    && sed -i "1s|^|local   teaching        mas                                     trust\nhost    teaching        mas             127.0.0.1/32            trust\n|" "$PG_HBA"
+
+# ── Entrypoint ───────────────────────────────────────────────────────────────
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+WORKDIR /workspace
+ENTRYPOINT ["/entrypoint.sh"]
+CMD ["bash"]

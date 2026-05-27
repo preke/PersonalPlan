@@ -1,0 +1,276 @@
+{
+  "input": {
+    "query": "I want to learn how to build a REST API in Go from scratch.\n\nI work as a Python web developer but my next role uses Go. Can you teach me the path from zero Go knowledge to being able to build a small REST API with database access, request validation, and tests? I prefer learning by doing rather than reading a textbook front-to-back.",
+    "learner": {
+      "self_description": "Senior Django developer at a fintech, eight years in Python. Strong in REST design, SQL, and production debugging. Have read about Go's static typing and goroutines but never written a line.",
+      "skills": ["python", "django", "rest", "postgresql", "testing"]
+    }
+  },
+  "output": {
+    "agents": [
+      {
+        "agent_role": "go_curriculum_planner",
+        "goal": "Sequence the learner's path from Django mental model to a working Go REST service, picking which Go-specific gaps to close in which order and which to skip given existing REST + SQL fluency.",
+        "description": "You are a curriculum architect for experienced backend engineers learning a second language. You explicitly skip topics the learner already owns (REST routing concepts, SQL, ORM trade-offs) and zero in on Go-only mechanics (interfaces, error returns, goroutines for handlers, the standard library net/http). You produce a session-level plan, not a tutorial.",
+        "tools": []
+      },
+      {
+        "agent_role": "go_concepts_tutor",
+        "goal": "Bridge each Go idiom to a Django parallel the learner already writes daily — error returns vs Python exceptions, interfaces vs duck typing, goroutines vs Django's request-thread model.",
+        "description": "You are a patient Go tutor who teaches via Django analogies. Every new Go idiom is introduced with one explicit Django comparison, then a small write-and-run exercise. You accept an explanation only when the learner predicts Go's behaviour correctly before running code.",
+        "tools": []
+      },
+      {
+        "agent_role": "go_ecosystem_researcher",
+        "goal": "Surface the current best-of-breed third-party libraries and idiomatic patterns in the Go web ecosystem (router, ORM/sqlx, validation) — the parts that change too quickly to live in the standard library docs.",
+        "description": "You are a web research agent. You search the open web for the most recent Go community guidance on REST router choice (chi, gin, stdlib net/http with ServeMux), database access (sqlx vs GORM), and validation libraries. You surface the top 1-2 options with the trade-offs in 3 bullet points each.",
+        "tools": ["FirecrawlSearchTool"]
+      },
+      {
+        "agent_role": "go_stdlib_docs_retriever",
+        "goal": "Retrieve official Go documentation for net/http handler signatures, encoding/json struct-tag syntax, and database/sql cursors.",
+        "description": "You are a Go standard library docs retriever. You confirm function signatures, struct tag syntax, and return types directly from pkg.go.dev so the tutor never invents a signature.",
+        "tools": ["CodeDocsSearchTool"]
+      },
+      {
+        "agent_role": "go_code_validator",
+        "goal": "Compile and run the learner's Go code at each milestone and confirm the service responds with the expected JSON.",
+        "description": "You are a Go code runner. You compile and execute submitted Go programs with CodeInterpreterTool, send synthetic HTTP requests, and report request/response transcripts. You flag any compilation error literally and never paper over it.",
+        "tools": ["CodeInterpreterTool"]
+      }
+    ],
+    "subtasks": [
+      {
+        "id": "S1",
+        "name": "Build a curriculum sequence anchored on what the learner already owns",
+        "subtask_objective": "Learner has a written 5-stage curriculum, with each stage tied to a Django concept they already own.",
+        "steps": [
+          {
+            "id": "S1-1",
+            "agent": "go_curriculum_planner",
+            "objective": "Survey what to skip.",
+            "instruction": "Ask the learner to confirm which of these they already own at production level: REST verb semantics, idempotency, status-code design, SQL JOIN debugging, request validation, and unit-test discipline. List them and have the learner confirm yes/no per item. Items confirmed yes become 'will not teach'.",
+            "tool": null,
+            "requires_human_input": true,
+            "expected_output": "Confirmed skip-list of concepts the curriculum will not re-teach.",
+            "depends_on": []
+          },
+          {
+            "id": "S1-2",
+            "agent": "go_curriculum_planner",
+            "objective": "Propose the 5-stage sequence.",
+            "instruction": "Using S1-1's skip-list, propose a 5-stage curriculum: (1) Go syntax + error returns via a tiny CLI, (2) interfaces and structs via a JSON marshal/unmarshal exercise, (3) net/http handler shape and routing, (4) database/sql with a small sqlite-backed handler, (5) tests and table-driven test idiom. Each stage gets a one-line outcome and one explicit Django analogy. Present the sequence and have the learner confirm or reorder before continuing.",
+            "tool": null,
+            "requires_human_input": true,
+            "expected_output": "Approved 5-stage curriculum with one-line outcomes and Django analogies for each stage.",
+            "depends_on": ["S1-1"]
+          }
+        ]
+      },
+      {
+        "id": "S2",
+        "name": "Stage 1+2: Go syntax, errors, interfaces via a Django analogy",
+        "subtask_objective": "Learner predicts and then writes a Go function that returns (value, error), and explains how Go's error returns differ from Django exceptions.",
+        "steps": [
+          {
+            "id": "S2-1",
+            "agent": "go_concepts_tutor",
+            "objective": "Activate the Django exception intuition before introducing Go errors.",
+            "instruction": "Ask the learner: when their Django view calls a service function that may fail to fetch a row, how does the failure propagate — return None, raise an exception, return a Result-style object? Have them describe their team's actual convention.",
+            "tool": null,
+            "requires_human_input": true,
+            "expected_output": "Learner's description of Django-side error-propagation convention.",
+            "depends_on": ["S1-2"]
+          },
+          {
+            "id": "S2-2",
+            "agent": "go_stdlib_docs_retriever",
+            "objective": "Retrieve the official Go error-returning signature pattern.",
+            "instruction": "Look up pkg.go.dev for the errors package and the standard signature func ...(...) (T, error). Retrieve the canonical example showing if err != nil { return ... }.",
+            "tool": "CodeDocsSearchTool",
+            "requires_human_input": false,
+            "expected_output": "Canonical (T, error) signature pattern and the standard if-err-nil idiom.",
+            "depends_on": []
+          },
+          {
+            "id": "S2-3",
+            "agent": "go_concepts_tutor",
+            "objective": "Bridge the analogy and ask for a first Go function.",
+            "instruction": "Using S2-1 and S2-2: explain that Go never raises — every failure path is encoded in the return type. Ask the learner to write a Go function parseAge(s string) (int, error) that returns an error if the input is not a valid non-negative integer. Have them predict, before compiling, what the caller code would look like with the if-err-nil idiom.",
+            "tool": null,
+            "requires_human_input": true,
+            "expected_output": "Learner's parseAge implementation with explicit (int, error) return and the caller-side if-err-nil code.",
+            "depends_on": ["S2-1", "S2-2"]
+          },
+          {
+            "id": "S2-4",
+            "agent": "go_code_validator",
+            "objective": "Run the learner's first Go function with valid and invalid inputs.",
+            "instruction": "Take parseAge from S2-3 and execute it against three inputs: \"30\", \"-1\", \"thirty\". Print the (value, error) pair returned in each case. Confirm the function compiles and handles all three correctly.",
+            "tool": "CodeInterpreterTool",
+            "requires_human_input": false,
+            "expected_output": "Execution output for all three inputs, with explicit (value, error) printed.",
+            "depends_on": ["S2-3"]
+          }
+        ]
+      },
+      {
+        "id": "S3",
+        "name": "Stage 3+4: Pick a router and a database library based on current community guidance",
+        "subtask_objective": "Learner has chosen a router and a database library with stated trade-offs grounded in current community guidance.",
+        "steps": [
+          {
+            "id": "S3-1",
+            "agent": "go_ecosystem_researcher",
+            "objective": "Search current Go ecosystem guidance for routers and DB libraries.",
+            "instruction": "Search the open web for the current Go community guidance on (a) REST router choice — specifically: chi, gin, and the standard library net/http ServeMux in recent versions, and (b) database access — specifically: database/sql + sqlx vs GORM. For each of the two questions, return the top two options with three bullet trade-offs each. Focus on guidance from the past 18 months.",
+            "tool": "FirecrawlSearchTool",
+            "requires_human_input": false,
+            "expected_output": "Two short comparisons: (router) chi vs net/http; (db) sqlx vs GORM. Three trade-offs each from recent community sources.",
+            "depends_on": []
+          },
+          {
+            "id": "S3-2",
+            "agent": "go_curriculum_planner",
+            "objective": "Have the learner pick router + DB based on their preferences.",
+            "instruction": "Present S3-1's comparison. Ask the learner to pick one router and one DB library, with a one-sentence justification per choice. Their existing Django ORM fluency may pull them toward GORM; coach them that for a learning project sqlx makes the SQL visible, which is closer to their hand-written queries habit.",
+            "tool": null,
+            "requires_human_input": true,
+            "expected_output": "Learner's router and DB library choices with one-sentence justifications.",
+            "depends_on": ["S3-1"]
+          }
+        ]
+      },
+      {
+        "id": "S4",
+        "name": "Build a minimal REST handler that reads from the database",
+        "subtask_objective": "Learner has a working Go file that handles GET /users/{id} and returns a JSON record from a sqlite database.",
+        "steps": [
+          {
+            "id": "S4-1",
+            "agent": "go_stdlib_docs_retriever",
+            "objective": "Retrieve net/http handler signature and encoding/json struct tag syntax.",
+            "instruction": "Look up pkg.go.dev for the net/http.HandlerFunc signature func(w http.ResponseWriter, r *http.Request) and for encoding/json struct tag syntax (`json:\"field_name\"`). Confirm exact names.",
+            "tool": "CodeDocsSearchTool",
+            "requires_human_input": false,
+            "expected_output": "HandlerFunc signature and json struct-tag syntax confirmed from pkg.go.dev.",
+            "depends_on": []
+          },
+          {
+            "id": "S4-2",
+            "agent": "go_concepts_tutor",
+            "objective": "Ask for the first handler implementation.",
+            "instruction": "Ask the learner to write a complete Go file with a User struct (id, name, email — using json struct tags), a getUser handler that parses {id} from the URL path using their chosen router from S3-2, queries the database, and writes the JSON response. Encourage them to start without input validation; that comes in S5. On retry iterations, use S4-3's feedback to ask for the specific fix only.",
+            "tool": null,
+            "requires_human_input": true,
+            "expected_output": "Learner's complete handler file with User struct, getUser handler, and DB query using the chosen library.",
+            "depends_on": ["S3-2", "S4-1"]
+          },
+          {
+            "id": "S4-3",
+            "agent": "go_code_validator",
+            "objective": "Compile and exercise the handler with a synthetic request.",
+            "instruction": "Compile the learner's file from S4-2. Spin up the server in-process and send GET /users/1 against a sqlite database seeded with one user. Print the response status, headers, and body. Set handler_works=true if status is 200 and body is JSON with the expected fields, false otherwise.",
+            "tool": "CodeInterpreterTool",
+            "requires_human_input": false,
+            "expected_output": "Compilation result, request/response transcript, and handler_works=true if status 200 + JSON body, handler_works=false otherwise.",
+            "depends_on": ["S4-2"]
+          },
+          {
+            "id": "S4-4",
+            "agent": "go_concepts_tutor",
+            "objective": "Targeted feedback if the handler did not compile or respond correctly.",
+            "instruction": "Use S4-3's output: identify the single most blocking issue (missing import, wrong handler signature, struct tag typo, nil-deref on row scan). Tell the learner the one line to change. Do not provide the corrected file.",
+            "tool": null,
+            "requires_human_input": false,
+            "expected_output": "Targeted feedback identifying the single fix needed.",
+            "depends_on": ["S4-3"]
+          },
+          {
+            "id": "S4-5",
+            "agent": "go_concepts_tutor",
+            "objective": "Resolve the handler loop.",
+            "instruction": "If S4-3's final handler_works=true: confirm what works and connect to S2-3's error idiom — every step in the handler must check err. If max iterations exhausted: present a canonical 50-line handler with explicit comments mapping each line back to a Django equivalent (router decorator, DB cursor, JsonResponse).",
+            "tool": null,
+            "requires_human_input": false,
+            "expected_output": "Resolution: confirmation of the working handler with conceptual connections, or canonical handler with Django-mapped comments.",
+            "depends_on": ["S4-3"]
+          }
+        ]
+      },
+      {
+        "id": "S5",
+        "name": "Stage 5: Add validation and a table-driven test",
+        "subtask_objective": "Learner adds input validation on a POST handler and writes one table-driven test that exercises both the happy path and one validation failure.",
+        "steps": [
+          {
+            "id": "S5-1",
+            "agent": "go_concepts_tutor",
+            "objective": "Introduce Go's table-driven test idiom by Django parallel.",
+            "instruction": "Ask the learner how they would parametrise a Django pytest test for a view with multiple bad-input scenarios. Then tell them Go's idiom uses a slice of struct test cases iterated with t.Run(name, ...). Show the bare scaffold (no implementation) and ask them to write one table-driven test that exercises their POST handler against (a) valid input and (b) one bad-email case.",
+            "tool": null,
+            "requires_human_input": true,
+            "expected_output": "Learner's table-driven test file with at least two cases (happy path + one validation failure).",
+            "depends_on": ["S4-5"]
+          },
+          {
+            "id": "S5-2",
+            "agent": "go_code_validator",
+            "objective": "Run the test file.",
+            "instruction": "Execute go test on the learner's test from S5-1. Print the full test output including any failures. Set tests_passing=true if all subtests pass, false otherwise.",
+            "tool": "CodeInterpreterTool",
+            "requires_human_input": false,
+            "expected_output": "go test output and tests_passing=true if all subtests pass, false otherwise.",
+            "depends_on": ["S5-1"]
+          }
+        ]
+      },
+      {
+        "id": "S6",
+        "name": "Consolidate the learning path into a self-directed continuation plan",
+        "subtask_objective": "Learner has a written list of three next-step Go topics they will pursue on their own, each tied to a gap they noticed during this curriculum.",
+        "steps": [
+          {
+            "id": "S6-1",
+            "agent": "go_curriculum_planner",
+            "objective": "Have the learner name their own next three topics.",
+            "instruction": "Ask the learner: based on what they actually struggled with across S2-S5, what are the next three Go topics they want to pursue — context cancellation, middleware patterns, embedding, generics, deployment, profiling? Have them write three with one sentence each on why that topic comes next for them specifically.",
+            "tool": null,
+            "requires_human_input": true,
+            "expected_output": "Learner's three self-chosen next topics with personal rationale for each.",
+            "depends_on": ["S5-2"]
+          }
+        ]
+      }
+    ],
+    "execution_order": [
+      "S1-1",
+      "S1-2",
+      "S2-1",
+      "S2-2",
+      "S2-3",
+      "S2-4",
+      "S3-1",
+      "S3-2",
+      "S4-1",
+      {
+        "loop": {
+          "steps": ["S4-2", "S4-3", "S4-4"],
+          "condition": "S4-3.handler_works == false",
+          "max_iterations": 3
+        }
+      },
+      "S4-5",
+      "S5-1",
+      {
+        "loop": {
+          "step": "S5-2",
+          "condition": "S5-2.tests_passing == false",
+          "max_iterations": 2
+        }
+      },
+      "S6-1"
+    ]
+  }
+},
+{"answer":"For a senior Python developer moving to Go, the fastest path is: (1) learn (value, error) returns and the if err != nil idiom on a tiny CLI, (2) learn struct tags and JSON via encoding/json, (3) use chi or net/http's ServeMux for routing, (4) use database/sql + sqlx for DB access (keeps SQL visible like hand-written Django queries), and (5) write table-driven tests with t.Run. Skip teaching REST semantics and SQL — the learner already owns those. Current community guidance favours chi or stdlib mux over gin for new projects, and sqlx over GORM when SQL fluency already exists."}

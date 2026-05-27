@@ -1,0 +1,31 @@
+# MAPLE Dataset License
+
+The **MAPLE dataset** (all files under `data/`, all JSONL files released on
+Hugging Face under the `MAPLE` dataset, and any derivative dataset artifacts in
+this repository) is licensed under
+**Creative Commons Attribution-ShareAlike 4.0 International (CC BY-SA 4.0)**.
+
+The full license text is available at:
+https://creativecommons.org/licenses/by-sa/4.0/legalcode
+
+## Why CC BY-SA 4.0?
+
+The source questions in MAPLE are derived from Stack Overflow content, which
+Stack Overflow publishes under CC BY-SA 4.0. Per Stack Overflow's licensing
+terms, any derivative work must adopt a compatible ShareAlike license. The
+generated plans, learner profiles, and execution traces are released under the
+same terms for consistency.
+
+## Attribution
+
+When using the MAPLE dataset, please cite both:
+
+1. The MAPLE paper (see `CITATION.cff`).
+2. The original Stack Overflow source: "Source: Stack Overflow, licensed under
+   CC BY-SA 4.0."
+
+## Code vs. Data
+
+The **source code** in this repository (everything outside `data/`) is
+released separately under the MIT License — see `LICENSE`. Re-use of code does
+not trigger ShareAlike obligations.

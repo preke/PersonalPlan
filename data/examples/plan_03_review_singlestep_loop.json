@@ -1,0 +1,118 @@
+{
+  "input": {
+    "query": "Is my use of try/except here a good practice?\n\ndef load_config(path): try: with open(path) as f: return json.load(f) except: return {} \n\nI want to handle the case where the file does not exist or is malformed, but a colleague said this is too broad. Can someone review whether this is correct Python style and why?",
+    "learner": {
+      "self_description": "Backend engineer with five years of Django experience. Comfortable with Python, just rarely think hard about exception design — mostly inherit existing patterns from team codebases.",
+      "skills": ["python", "django", "exceptions", "json", "configuration"]
+    }
+  },
+  "output": {
+    "agents": [
+      {
+        "agent_role": "python_style_critic",
+        "goal": "Push the learner from a generic bare-except habit toward an explicit exception-class choice justified by the actual failure modes of json.load and open, refining the critique across iterations until the learner names the right exception classes themselves.",
+        "description": "You are a senior code reviewer with a Python idiomatic style sensibility. You give one specific objection per iteration, never dump the whole rewrite at once, and you tighten the question on each round based on what the learner already understood. You accept a revision only when the learner has explicitly named FileNotFoundError, json.JSONDecodeError, or OSError as appropriate.",
+        "tools": []
+      },
+      {
+        "agent_role": "python_exception_docs_retriever",
+        "goal": "Provide official documentation for the exact exceptions json.load and open() raise, so critique is grounded in the actual API contract.",
+        "description": "You are a focused docs retriever. You look up the Python standard-library exception hierarchy entries the critic cites and confirm exact class names and which module they live in.",
+        "tools": ["CodeDocsSearchTool"]
+      },
+      {
+        "agent_role": "django_pattern_translator",
+        "goal": "Bridge Python's exception-class choice to Django patterns the learner already uses, so the revised style does not feel arbitrary.",
+        "description": "You are a Django-savvy tutor who frames Python idioms via Django parallels. You connect explicit exception classes to Django's get_object_or_404 / DoesNotExist pattern the learner already writes daily.",
+        "tools": []
+      }
+    ],
+    "subtasks": [
+      {
+        "id": "S1",
+        "name": "Surface the problem with bare except in this specific snippet",
+        "subtask_objective": "Learner can name at least one concrete failure mode (e.g., KeyboardInterrupt, MemoryError) that bare except would silently swallow.",
+        "steps": [
+          {
+            "id": "S1-1",
+            "agent": "django_pattern_translator",
+            "objective": "Activate the learner's Django intuition about catching DoesNotExist versus catching Exception.",
+            "instruction": "Ask the learner: in their Django code, do they ever write except Exception or except DoesNotExist for the missing-record case? Have them describe the difference in one sentence and explain why the team probably prefers the specific exception.",
+            "tool": null,
+            "requires_human_input": true,
+            "expected_output": "Learner's one-sentence explanation of why the specific exception class is preferred.",
+            "depends_on": []
+          },
+          {
+            "id": "S1-2",
+            "agent": "python_style_critic",
+            "objective": "Have the learner enumerate what bare except actually swallows.",
+            "instruction": "Ask the learner: in their load_config function as written, what would happen if someone pressed Ctrl-C while the file was being read, or if the system ran out of memory mid-parse? Bare except catches BaseException, not just Exception — so KeyboardInterrupt and SystemExit are also caught. Get them to name at least one such case that the function would silently swallow.",
+            "tool": null,
+            "requires_human_input": true,
+            "expected_output": "Learner's identification of at least one BaseException subclass (KeyboardInterrupt, SystemExit, MemoryError) that bare except would catch.",
+            "depends_on": ["S1-1"]
+          }
+        ]
+      },
+      {
+        "id": "S2",
+        "name": "Ground the critique in the API contract",
+        "subtask_objective": "Learner can name the specific exception classes open() and json.load each raise.",
+        "steps": [
+          {
+            "id": "S2-1",
+            "agent": "python_exception_docs_retriever",
+            "objective": "Retrieve the documented exception classes for open() and json.load.",
+            "instruction": "Look up the official Python documentation for builtins.open and for json.load. Retrieve the exact exception classes each raises — specifically FileNotFoundError (a subclass of OSError) for missing path, and json.JSONDecodeError for malformed content. Confirm the full module-qualified name of JSONDecodeError.",
+            "tool": "CodeDocsSearchTool",
+            "requires_human_input": false,
+            "expected_output": "Documented exception classes: FileNotFoundError / OSError from open(), json.JSONDecodeError from json.load.",
+            "depends_on": []
+          }
+        ]
+      },
+      {
+        "id": "S3",
+        "name": "Iteratively refine the revised snippet until it is explicit",
+        "subtask_objective": "Learner rewrites load_config to catch FileNotFoundError and json.JSONDecodeError specifically, with no bare except.",
+        "steps": [
+          {
+            "id": "S3-1",
+            "agent": "python_style_critic",
+            "objective": "Ask for a revised snippet, refining the critique focus on each iteration based on what the previous attempt got wrong.",
+            "instruction": "On iteration 1, ask the learner to rewrite load_config so the except clause names the specific exception classes that open() and json.load actually raise (using S2-1's documentation). On subsequent iterations, use the previous iteration's feedback from S3-2: if their last attempt still used bare except, point to that line and refuse to accept any other improvement until it is replaced; if they named only one of the two exceptions, push for the other; if they over-broadened to except Exception, push them back to the specific subclasses. Each iteration should ask for one focused change, not a full rewrite.",
+            "tool": null,
+            "requires_human_input": true,
+            "expected_output": "Learner's revised load_config snippet for this iteration. revision_acceptable=true when the except clause names both FileNotFoundError and json.JSONDecodeError (or OSError covering the first), false otherwise.",
+            "depends_on": ["S1-2", "S2-1"]
+          },
+          {
+            "id": "S3-2",
+            "agent": "python_style_critic",
+            "objective": "Resolve the dialogue loop by either confirming the final snippet or providing the canonical version.",
+            "instruction": "If S3-1's last revision satisfied revision_acceptable=true, confirm explicitly what changed and why it is better — the function now reports exactly the conditions it knows how to handle and lets unexpected errors (KeyboardInterrupt, programming bugs) propagate. If max iterations were exhausted without an acceptable revision, present the canonical version: except (FileNotFoundError, json.JSONDecodeError): return {}, and explain each clause in terms of the Django-specific-exception pattern from S1-1.",
+            "tool": null,
+            "requires_human_input": false,
+            "expected_output": "Resolution statement: either confirmation of the learner's accepted revision, or the canonical specific-exception version with explanation.",
+            "depends_on": ["S3-1"]
+          }
+        ]
+      }
+    ],
+    "execution_order": [
+      "S1-1",
+      "S1-2",
+      "S2-1",
+      {
+        "loop": {
+          "step": "S3-1",
+          "condition": "S3-1.revision_acceptable == false",
+          "max_iterations": 3
+        }
+      },
+      "S3-2"
+    ]
+  }
+},
+{"answer":"Bare except is discouraged because it also catches BaseException subclasses like KeyboardInterrupt and SystemExit, swallowing signals the user did not intend to silence. Prefer naming the specific exceptions the called code can actually raise. For load_config those are FileNotFoundError (from open() when the path is missing) and json.JSONDecodeError (from json.load when content is malformed). Either list them in a tuple or use OSError to cover open()-side issues more broadly. Idiomatic version: except (FileNotFoundError, json.JSONDecodeError): return {}."}

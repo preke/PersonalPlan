@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="zh-Hans">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Qwen-32B MAPLE SFT 与 Joint Alignment 训练报告</title>
+<style>
+:root{--ink:#172033;--muted:#647083;--line:#dce3ed;--soft:#f6f8fb;--blue:#2563eb;--green:#059669;--orange:#d97706;--red:#dc2626;--purple:#7c3aed;}
+*{box-sizing:border-box} body{margin:0;font-family:Inter,"Segoe UI",Arial,"Microsoft YaHei",sans-serif;color:var(--ink);background:#fff;line-height:1.58} header{padding:42px 48px 30px;border-bottom:1px solid var(--line);background:linear-gradient(180deg,#f8fbff,#fff)} h1{margin:0 0 10px;font-size:30px;letter-spacing:0}.subtitle{max-width:1040px;color:var(--muted);font-size:15px}main{padding:30px 48px 56px;max-width:1280px;margin:auto}h2{margin:34px 0 14px;font-size:22px}h3{margin:22px 0 10px;font-size:17px}.grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}.card{border:1px solid var(--line);border-radius:8px;padding:16px;background:#fff}.card .label{color:var(--muted);font-size:13px;margin-bottom:6px}.card .value{font-size:24px;font-weight:750;margin-bottom:8px}.card .note{color:var(--muted);font-size:13px}table{width:100%;border-collapse:collapse;border:1px solid var(--line);background:#fff}th,td{padding:10px 12px;border-bottom:1px solid var(--line);vertical-align:top;text-align:left;font-size:14px}th{background:var(--soft);font-size:13px;color:#344054}.ok{border-left:4px solid var(--green);padding:10px 12px;background:#effaf5}.warn{border-left:4px solid var(--orange);padding:10px 12px;background:#fff8ed}.charts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}.chart{border:1px solid var(--line);border-radius:8px;padding:12px;background:#fff}.chart-title{font-weight:700;margin-bottom:6px}.gridline{stroke:#e8edf5}.axis{stroke:#94a3b8;stroke-width:1}.tick,.axislabel{fill:#64748b;font-size:11px}.legend{display:flex;gap:12px;flex-wrap:wrap;color:var(--muted);font-size:12px}.legend i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px;vertical-align:-1px}code{background:#f1f5f9;border:1px solid #e2e8f0;border-radius:4px;padding:1px 4px}ul{margin-top:8px}li{margin:6px 0}footer{margin-top:40px;color:var(--muted);font-size:12px}@media(max-width:900px){.grid,.charts{grid-template-columns:1fr}header,main{padding-left:22px;padding-right:22px}}
+</style>
+</head>
+<body>
+<header>
+<h1>Qwen-32B MAPLE SFT 与 Joint Alignment 训练报告</h1>
+<div class="subtitle">基于 <code>training logs/</code> 中的 <code>sft5v</code> 训练日志生成。报告结构沿用 8B 版本：Stage 1 PAD/SDP SFT、Phase A PAD DPO、Phase B SDP on-policy SFT，并补充 32B 的关键指标、数据生成结果、运行耗时与后续检查项。</div>
+</header>
+<main>
+
+<section>
+<h2>总体结论</h2>
+<div class="ok">32B 版本的完整 SFT 与 Joint Alignment 流程已经完成。Stage-1 的 PAD/SDP SFT loss 均稳定下降；Phase A DPO 明显拉开 chosen/rejected scaffold；Phase B on-policy SDP 训练在 PAD 采样 scaffold 上完成校正，最终 eval loss 与 token accuracy 均保持稳定。</div>
+<div class="grid">
+<div class="card"><div class="label">PAD SFT eval loss</div><div class="value">0.8273 -> 0.7255</div><div class="note">3 epochs；下降 12.3%；final train loss = 0.7200。</div></div>
+<div class="card"><div class="label">SDP SFT eval loss</div><div class="value">0.5777 -> 0.5179</div><div class="note">2 epochs；下降 10.4%；final train loss = 0.5376。</div></div>
+<div class="card"><div class="label">DPO reward accuracy</div><div class="value">0.8364 -> 0.8973</div><div class="note">Phase A PAD DPO；reward margin 从 2.539 提升到 2.723。</div></div>
+<div class="card"><div class="label">Joint SFT eval loss</div><div class="value">0.5414 -> 0.5262</div><div class="note">Phase B on-policy SDP；token accuracy 0.8393 -> 0.8426。</div></div>
+</div>
+<p>本轮统一使用 <code>/root/autodl-tmp/Qwen-32B-Instruct</code> 作为 base model，Joint 数据写入 <code>/root/autodl-tmp/sft5v/data/joint/iter1/</code>。日志文件名仍保留旧的 <code>515</code> 后缀，但日志内容明确指向 32B 的 <code>sft5v</code> 路径，并显示 707 个权重 shard 的加载过程。</p>
+</section>
+
+<section>
+<h2>阶段结果</h2>
+<table><thead><tr><th>#</th><th>阶段</th><th>日志</th><th>目标</th><th>主要结果</th></tr></thead><tbody>
+<tr><td>1</td><td><strong>PAD SFT</strong></td><td><code>training logs/pad_sft_515.log</code></td><td>训练 PAD LoRA，生成 agents 与 subtasks scaffold。</td><td>eval loss 0.8273 -> 0.7255；token accuracy 0.7723 -> 0.7936。</td></tr>
+<tr><td>2</td><td><strong>SDP SFT</strong></td><td><code>training logs/sdp_sft_515.log</code></td><td>训练 SDP LoRA，将 scaffold 映射为具体 steps 与 execution_order。</td><td>eval loss 0.5777 -> 0.5179；token accuracy 0.8293 -> 0.8426。</td></tr>
+<tr><td>3</td><td><strong>Phase A PAD DPO</strong></td><td><code>training logs/joint_phase_a_pad_dpo_train_515.log</code></td><td>使用 structural-Jaccard chosen/rejected scaffold pairs 微调 PAD。</td><td>eval reward accuracy 0.8364 -> 0.8973；reward margin 2.539 -> 2.723。</td></tr>
+<tr><td>4</td><td><strong>Phase B SDP on-policy SFT</strong></td><td><code>training logs/joint_phase_b_sdp_sft_train_515.log</code></td><td>用 DPO 后 PAD 采样出的 scaffold 继续训练 SDP。</td><td>eval loss 0.5414 -> 0.5262；token accuracy 0.8393 -> 0.8426。</td></tr>
+</tbody></table>
+</section>
+
+<section>
+<h2>训练配置</h2>
+<table><thead><tr><th>配置项</th><th>Stage 1 PAD SFT</th><th>Stage 1 SDP SFT</th><th>Phase A PAD DPO</th><th>Phase B SDP SFT</th></tr></thead><tbody>
+<tr><td>Base model</td><td><code>/root/autodl-tmp/Qwen-32B-Instruct</code></td><td><code>/root/autodl-tmp/Qwen-32B-Instruct</code></td><td><code>/root/autodl-tmp/Qwen-32B-Instruct</code></td><td><code>/root/autodl-tmp/Qwen-32B-Instruct</code></td></tr>
+<tr><td>Adapter 输出</td><td><code>maple-pad-sft</code></td><td><code>maple-sdp-sft</code></td><td><code>maple-pad-dpo-iter1</code></td><td><code>maple-sdp-onpolicy-iter1</code></td></tr>
+<tr><td>LoRA</td><td>r=16, alpha=32, dropout=0.05, all-linear</td><td>r=16, alpha=32, dropout=0.05, all-linear</td><td>r=16, alpha=32, dropout=0.05, all-linear</td><td>r=16, alpha=32, dropout=0.05, all-linear</td></tr>
+<tr><td>Epochs</td><td>3</td><td>2</td><td>1</td><td>1</td></tr>
+<tr><td>Batch / grad accumulation</td><td>2 / 8</td><td>2 / 8</td><td>1 / 16</td><td>1 / 16</td></tr>
+<tr><td>LR schedule</td><td>lr=1e-4, cosine, warmup_ratio=0.02</td><td>lr=1e-4, cosine, warmup_ratio=0.02</td><td>lr=5e-5, cosine, warmup_ratio=0.1</td><td>lr=5e-5, cosine, warmup_ratio=0.1</td></tr>
+<tr><td>序列长度</td><td>block_size=3072</td><td>block_size=3072</td><td>block_size=4096</td><td>block_size=4096</td></tr>
+<tr><td>优化器 / 精度</td><td>paged_adamw_8bit, bf16, gradient checkpointing</td><td>paged_adamw_8bit, bf16, gradient checkpointing</td><td>paged_adamw_8bit, bf16, gradient checkpointing</td><td>paged_adamw_8bit, bf16, gradient checkpointing</td></tr>
+</tbody></table>
+</section>
+
+<section>
+<h2>Joint 数据生成</h2>
+<div class="grid">
+<div class="card"><div class="label">Phase A source rows</div><div class="value">2433</div><div class="note">PAD 每条生成两个 scaffold，再用 structural-Jaccard 选 chosen/rejected。</div></div>
+<div class="card"><div class="label">DPO pairs written</div><div class="value">1198</div><div class="note">跳过 1235 条 tie/unparseable；pair yield = 49.2%。</div></div>
+<div class="card"><div class="label">Phase B SFT rows</div><div class="value">2426</div><div class="note">仅跳过 7 条 unparseable scaffold；覆盖率 = 99.7%。</div></div>
+<div class="card"><div class="label">Embedding resize</div><div class="value">151936 -> 151669</div><div class="note">两个 Joint 生成阶段加载 adapter 前均记录了 resize。</div></div>
+</div>
+<p>Phase A 写入 <code>/root/autodl-tmp/sft5v/data/joint/iter1/phase_a_pad_dpo/train.jsonl</code>。Phase B 写入 <code>/root/autodl-tmp/sft5v/data/joint/iter1/phase_b_sdp_sft/train.jsonl</code>。</p>
+</section>
+
+<section>
+<h2>指标趋势</h2>
+<div class="charts">
+<div class="chart"><div class="chart-title">Stage 1 eval loss</div><svg viewBox="0 0 560 260" role="img"><line x1="54" y1="24" x2="542" y2="24" class="gridline"/><line x1="54" y1="72.5" x2="542" y2="72.5" class="gridline"/><line x1="54" y1="121" x2="542" y2="121" class="gridline"/><line x1="54" y1="169.5" x2="542" y2="169.5" class="gridline"/><line x1="54" y1="218" x2="542" y2="218" class="axis"/><line x1="54" y1="24" x2="54" y2="218" class="axis"/><text x="8" y="28" class="tick">0.85</text><text x="8" y="222" class="tick">0.50</text><path d="M54,36.6 L108,69.2 L162,81.9 L216,86.6 L271,91.1 L325,95.2 L379,92.1 L433,92.7 L487,93.0 L542,93.1" fill="none" stroke="#2563eb" stroke-width="2.5"/><path d="M54,174.9 L135,194.3 L216,202.2 L298,205.5 L379,207.6 L460,208.1 L542,208.0" fill="none" stroke="#059669" stroke-width="2.5"/><text x="250" y="252" class="axislabel">eval checkpoints</text></svg><div class="legend"><span><i style="background:#2563eb"></i>PAD loss</span><span><i style="background:#059669"></i>SDP loss</span></div></div>
+<div class="chart"><div class="chart-title">Stage 1 token accuracy</div><svg viewBox="0 0 560 260" role="img"><line x1="54" y1="24" x2="542" y2="24" class="gridline"/><line x1="54" y1="72.5" x2="542" y2="72.5" class="gridline"/><line x1="54" y1="121" x2="542" y2="121" class="gridline"/><line x1="54" y1="169.5" x2="542" y2="169.5" class="gridline"/><line x1="54" y1="218" x2="542" y2="218" class="axis"/><line x1="54" y1="24" x2="54" y2="218" class="axis"/><text x="8" y="28" class="tick">0.85</text><text x="8" y="222" class="tick">0.76</text><path d="M54,191.5 L108,166.1 L162,157.0 L216,152.5 L271,149.3 L325,145.0 L379,147.1 L433,146.2 L487,145.6 L542,145.4" fill="none" stroke="#2563eb" stroke-width="2.5"/><path d="M54,68.6 L135,52.9 L216,45.5 L298,42.1 L379,40.2 L460,39.9 L542,39.9" fill="none" stroke="#059669" stroke-width="2.5"/><text x="250" y="252" class="axislabel">eval checkpoints</text></svg><div class="legend"><span><i style="background:#2563eb"></i>PAD accuracy</span><span><i style="background:#059669"></i>SDP accuracy</span></div></div>
+<div class="chart"><div class="chart-title">Phase A DPO eval metrics</div><svg viewBox="0 0 560 260" role="img"><line x1="54" y1="24" x2="542" y2="24" class="gridline"/><line x1="54" y1="72.5" x2="542" y2="72.5" class="gridline"/><line x1="54" y1="121" x2="542" y2="121" class="gridline"/><line x1="54" y1="169.5" x2="542" y2="169.5" class="gridline"/><line x1="54" y1="218" x2="542" y2="218" class="axis"/><line x1="54" y1="24" x2="54" y2="218" class="axis"/><path d="M54,185.5 L542,166.8" fill="none" stroke="#7c3aed" stroke-width="2.5"/><circle cx="54" cy="185.5" r="3" fill="#7c3aed"/><circle cx="542" cy="166.8" r="3" fill="#7c3aed"/><path d="M54,75.4 L542,45.2" fill="none" stroke="#d97706" stroke-width="2.5"/><circle cx="54" cy="75.4" r="3" fill="#d97706"/><circle cx="542" cy="45.2" r="3" fill="#d97706"/><text x="250" y="252" class="axislabel">eval checkpoints</text></svg><div class="legend"><span><i style="background:#7c3aed"></i>reward accuracy</span><span><i style="background:#d97706"></i>reward margin</span></div></div>
+<div class="chart"><div class="chart-title">Phase B SDP on-policy SFT</div><svg viewBox="0 0 560 260" role="img"><line x1="54" y1="24" x2="542" y2="24" class="gridline"/><line x1="54" y1="72.5" x2="542" y2="72.5" class="gridline"/><line x1="54" y1="121" x2="542" y2="121" class="gridline"/><line x1="54" y1="169.5" x2="542" y2="169.5" class="gridline"/><line x1="54" y1="218" x2="542" y2="218" class="axis"/><line x1="54" y1="24" x2="54" y2="218" class="axis"/><path d="M54,104.1 L216,157.3 L379,170.4 L542,170.4" fill="none" stroke="#dc2626" stroke-width="2.5"/><path d="M54,147.4 L216,91.1 L379,75.9 L542,75.9" fill="none" stroke="#059669" stroke-width="2.5"/><text x="250" y="252" class="axislabel">eval checkpoints</text></svg><div class="legend"><span><i style="background:#dc2626"></i>eval loss</span><span><i style="background:#059669"></i>token accuracy</span></div></div>
+</div>
+</section>
+
+<section>
+<h2>结果解读</h2>
+<h3>Stage 1: PAD / SDP SFT</h3>
+<ul>
+<li>PAD 学习曲线整体稳定，但在 epoch 2 左右开始平台化：epoch 1.966 时 eval loss 已到 0.7216，最终停在 0.7255 附近。</li>
+<li>SDP 早期下降更明显，末段稳定在 0.5178-0.5179；最终 eval token accuracy 为 0.8426。</li>
+<li>两个 SFT 阶段日志中未观察到 NaN/Inf；grad norm 与 loss 走势均属于正常可控范围。</li>
+</ul>
+<h3>Phase A: PAD DPO</h3>
+<ul>
+<li>DPO 将 eval reward accuracy 从 0.8364 提升到 0.8973，reward margin 从 2.539 提升到 2.723。</li>
+<li>DPO train loss 不应直接与 SFT NLL 比较；本阶段更重要的信号是 chosen/rejected 分离度，而日志显示分离度在最终 eval 中继续增强。</li>
+<li>pair generator 从 2433 条 source rows 产出 1198 对可用 DPO pairs。该 yield 对 structural-Jaccard proxy 来说可接受，但也说明约一半样本因为 tie 或解析失败没有进入 DPO。</li>
+</ul>
+<h3>Phase B: SDP on-policy SFT</h3>
+<ul>
+<li>on-policy SDP eval loss 从 0.5414 降到 0.5262，token accuracy 从 0.8393 提升到 0.8426。</li>
+<li>on-policy 数据集保留 2426 / 2433 条 source rows，覆盖率接近完整训练集，因此 SDP 校正阶段数据覆盖充分。</li>
+<li>最终 on-policy SDP loss 略高于 Stage-1 SDP final loss，这是合理的：Phase B 输入来自 PAD 采样 scaffold，而不是 gold scaffold。</li>
+</ul>
+</section>
+
+<section>
+<h2>运行耗时</h2>
+<table><thead><tr><th>阶段</th><th>runtime(s)</th><th>runtime(h)</th><th>samples/s</th><th>steps/s</th></tr></thead><tbody>
+<tr><td>PAD SFT</td><td>9228</td><td>2.56</td><td>0.791</td><td>0.050</td></tr>
+<tr><td>SDP SFT</td><td>18940</td><td>5.26</td><td>0.257</td><td>0.016</td></tr>
+<tr><td>PAD DPO</td><td>3793</td><td>1.05</td><td>0.316</td><td>0.020</td></tr>
+<tr><td>SDP on-policy SFT</td><td>18690</td><td>5.19</td><td>0.130</td><td>0.008</td></tr>
+<tr><td><strong>训练日志记录总耗时</strong></td><td><strong>50651</strong></td><td><strong>14.07</strong></td><td>-</td><td>-</td></tr>
+</tbody></table>
+<p>总耗时不包含 Joint 数据生成 wall-clock time，因为 generation logs 没有输出统一的最终 runtime 字段。</p>
+</section>
+
+<section>
+<h2>Checkpoint 与产物路径</h2>
+<table><thead><tr><th>产物</th><th>路径</th><th>用途</th></tr></thead><tbody>
+<tr><td>PAD SFT adapter</td><td><code>/root/autodl-tmp/sft5v/maple-pad-sft/</code></td><td>Stage-1 PAD 输出，也是 Phase A DPO 的起点 adapter。</td></tr>
+<tr><td>SDP SFT adapter</td><td><code>/root/autodl-tmp/sft5v/maple-sdp-sft/</code></td><td>Stage-1 SDP 输出，也是 Phase B on-policy SFT 的起点 adapter。</td></tr>
+<tr><td>PAD DPO adapter</td><td><code>/root/autodl-tmp/sft5v/maple-pad-dpo-iter1/</code></td><td>Phase A 输出，用于生成 Phase B scaffold。</td></tr>
+<tr><td>SDP on-policy adapter</td><td><code>/root/autodl-tmp/sft5v/maple-sdp-onpolicy-iter1/</code></td><td>Stage-2 最终 SDP adapter。</td></tr>
+<tr><td>Phase A data</td><td><code>/root/autodl-tmp/sft5v/data/joint/iter1/phase_a_pad_dpo/train.jsonl</code></td><td>1198 条 DPO pairs。</td></tr>
+<tr><td>Phase B data</td><td><code>/root/autodl-tmp/sft5v/data/joint/iter1/phase_b_sdp_sft/train.jsonl</code></td><td>2426 条 on-policy SFT rows。</td></tr>
+</tbody></table>
+</section>
+
+<section>
+<h2>注意事项与下一步</h2>
+<div class="warn">Joint phase 复用了生成出的 train file 作为 valid split，因此 Phase A / Phase B 的 eval metrics 更适合作为训练稳定性与优化信号，不应直接当成 held-out dev 泛化指标。</div>
+<ul>
+<li>进入 GRPO 或正式汇报前，需要在 Dev 上跑 Stage-2 gate：pass@1/pass@8、GED-sim（若可用）、structural validity、agent relevance，以及小规模 LLM judge sanity check。</li>
+<li>建议为关键 checkpoint 补齐 <code>metadata.json</code>：data split hash、config、dev NLL、SV/AR/DC/ATR（若 evaluator 已可用）和 wall-clock runtime。</li>
+<li>当前 DPO preference proxy 是 scaffold 字段的 structural-Jaccard，不是完整 generated-plan 级别的 <code>R_struct + R_pers + R_ped</code> reward stack。论文或实验记录中应明确说明。</li>
+<li>日志显示 adapter 加载前执行了 embedding resize：<code>151936 -> 151669</code>。后续 generation/evaluation 继续使用 resize-aware loader，避免 adapter embedding shape mismatch。</li>
+</ul>
+</section>
+
+<footer>Generated locally on 2026-05-20 from logs under <code>training logs/</code>. No external assets or network dependencies.</footer>
+</main>
+</body>
+</html>

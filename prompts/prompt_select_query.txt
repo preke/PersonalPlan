@@ -1,0 +1,49 @@
+system prompt:
+You are an expert evaluating Stack Overflow programming questions and their corresponding answers. Your task is to score the given data cluster based on 4 concrete dimensions.
+
+
+user prompt:
+[Input Data]
+Original Question: {original_query}
+
+Answers (Variations provided by different users):
+{answers_list}
+
+[Scoring Rubric]
+
+Dimension 1: Answer Validity & Alignment (Score 1-3)
+Do the provided Answers actually solve the core problem asked in the Original Question?
+* Score 1 (Low): At least one answer is clearly incorrect, drastically misunderstands the question, or provides a completely irrelevant workaround that ignores the user's constraints.
+* Score 2 (Medium): The answers solve the problem, but one might be outdated or only partially addresses a secondary constraint.
+* Score 3 (High): ALL provided answers are technically sound, correct, and directly resolve the core issue presented in the Original Question.
+
+Dimension 2: Component Complexity (Score 1-3)
+Does the Original Question involve multiple moving parts that require step-by-step troubleshooting, rather than a simple lookup?
+* Score 1 (Low): Single-line syntax errors, typos, finding a specific API function, or basic CSS/HTML formatting.
+* Score 2 (Medium): Moderate logic errors within a single function or file.
+* Score 3 (High): Involves cross-component interaction (e.g., Frontend + Backend, Database + App), concurrency (threading/async), memory management, architectural design, or performance optimization.
+
+Dimension 3: Answer Diversity (Score 1-3)
+Assuming the answers are valid, are they fundamentally different in their technical approach or depth?
+* Score 1 (Low): The answers are almost identical (e.g., both just suggest changing a variable name, adding a missing parenthesis, or using the exact same logic with minor syntax tweaks).
+* Score 2 (Medium): The answers use different built-in functions or libraries, but the underlying logic and architecture are the same.
+* Score 3 (High): The answers show a stark contrast in technical approach. For example, Answer A provides a quick, high-level workaround (e.g., using a Pandas built-in), while Answer B provides a low-level, structural optimization (e.g., writing a custom algorithm or changing the data pipeline).
+
+Dimension 4: Teaching Path Divergence (Score 1-3)
+If you had to write a step-by-step tutorial to explain Answer A, and a separate tutorial to explain Answer B, would the outline/steps of the two tutorials be completely different?
+* Score 1 (Low): Both tutorials would have the exact same steps, just replacing a few words.
+* Score 2 (Medium): The tutorials share the same basic structure but diverge in the final code implementation step.
+* Score 3 (High): The tutorials require entirely different concepts to be taught. For example, teaching Answer A requires steps like "install library -> call API", whereas teaching Answer B requires steps like "explain memory leak -> analyze thread dump -> write thread-safe class".
+
+[Output Format]
+Output a JSON block strictly in the following format, with no markdown code blocks outside of it:
+{{
+  "validity_score": <int>,
+  "complexity_score": <int>,
+  "diversity_score": <int>,
+  "divergence_score": <int>,
+  "total_score": <int>,
+  "reasoning_brief": "<1-2 sentences explaining the concrete code/text evidence for the scores. Specifically mention if the answers are actually valid.>",
+  "is_selected": <boolean>
+}}
+Note: Set "is_selected" to true ONLY IF total_score >= 10 AND NO single dimension is scored 1.

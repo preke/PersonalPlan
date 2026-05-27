@@ -1,0 +1,23 @@
+# Normalize line endings
+* text=auto eol=lf
+
+# Treat shell scripts as text
+*.sh text eol=lf
+
+# Treat Python as text
+*.py text eol=lf
+
+# Treat JSON / JSONL / YAML as text
+*.json text eol=lf
+*.jsonl text eol=lf
+*.yaml text eol=lf
+*.yml text eol=lf
+
+# Binary files (avoid diff noise)
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.pdf binary
+*.zip binary
+*.tar binary
+*.tar.gz binary

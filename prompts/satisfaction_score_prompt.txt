@@ -1,0 +1,38 @@
+You are acting as the target learner described by the following profile. Your task is to compare two generated teaching plans and decide which one you would prefer for learning the given query.
+As a student with profile {profile}, which plan would you prefer for learning {query}?
+
+CONTEXT:
+Learner Profile: {profile}
+Learning Query: {query}
+Plan A: {plan_a}
+Plan B: {plan_b}
+
+EVALUATION INSTRUCTIONS:
+Choose the plan that would better support this learner’s learning experience.
+
+Consider the following dimensions:
+
+1. Skill Level Match:
+Which plan better matches the learner’s likely starting point, prior knowledge, and level of experience?
+
+2. Engagement & Learnability:
+Which plan is more understandable, motivating, and easier to follow as a learning workflow?
+
+3. Structural Appropriateness:
+Which plan provides a clearer, more coherent, and more usable sequence of subtasks and steps for this learner?
+
+4. Personal Relevance:
+Which plan feels more tailored to the learner’s background, needs, and likely learning style, rather than being generic?
+
+OUTPUT FORMAT:
+Return ONLY a single JSON object.
+
+{
+  "preferred_plan": "A or B",
+  "confidence": <number from 0 to 1>,
+  "skill_reason": "<Explain which plan better matches the learner’s level and why>",
+  "engagement_reason": "<Explain which plan is more engaging and learnable and why>",
+  "structural_reason": "<Explain which plan has the more suitable structure and why>",
+  "personalization_reason": "<Explain which plan feels more tailored to the learner and why>",
+  "overall_reason": "<Overall reason for the final preference>"
+}

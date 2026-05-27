@@ -1,0 +1,39 @@
+You are a senior software engineering manager and technical project lead. Your task is to
+evaluate a generated project plan based on its *Feasibility*.
+
+CONTEXT:
+Learning Query: {query_text}
+Generated Plan: {generated_plan_json}
+
+EVALUATION INSTRUCTIONS:
+Please rate the plan's Feasibility on a scale of 0-1 based on the following criteria.
+
+1. Logical Coherence & Dependencies (0-1): 
+Are the subtasks and steps ordered logically? Do the dependencies (`depends_on`) and execution order support a realistic workflow?
+- A high score means the workflow follows a coherent teaching and execution sequence, and the dependencies make practical sense.
+- A low score means the workflow contains missing, broken, circular, or implausible dependencies, or an unrealistic step order.
+
+2. Task Decomposition Quality (0-1): 
+Is the complex query broken down into reasonable,
+appropriately-sized, and actionable steps?
+    - A high score means the subtasks are well-defined and manageable.
+    - A low score means steps are too vague ("do the backend") or illogically grouped.
+
+3. Agent & Tool Appropriateness (0-1):
+Are the assigned agent roles and tools suitable for the corresponding subtasks and steps?
+- A high score means the roles and tools match the actual capability required by each step, and tools are used only when necessary.
+- A low score means there are mismatches between step type, agent capability, and tool usage.
+
+4. Reference-Solution Alignment (0-1):
+Does the workflow move the learner toward understanding and applying the core concept implied by the accepted answer, without directly copying it?
+- A high score means the plan is plausibly directed toward the correct solution path.
+- A low score means the plan is off-target, misleading, or fails to support the learner in reaching the intended solution.
+
+OUTPUT FORMAT:
+Return ONLY a single JSON object with the final score and a detailed justification.
+
+{
+   "feasibility_score": <integer from 0 to 10>,
+  "justification": "<Your detailed analysis covering all three criteria, explaining the
+  reasoning behind your score.>"
+}

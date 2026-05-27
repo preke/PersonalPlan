@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="zh-Hans">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Qwen3-8B MAPLE SFT 与 Joint Alignment 训练报告</title>
+<style>
+:root{--ink:#172033;--muted:#647083;--line:#dce3ed;--soft:#f6f8fb;--blue:#2563eb;--green:#059669;--orange:#d97706;--red:#dc2626;--purple:#7c3aed;}
+*{box-sizing:border-box} body{margin:0;font-family:Inter,"Segoe UI",Arial,"Microsoft YaHei",sans-serif;color:var(--ink);background:#fff;line-height:1.6} header{padding:42px 48px 30px;border-bottom:1px solid var(--line);background:linear-gradient(180deg,#f8fbff,#fff)} h1{margin:0 0 10px;font-size:30px;letter-spacing:0} .subtitle{max-width:1040px;color:var(--muted);font-size:15px} main{padding:30px 48px 56px;max-width:1280px;margin:auto} h2{margin:34px 0 14px;font-size:22px} h3{margin:22px 0 10px;font-size:17px}.grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}.card{border:1px solid var(--line);border-radius:8px;padding:16px;background:#fff}.card .label{color:var(--muted);font-size:13px;margin-bottom:6px}.card .value{font-size:24px;font-weight:750;margin-bottom:8px}.card .note{color:var(--muted);font-size:13px}table{width:100%;border-collapse:collapse;border:1px solid var(--line);background:#fff}th,td{padding:10px 12px;border-bottom:1px solid var(--line);vertical-align:top;text-align:left;font-size:14px}th{background:var(--soft);font-size:13px;color:#344054}.ok{border-left:4px solid var(--green);padding:10px 12px;background:#effaf5}.warn{border-left:4px solid var(--orange);padding:10px 12px;background:#fff8ed}.charts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}.chart{border:1px solid var(--line);border-radius:8px;padding:12px;background:#fff}.chart-title{font-weight:700;margin-bottom:6px}.gridline{stroke:#e8edf5}.axis{stroke:#94a3b8;stroke-width:1}.tick,.axislabel{fill:#64748b;font-size:11px}.legend{display:flex;gap:12px;flex-wrap:wrap;color:var(--muted);font-size:12px}.legend i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px;vertical-align:-1px}code{background:#f1f5f9;border:1px solid #e2e8f0;border-radius:4px;padding:1px 4px}ul{margin-top:8px}li{margin:6px 0}footer{margin-top:40px;color:var(--muted);font-size:12px}@media(max-width:900px){.grid,.charts{grid-template-columns:1fr}header,main{padding-left:22px;padding-right:22px}}
+</style>
+</head>
+<body>
+<header>
+<h1>Qwen3-8B MAPLE SFT 与 Joint Alignment 训练报告</h1>
+<div class="subtitle">本报告根据 <code>readmore_517_sft.md</code>、本地 <code>training logs/</code>、实验计划与训练配置整理；如有冲突，以 readmore 为准。完整流程为：先分别完成 PAD SFT 与 SDP SFT 打底，再进入 Phase A PAD DPO，最后用 Phase B SDP on-policy SFT 做 exposure-bias 修正。</div>
+</header>
+<main>
+<section>
+<h2>整体结论</h2>
+<div class="ok">四阶段训练链路已经跑通。PAD 与 SDP 的 Stage-1 eval loss 均下降；Phase A DPO 的 reward accuracy 与 reward margin 是最明显的正向信号；Phase B on-policy SFT 主要承担分布适配作用，loss 小幅下降且 token accuracy 保持稳定。</div>
+<div class="grid">
+<div class="card"><div class="label">PAD SFT final eval loss</div><div class="value">0.7246</div><div class="note">readmore_517：459 steps / 3 epochs；final train loss 0.7207。</div></div>
+<div class="card"><div class="label">SDP SFT final eval loss</div><div class="value">0.5097</div><div class="note">readmore_517：306 steps / 2 epochs；final train loss 0.5307；输入侧已加入 CrewAI 8-tool 约束。</div></div>
+<div class="card"><div class="label">DPO reward accuracy</div><div class="value">0.8252 → 0.8837</div><div class="note">Phase A 使用 structural-Jaccard 偏好；margin 1.833 → 1.942。</div></div>
+<div class="card"><div class="label">Joint SFT eval loss</div><div class="value">0.6458 → 0.6303</div><div class="note">on-policy SDP 修正；token acc 0.8198 → 0.8228。</div></div>
+</div>
+<p>一句话判断：Stage-1 负责把 PAD 与 SDP 两个 LoRA adapter 训练到可用状态；Phase A DPO 用 structural-Jaccard chosen/rejected pairs 推动 PAD scaffold 偏好对齐；Phase B on-policy SFT 则让 SDP 适配 DPO 后 PAD 采样出来的 scaffold 分布。</p>
+</section>
+
+<section>
+<h2>完整训练流程</h2>
+<table><thead><tr><th>顺序</th><th>阶段</th><th>日志</th><th>作用</th><th>关键结果</th></tr></thead><tbody>
+<tr><td>1</td><td><strong>PAD SFT</strong></td><td><code>readmore_517_sft.md</code></td><td>训练 PAD LoRA，生成 agents 与 subtasks scaffold。</td><td>459 steps / 3 epochs；final eval_loss 0.7246；final train_loss 0.7207</td></tr>
+<tr><td>2</td><td><strong>SDP SFT</strong></td><td><code>readmore_517_sft.md</code></td><td>训练 SDP LoRA，基于 scaffold 生成 step-level plan；输入中加入 CrewAI tool 白名单。</td><td>306 steps / 2 epochs；final eval_loss 0.5097；final train_loss 0.5307</td></tr>
+<tr><td>3</td><td><strong>Phase A PAD DPO</strong></td><td><code>training logs/joint_phase_a_pad_dpo_train_515.log</code></td><td>用 structural-Jaccard 产生 chosen/rejected scaffold pairs，对 PAD 做 DPO。</td><td>eval reward acc 0.8252 → 0.8837，margin 1.833 → 1.942</td></tr>
+<tr><td>4</td><td><strong>Phase B SDP on-policy SFT</strong></td><td><code>training logs/joint_phase_b_sdp_sft_train_515.log</code></td><td>用 DPO 后 PAD 采样的 scaffold 继续训练 SDP，修正输入分布。</td><td>eval loss 0.6458 → 0.6303，token acc 0.8198 → 0.8228</td></tr>
+</tbody></table>
+</section>
+
+<section>
+<h2>训练设置摘要</h2>
+<table><thead><tr><th>项目</th><th>Stage 1 PAD SFT</th><th>Stage 1 SDP SFT</th><th>Phase A PAD DPO</th><th>Phase B SDP SFT</th></tr></thead><tbody>
+<tr><td>日志文件</td><td><code>pad_sft_515.log</code></td><td><code>sdp_sft_515.log</code></td><td><code>joint_phase_a_pad_dpo_train_515.log</code></td><td><code>joint_phase_b_sdp_sft_train_515.log</code></td></tr>
+<tr><td>训练目标</td><td>学习 PAD scaffold：agents + subtasks</td><td>学习 SDP：steps + execution_order；输入包含 8 个 CrewAI tool class</td><td>基于 chosen/rejected scaffold 对 PAD 做 DPO</td><td>用 DPO 后 PAD 采样 scaffold 继续训练 SDP</td></tr>
+<tr><td>基座模型</td><td><code>/root/autodl-tmp/Qwen3-8B-Instruct</code></td><td><code>/root/autodl-tmp/Qwen3-8B-Instruct</code></td><td><code>/root/autodl-tmp/Qwen3-8B-Instruct</code></td><td><code>/root/autodl-tmp/Qwen3-8B-Instruct</code></td></tr>
+<tr><td>LoRA</td><td>r=16, alpha=32, dropout=0.05, all-linear</td><td>r=16, alpha=32, dropout=0.05, all-linear</td><td>r=16, alpha=32, dropout=0.05, all-linear</td><td>r=16, alpha=32, dropout=0.05, all-linear</td></tr>
+<tr><td>训练轮数</td><td>3 epochs</td><td>2 epochs</td><td>1 epoch</td><td>1 epoch</td></tr>
+<tr><td>训练 batch / grad accumulation</td><td>2 / 8</td><td>2 / 8</td><td>1 / 16</td><td>1 / 16</td></tr>
+<tr><td>Joint scaffold 生成 batch</td><td>不适用</td><td>不适用</td><td>32（见 <code>joint_phase_a_generate_515.log</code>）</td><td>32（见 <code>joint_phase_b_generate_515.log</code>）</td></tr>
+<tr><td>学习率策略</td><td>lr=1e-4, cosine, warmup_ratio=0.02</td><td>lr=1e-4, cosine, warmup_ratio=0.02</td><td>lr=5e-5, cosine, warmup_ratio=0.1</td><td>lr=5e-5, cosine, warmup_ratio=0.1</td></tr>
+<tr><td>上下文长度</td><td>block_size=3072</td><td>block_size=3072</td><td>block_size=4096</td><td>block_size=4096</td></tr>
+<tr><td>优化器 / 精度</td><td>paged_adamw_8bit, bf16, gradient checkpointing enabled</td><td>paged_adamw_8bit, bf16, gradient checkpointing enabled</td><td>paged_adamw_8bit, bf16, gradient checkpointing enabled</td><td>paged_adamw_8bit, bf16, gradient checkpointing enabled</td></tr>
+</tbody></table>
+</section>
+
+<section>
+<h2>Joint 数据生成</h2>
+<div class="grid">
+<div class="card"><div class="label">Phase A source rows</div><div class="value">2433</div><div class="note">每行 PAD 采 2 个 scaffold，再按 structural Jaccard 排序。</div></div>
+<div class="card"><div class="label">DPO pairs written</div><div class="value">1161</div><div class="note">skipped 1272 ties/unparseable；pair yield 0.477。</div></div>
+<div class="card"><div class="label">Phase B SFT rows</div><div class="value">2427</div><div class="note">skipped 6 unparseable scaffolds；coverage 0.998。</div></div>
+<div class="card"><div class="label">Scaffold 生成 batch</div><div class="value">32</div><div class="note">这是数据生成 batch，不是 LoRA 训练 batch；无 silent truncation，每 50 rows 写 <code>train.jsonl.tmp</code>。</div></div>
+</div>
+<p>Phase A 遵循 §3.2：当前 PAD 采 2 个 scaffold，计算 <code>0.5·Jaccard(agent_roles)+0.5·Jaccard(subtask_names)</code>，高者为 chosen，低者为 rejected，相等则丢弃；此阶段不调用 SDP。</p>
+</section>
+
+<section>
+<h2>曲线概览</h2>
+<div class="charts">
+<div class="chart"><div class="chart-title">Stage 1 SFT eval loss</div><svg viewBox="0 0 560 260" role="img"><line x1="54" y1="24.0" x2="542" y2="24.0" class="gridline"/><text x="8" y="28.0" class="tick">1.018</text><line x1="54" y1="72.5" x2="542" y2="72.5" class="gridline"/><text x="8" y="76.5" class="tick">0.903</text><line x1="54" y1="121.0" x2="542" y2="121.0" class="gridline"/><text x="8" y="125.0" class="tick">0.788</text><line x1="54" y1="169.5" x2="542" y2="169.5" class="gridline"/><text x="8" y="173.5" class="tick">0.673</text><line x1="54" y1="218.0" x2="542" y2="218.0" class="gridline"/><text x="8" y="222.0" class="tick">0.558</text><line x1="54" y1="218" x2="542" y2="218" class="axis"/><line x1="54" y1="24" x2="54" y2="218" class="axis"/><path d="M54.0,45.2 L542.0,109.2" fill="none" stroke="#2563eb" stroke-width="2.5"/><circle cx="54.0" cy="45.2" r="3" fill="#2563eb"/><circle cx="542.0" cy="109.2" r="3" fill="#2563eb"/><path d="M54.0,159.2 L359.3,196.8" fill="none" stroke="#059669" stroke-width="2.5"/><circle cx="54.0" cy="159.2" r="3" fill="#059669"/><circle cx="359.3" cy="196.8" r="3" fill="#059669"/><text x="280" y="252" class="axislabel">epoch</text></svg><div class="legend"><span><i style="background:#2563eb"></i>PAD eval loss</span><span><i style="background:#059669"></i>SDP eval loss</span></div></div>
+<div class="chart"><div class="chart-title">Stage 1 token accuracy</div><svg viewBox="0 0 560 260" role="img"><line x1="54" y1="24.0" x2="542" y2="24.0" class="gridline"/><text x="8" y="28.0" class="tick">0.835</text><line x1="54" y1="72.5" x2="542" y2="72.5" class="gridline"/><text x="8" y="76.5" class="tick">0.811</text><line x1="54" y1="121.0" x2="542" y2="121.0" class="gridline"/><text x="8" y="125.0" class="tick">0.787</text><line x1="54" y1="169.5" x2="542" y2="169.5" class="gridline"/><text x="8" y="173.5" class="tick">0.763</text><line x1="54" y1="218.0" x2="542" y2="218.0" class="gridline"/><text x="8" y="222.0" class="tick">0.739</text><line x1="54" y1="218" x2="542" y2="218" class="axis"/><line x1="54" y1="24" x2="54" y2="218" class="axis"/><path d="M54.0,196.8 L542.0,140.7" fill="none" stroke="#2563eb" stroke-width="2.5"/><circle cx="54.0" cy="196.8" r="3" fill="#2563eb"/><circle cx="542.0" cy="140.7" r="3" fill="#2563eb"/><path d="M54.0,81.7 L359.3,45.2" fill="none" stroke="#059669" stroke-width="2.5"/><circle cx="54.0" cy="81.7" r="3" fill="#059669"/><circle cx="359.3" cy="45.2" r="3" fill="#059669"/><text x="280" y="252" class="axislabel">epoch</text></svg><div class="legend"><span><i style="background:#2563eb"></i>PAD eval acc</span><span><i style="background:#059669"></i>SDP eval acc</span></div></div>
+<div class="chart"><div class="chart-title">Phase A DPO eval metrics</div><svg viewBox="0 0 560 260" role="img"><line x1="54" y1="24.0" x2="542" y2="24.0" class="gridline"/><text x="8" y="28.0" class="tick">2.098</text><line x1="54" y1="72.5" x2="542" y2="72.5" class="gridline"/><text x="8" y="76.5" class="tick">1.741</text><line x1="54" y1="121.0" x2="542" y2="121.0" class="gridline"/><text x="8" y="125.0" class="tick">1.384</text><line x1="54" y1="169.5" x2="542" y2="169.5" class="gridline"/><text x="8" y="173.5" class="tick">1.026</text><line x1="54" y1="218.0" x2="542" y2="218.0" class="gridline"/><text x="8" y="222.0" class="tick">0.669</text><line x1="54" y1="218" x2="542" y2="218" class="axis"/><line x1="54" y1="24" x2="54" y2="218" class="axis"/><path d="M54.0,196.8 L542.0,188.8" fill="none" stroke="#7c3aed" stroke-width="2.5"/><circle cx="54.0" cy="196.8" r="3" fill="#7c3aed"/><circle cx="542.0" cy="188.8" r="3" fill="#7c3aed"/><path d="M54.0,60.0 L542.0,45.2" fill="none" stroke="#d97706" stroke-width="2.5"/><circle cx="54.0" cy="60.0" r="3" fill="#d97706"/><circle cx="542.0" cy="45.2" r="3" fill="#d97706"/><text x="280" y="252" class="axislabel">epoch</text></svg><div class="legend"><span><i style="background:#7c3aed"></i>reward accuracy</span><span><i style="background:#d97706"></i>reward margin</span></div></div>
+<div class="chart"><div class="chart-title">Phase B SDP on-policy SFT</div><svg viewBox="0 0 560 260" role="img"><line x1="54" y1="24.0" x2="542" y2="24.0" class="gridline"/><text x="8" y="28.0" class="tick">0.850</text><line x1="54" y1="72.5" x2="542" y2="72.5" class="gridline"/><text x="8" y="76.5" class="tick">0.788</text><line x1="54" y1="121.0" x2="542" y2="121.0" class="gridline"/><text x="8" y="125.0" class="tick">0.727</text><line x1="54" y1="169.5" x2="542" y2="169.5" class="gridline"/><text x="8" y="173.5" class="tick">0.665</text><line x1="54" y1="218.0" x2="542" y2="218.0" class="gridline"/><text x="8" y="222.0" class="tick">0.603</text><line x1="54" y1="218" x2="542" y2="218" class="axis"/><line x1="54" y1="24" x2="54" y2="218" class="axis"/><path d="M54.0,184.6 L542.0,196.8" fill="none" stroke="#dc2626" stroke-width="2.5"/><circle cx="54.0" cy="184.6" r="3" fill="#dc2626"/><circle cx="542.0" cy="196.8" r="3" fill="#dc2626"/><path d="M54.0,47.6 L542.0,45.2" fill="none" stroke="#059669" stroke-width="2.5"/><circle cx="54.0" cy="47.6" r="3" fill="#059669"/><circle cx="542.0" cy="45.2" r="3" fill="#059669"/><text x="280" y="252" class="axislabel">epoch</text></svg><div class="legend"><span><i style="background:#dc2626"></i>eval loss</span><span><i style="background:#059669"></i>token accuracy</span></div></div>
+</div>
+</section>
+
+<section>
+<h2>阶段解读</h2>
+<h3>Stage 1: PAD / SDP SFT</h3>
+<ul>
+<li>按 readmore_517_sft.md，PAD SFT 已完成 459 steps / 3 epochs，final eval_loss = 0.7246，final train_loss = 0.7207。</li>
+<li>按 readmore_517_sft.md，SDP SFT 已完成 306 steps / 2 epochs，final eval_loss = 0.5097，final train_loss = 0.5307。</li>
+<li>SDP SFT 输入已经加入 CrewAI 8-tool class 白名单，用来修复 R_hard 中 tool 命名体系不一致的问题。</li>
+</ul>
+<h3>Phase A: PAD DPO</h3>
+<ul>
+<li>eval loss 从 0.3655 降至 0.2996；reward accuracy 从 0.8252 提升到 0.8837。</li>
+<li>reward margin 从 1.833 提升到 1.942，说明 chosen/rejected 的分离度增强。</li>
+<li>DPO pair 由 structural-Jaccard 产生，不是 SDP-perplexity，也不是完整 <code>R_struct + R_pers + R_ped</code> rollout reward；实验记录中需要明确这一点。</li>
+</ul>
+<h3>Phase B: SDP on-policy SFT</h3>
+<ul>
+<li>eval loss 从 0.6458 小幅降至 0.6303；eval token accuracy 从 0.8198 到 0.8228。</li>
+<li>该阶段更适合定位为分布修正 pass：让 SDP 适配 DPO 后 PAD 采样出的 scaffold，而不是重新训练一个大幅不同的 SDP。</li>
+</ul>
+</section>
+
+<section>
+<h2>运行效率</h2>
+<table><thead><tr><th>阶段</th><th>runtime(s)</th><th>runtime(min)</th><th>samples/s</th><th>steps/s</th></tr></thead><tbody>
+<tr><td>PAD SFT</td><td>3706.0</td><td>61.77</td><td>1.969</td><td>0.124</td></tr>
+<tr><td>SDP SFT</td><td>6564.0</td><td>109.40</td><td>0.741</td><td>0.047</td></tr>
+<tr><td>PAD DPO</td><td>1083.0</td><td>18.05</td><td>1.072</td><td>0.067</td></tr>
+<tr><td>SDP on-policy SFT</td><td>5197.0</td><td>86.62</td><td>0.467</td><td>0.029</td></tr>
+</tbody></table>
+</section>
+
+<section>
+<h2>Checkpoint 与交付位置</h2>
+<table><thead><tr><th>产物</th><th>路径</th><th>用途</th></tr></thead><tbody>
+<tr><td>PAD SFT adapter</td><td><code>/root/autodl-tmp/SFTV4/maple-pad-sft/</code></td><td>Stage 1 PAD 起点；Phase A DPO 的 reference/current adapter。</td></tr>
+<tr><td>SDP SFT adapter</td><td><code>/root/autodl-tmp/SFTV4/maple-sdp-sft/</code></td><td>Stage 1 SDP 起点；Phase B on-policy SFT 的初始化 adapter。</td></tr>
+<tr><td>PAD DPO adapter</td><td><code>/root/autodl-tmp/SFTV4/maple-pad-dpo-iter1/</code></td><td>Phase A 输出，供 Phase B 采样 scaffold。</td></tr>
+<tr><td>SDP on-policy adapter</td><td><code>/root/autodl-tmp/SFTV4/maple-sdp-onpolicy-iter1/</code></td><td>Stage 2 最终 SDP adapter。</td></tr>
+<tr><td>Checkpoint note</td><td><code>ls /root/autodl-tmp/checkpoints/</code></td><td>本地记录的 checkpoint 检查命令。</td></tr>
+</tbody></table>
+<h3>Checkpoint 保存位置</h3>
+<ul>
+<li>Stage 1 PAD SFT 默认保存到 <code>/root/autodl-tmp/SFTV4/maple-pad-sft/</code>，训练中间 checkpoint 位于该目录下的 <code>checkpoint-*</code> 子目录，最终 LoRA adapter 位于目录根部。</li>
+<li>Stage 1 SDP SFT 默认保存到 <code>/root/autodl-tmp/SFTV4/maple-sdp-sft/</code>，训练中间 checkpoint 位于该目录下的 <code>checkpoint-*</code> 子目录，最终 LoRA adapter 位于目录根部。</li>
+<li>Phase A PAD DPO 输出保存到 <code>/root/autodl-tmp/SFTV4/maple-pad-dpo-iter1/</code>。</li>
+<li>Phase B SDP on-policy SFT 输出保存到 <code>/root/autodl-tmp/SFTV4/maple-sdp-onpolicy-iter1/</code>。</li>
+<li>本地日志记录的额外 checkpoint 检查位置为 <code>/root/autodl-tmp/checkpoints/</code>；可在服务器上运行 <code>ls /root/autodl-tmp/checkpoints/</code> 核对是否存在额外备份。</li>
+</ul>
+<p>交付 adapter 应包含 <code>adapter_config.json</code> 与 <code>adapter_model.safetensors</code>；若出现完整 <code>model.safetensors</code>，应停止检查是否误做了 full fine-tune。</p>
+</section>
+
+<section>
+<h2>风险与下一步</h2>
+<div class="warn">Joint phase 的配置复用 train split 作为 valid split，因此后半段 eval 更适合判断训练是否稳定，不足以证明独立泛化。最终结论仍需要 dev/test 上的结构化生成评估。</div>
+<ul>
+<li>Phase A DPO pair yield 为 0.477，约一半样本因 tie 或 unparseable 被丢弃；这是 structural-Jaccard 粗粒度 scorer 的预期风险，后续可考虑增加采样数或更细 reward。</li>
+<li>需要补 Stage 2 Gate：pass@1/pass@8、GED-sim、格式合规率、tool 合规率与少量 LLM judge sanity check。</li>
+<li>R_hard tool-name failure 已通过 SDP 输入侧 CrewAI 8-tool 约束修复，但还应在生成评估中显式统计合法 tool 命中率。</li>
+<li>建议为关键 adapter 写入 <code>metadata.json</code>：data split SHA、config hparams、dev NLL/SV/AR/DC/ATR 与 wall-clock。</li>
+</ul>
+</section>
+<footer>Generated locally on 2026-05-18 from logs under <code>training logs/</code>. No external assets or network dependencies.</footer>
+</main>
+</body>
+</html>

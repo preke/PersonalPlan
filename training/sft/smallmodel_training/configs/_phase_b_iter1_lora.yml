@@ -1,0 +1,38 @@
+task: llm-dpo
+
+base_model: /root/autodl-tmp/Qwen3-8B-Instruct
+project_name: maple-pad-dpo-iter1
+
+log: tensorboard
+backend: local
+
+data:
+  chat_template: none
+  path: data/joint/iter1/phase_b
+  train_split: train
+  valid_split: train
+  column_mapping:
+    prompt_text_column: prompt
+    text_column: chosen
+    rejected_text_column: rejected
+
+params:
+  block_size: 4096
+  model_max_length: 4096
+  epochs: 1
+  batch_size: 1
+  lr: 5e-6
+  peft: true
+  quantization: none
+  lora_r: 16
+  lora_alpha: 32
+  lora_dropout: 0.05
+  target_modules: all-linear
+  dpo_beta: 0.1
+  max_prompt_length: 2048
+  gradient_accumulation: 16
+  optimizer: adamw_torch
+  scheduler: cosine
+  weight_decay: 0.0
+  warmup_ratio: 0.1
+  mixed_precision: bf16

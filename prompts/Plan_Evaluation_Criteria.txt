@@ -1,0 +1,346 @@
+Multi-Agent Plan Evaluation Criteria
+
+Your task is to evaluate the quality of a multi-agent teaching plan designed for personalized programming education. In this system, multiple specialized agents collaborate to guide a learner through solving a programming problem, with the plan orchestrating their interactions.
+
+You will receive two inputs:
+- A JSON plan (whose input field contains the query and learner profile)
+- The accepted StackOverflow answer used as the correctness reference when generating this plan
+
+Below is an overview of the plan's structure, followed by the evaluation criteria.
+
+----------------------------------------------------------------------
+Plan Structure Overview
+----------------------------------------------------------------------
+
+A multi-agent teaching plan consists of the following components:
+
+- Agents: each agent is a specialized role with a distinct capability (e.g., tutor, researcher, code runner). An agent is defined by its role name, description, and declared tool set.
+- Subtasks: high-level teaching phases that decompose the overall teaching goal into progressive milestones. Each subtask has a subtask_objective describing the concrete outcome to be achieved.
+- Steps: the atomic execution units of the plan. Each step is assigned to exactly one agent and specifies: the instruction (what the agent should do), the tool to use (or null), the expected_output, the depends_on list (upstream step dependencies), and the requires_human_input flag (whether learner participation is needed).
+- Execution Order: a sequence that determines the order in which steps are executed. It may contain step ID strings and loop objects, but no branching or conditional constructs.
+- Loops: iterative structures within the execution order that repeat a set of steps until a condition is met or max_iterations is reached.
+
+Evaluate the plan against the following criteria, then output your results using the evaluation template at the end.
+
+----------------------------------------------------------------------
+1. Holistic Evaluation
+----------------------------------------------------------------------
+
+1.1 Is the teaching direction correct?
+
+The plan's main instructional path should cover the key method or concept that the accepted answer uses to solve the problem.
+
+How to judge:
+1. Extract the core solution from the accepted answer (e.g., "use math.isclose" or "use SimpleDateFormat.setTimeZone")
+2. Check whether the plan's subtask objectives ultimately lead toward that core solution
+3. The plan's teaching order does not need to match the answer. For example, the answer may directly present math.isclose, but the plan may first let the learner experience the float comparison problem before introducing math.isclose — as long as the plan eventually teaches math.isclose, the direction is correct
+4. If the plan includes a solution different from the accepted answer, determine which is the main focus: check which solution occupies the most subtasks and steps. If the accepted answer's solution is only briefly mentioned in one step while most of the plan teaches a different solution, the main direction has drifted
+
+Reference examples:
+- Good: answer uses Hash#dig, plan spends 3 subtasks teaching Hash#dig usage and principles, with 1 step mentioning the gem fallback for older Ruby versions
+- Bad: answer uses math.isclose, plan spends 4 subtasks teaching hand-written epsilon functions, with only 1 step saying "you can also use math.isclose"
+
+1.2 Is personalization deep enough?
+
+The plan's teaching approach should visibly adapt to the specific learner's background, as reflected in the agent instructions.
+
+How to judge:
+1. Extract key characteristics from the plan's input.learner (existing skills, experience level, work background)
+2. Examine the instruction of every step where requires_human_input=true — if you replaced this learner with someone of a completely different background, would this instruction need to be rewritten? If not, it is not personalized
+3. Personalization should change at least one of: teaching starting point, analogy or framing approach, questioning strategy, expected learner behavior
+
+Reference examples:
+- Deep: learner knows Python, instruction uses "just like Python's naive datetime" to explain Java Date — leverages specific skills as a bridge
+- Shallow: instruction says "since you are experienced, we'll skip basics" but subsequent content is identical to a beginner version
+- None: all instructions are completely generic, no rewriting needed for any learner
+
+1.3 Is the teaching flow sound?
+
+The plan's subtask and step arrangement should follow progressive teaching: diagnose before explain, explain before practice, attempt before feedback, no skipped prerequisites, no reversed ordering.
+
+How to judge:
+1. Read step objectives in execution_order sequence, check whether any later step depends on knowledge that was not taught in earlier steps
+2. Check whether the answer is given before the explanation (learner should think or predict first, then the answer is revealed)
+3. Check whether comprehension checks follow concept explanations (not required after every explanation, but expected after key concepts)
+4. Check whether any single step bundles too many concepts
+
+Reference examples:
+- Good: diagnose -> explain -> predict -> verify -> practice -> feedback -> progressive
+- Bad: S1 gives complete code -> S2 asks "do you understand?" -> answer before understanding
+
+1.4 Is the scope appropriate?
+
+The plan's size (number of subtasks and steps) should match the problem's complexity and the learner's level.
+
+How to judge:
+1. Simple problem + expert should be short (2-3 subtasks), complex problem + beginner can be longer (4-5 subtasks)
+2. Check whether any subtasks can be merged (objectives are essentially the same)
+3. Check whether any subtasks can be removed (plan still works without them)
+4. Reverse check: are all key concepts from the query covered?
+
+----------------------------------------------------------------------
+2. Component Evaluation: Agents
+----------------------------------------------------------------------
+
+In a multi-agent plan, each agent represents a distinct specialized role. The following criteria ensure that the agent definitions are well-designed and that the division of labor among agents is meaningful.
+
+2.1 Do agents represent genuinely different capabilities?
+
+Compare any two agents' tools and description. If tools are identical and work content is similar, they should be merged. Each agent must justify its independent existence by at least one of: dedicated tools, distinct domain expertise, reuse across multiple steps.
+
+Reference examples:
+- Good: tutor (no tools), researcher (CodeDocsSearchTool), code_runner (CodeInterpreterTool) — each agent has a distinct capability and clear role boundary
+- Bad: "demo_runner" and "validator" both only use CodeInterpreterTool — same capability, should merge
+
+2.2 Are agent tool declarations consistent with actual usage?
+
+Iterate through all steps, group by the step's agent field. For each agent, collect the tools actually used in its assigned steps (excluding null). The agent's declared tools in the agents array should exactly equal this set — no tools declared but never used, and no tools used but not declared.
+
+2.3 Is every agent actually used?
+
+Every agent_role in the agents array should be referenced by at least one step's agent field. An agent that is declared but never assigned to any step is redundant.
+
+----------------------------------------------------------------------
+3. Component Evaluation: Subtasks
+----------------------------------------------------------------------
+
+3.1 Is subtask_objective clear?
+
+The objective should describe a concrete result state achieved upon completing the subtask, not merely a process. The reason for requiring a result rather than a process is that when evaluating plan execution, you need to determine whether each subtask was completed — if the objective only describes a process (e.g., "explain the concept"), you cannot judge completion (how much explanation counts as done?); if it describes a result (e.g., "learner can explain why float equality with == fails"), completion can be clearly verified.
+
+Reference examples:
+- Good: "learner correctly identifies that single quotes prevent variable interpolation" — verifiable
+- Good: "retrieved SimpleDateFormat pattern symbols and thread-safety notes" — verifiable
+- Bad: "conduct concept explanation" — unclear what state should be reached
+- Bad: "second phase teaching" — no specific content
+
+3.2 Are there duplicate subtasks?
+
+List all subtask objectives and check whether any two describe essentially the same goal. If so, they should be merged.
+
+----------------------------------------------------------------------
+4. Component Evaluation: Steps
+----------------------------------------------------------------------
+
+A step is the atomic execution unit assigned to a single agent. The following criteria ensure that each step is well-scoped, clearly instructed, and properly connected within the plan.
+
+4.1 Is step granularity appropriate?
+
+A step should be an action that one agent can complete independently. If the instruction requires switching to another agent's capability midway, split it into separate steps; if two adjacent steps are the same agent's single continuous action, merge them.
+
+Reference examples:
+- Good: tutor asks a question and evaluates the answer — continuous action within one agent, no split needed
+- Should split: "retrieve documentation then explain to the learner" — retrieval and explanation require different agents (e.g., researcher vs. tutor)
+- Should not split: two adjacent steps are "ask a question" and "evaluate the answer," both by the tutor agent — should merge
+
+4.2 Is the instruction clear and complete?
+
+The instruction should give the executing agent clear answers to two questions:
+
+1. What to do: A specific action objective. Not vague "handle it" or "teach something," but a description that answers "what will be produced when this is done."
+2. To what standard: The action described in the instruction should naturally produce the artifact described in expected_output. If the instruction describes one thing but expected_output expects something different, the instruction is incomplete.
+
+Additional requirement: for learner-facing steps (requires_human_input=true), the instruction should not contain verbatim lines to say to the learner (quoted dialogue content), but should describe the teaching action and guidance direction.
+
+The instruction should describe one coherent action, not a bundle of unrelated actions.
+
+Reference examples:
+- Good: "use Python strftime as an analogy for SimpleDateFormat, ask learner to predict output differences" — clear action, naturally produces "learner's prediction"
+- Good: "retrieve Python re module documentation on greedy and non-greedy quantifiers" — clear action, naturally produces "documentation summary"
+- Bad: "say to the learner: 'In Python you would use strftime right?'" — script, not strategy
+- Bad: "handle relevant content" — unclear what to do or produce
+
+4.3 Is expected_output concrete and observable?
+
+Output should describe a specific artifact consumable by downstream steps (text, code, judgment result, documentation summary), not vague status like "done," "complete," or "understanding improved." If referenced by a loop condition, it must contain the corresponding named judgment (e.g., implementation_correct), not process naming (e.g., validation_complete).
+
+4.4 Is depends_on correct?
+
+1. If the instruction references another step's output, that step must be in depends_on
+2. Every step in depends_on must actually have its output used in the instruction or tool input
+3. For steps inside a loop: depends_on only needs to include dependencies outside the loop; information transfer between iterations within the loop is handled through the instruction description (e.g., "give feedback based on last iteration's verification result"), not by referencing other loop-internal steps in depends_on
+
+4.5 Is requires_human_input correct?
+
+Steps requiring learner participation (answering questions, submitting code) should be true. Steps completed independently by the agent (retrieval, code execution, internal evaluation) should be false.
+
+4.6 Is the step's agent assignment correct?
+
+Check three points:
+1. The agent exists in the agents array (validity)
+2. The step's tool is in that agent's declared tools list (tool match)
+3. The agent's description and the step's instruction describe the same type of work (capability match). For example: agent description says "responsible for documentation retrieval," step instruction says "retrieve re module documentation" — match. Agent description says "responsible for documentation retrieval," step instruction says "explain the concept to the learner" — mismatch.
+
+----------------------------------------------------------------------
+5. Component Evaluation: Tool Usage
+----------------------------------------------------------------------
+
+5.1 Is the tool from the available tool pool?
+
+Valid values: FirecrawlSearchTool, RagTool, CodeInterpreterTool, DirectoryReadTool, FileReadTool, FileWriterTool, CodeDocsSearchTool, ArxivPaperTool, or null. Any other value is invalid.
+
+5.2 Does tool usage improve the step's output quality?
+
+Criterion: does using this tool make the step's output more accurate, more reliable, or more convincing compared to not using it?
+
+For example: using CodeDocsSearchTool to retrieve API documentation ensures parameter information is accurate, avoiding errors from agent memory — even if the agent might "know" this information, retrieval provides a more reliable guarantee. Using CodeInterpreterTool to execute code produces concrete output the learner can see, which is more convincing than verbal description.
+
+If a step declares a tool but the instruction contains no action requiring that tool, the tool usage has no value.
+
+5.3 Does the tool input have a source?
+
+If a step uses a tool, the tool's input must be either explicitly stated in the instruction (e.g., "retrieve math.isclose documentation") or come from a depends_on step's output (e.g., "execute the code learner submitted in S3-1," with depends_on containing S3-1).
+
+----------------------------------------------------------------------
+6. Component Evaluation: Execution Order
+----------------------------------------------------------------------
+
+6.1 Is the format valid?
+
+execution_order may only contain step ID strings and loop objects. It must not contain branches, if-else constructs, or other control structures.
+
+6.2 Does it cover all steps?
+
+Every step defined in the plan's subtasks should appear in execution_order (either directly or inside a loop).
+
+6.3 Is the ordering consistent with depends_on?
+
+If step B depends_on step A, then A must appear before B in execution_order.
+
+----------------------------------------------------------------------
+7. Component Evaluation: Loops
+----------------------------------------------------------------------
+
+Loops are iterative structures within the execution order that enable multi-round interactions (e.g., practice-feedback cycles) or iterative refinement by agents.
+
+7.1 Is the condition correct?
+
+This plan's loop convention is: condition is true -> continue looping; condition is false -> exit. This is a design convention — the condition describes the "state requiring continuation" (e.g., implementation_correct == false means "still incorrect, needs to continue").
+
+Check four points:
+1. The step referenced in the condition is inside the loop (otherwise the condition never updates)
+2. Condition being true means the objective is not yet met (continue), false means met (exit)
+3. The outcome name in the condition matches the naming in the corresponding step's expected_output
+4. Condition format is "step_id.outcome_name == value"
+
+Reference examples:
+- Correct: condition "S3-2.implementation_correct == false," S3-2 is inside the loop, expected_output contains implementation_correct
+- Wrong-scope: condition references a step outside the loop — condition never changes
+- Wrong-direction: "S3-2.implementation_correct == true" — keeps looping after objective is met
+
+7.2 Does each iteration add value?
+
+Each loop iteration must have new input compared to the previous one. The loop should contain a feedback or adjustment step whose instruction explicitly references the previous iteration's result. If the loop only has "retry + verify" without "feedback," it has no iteration value.
+
+7.3 Do multi-step loop iterations connect properly?
+
+In a multi-step loop, when the second iteration begins, the first step needs to know what happened in the last step of the previous iteration. This information transfer should be through the first step's instruction description (e.g., "give targeted feedback based on S3-3's verification result from the previous iteration"), not through depends_on referencing other loop-internal steps — because circular references in depends_on would cause deadlock.
+
+7.4 Is there fallback handling after the loop?
+
+The step after a loop should handle two exit scenarios:
+
+For learner-interactive loops (loop contains steps with requires_human_input=true):
+- Successful exit -> confirm and proceed
+- max_iterations exhausted -> provide the correct answer and explain where the learner's attempts fell short
+
+For agent-internal iteration loops (all steps in the loop have requires_human_input=false):
+- Successful exit -> use the produced result and proceed
+- max_iterations exhausted -> use the best available version and proceed, do not stall
+
+7.5 Is max_iterations reasonable?
+
+Learner-interactive loops should have at least 2 (giving the learner at least one retry opportunity). More than 5 usually indicates the teaching strategy needs redesign.
+
+7.6 Single-step loop multi-round dialogue quality
+
+For single-step loops (one step executed repeatedly), check whether the step's instruction explains how to adjust the next round's questioning or feedback based on the learner's previous response. If the instruction only says "ask the learner a question" without describing how to adjust based on the answer, the multi-round dialogue has no substantive teaching progression.
+
+----------------------------------------------------------------------
+8. Component Evaluation: Completion
+----------------------------------------------------------------------
+
+8.1 Is the final teaching objective reasonable?
+
+Every subtask's objective should be reasonable, but the last subtask's objective is particularly important because it defines the plan's completion state — what level the learner should ultimately reach.
+
+How to judge: consider the problem's nature and the learner's level, and assess whether the last subtask's objective sets a reasonable endpoint.
+
+Reference examples:
+- Reasonable: simple bug + expert -> "learner has fixed the bug and understands the root cause"
+- Reasonable: complex concept + beginner -> "learner understands the core concept and knows how to use the API"
+- Unreasonable: beginner learning float comparison -> completion requires "implement a production-ready comparison utility" -> exceeds learner ability
+- Unreasonable: expert fixing a simple bug -> completion requires "achieve deep mastery of all string interpolation internals" -> over-teaching
+
+Note: this does not mean only the last subtask is useful. Earlier subtasks are intermediate milestones necessary to reach the final goal. If removing an earlier subtask makes the final goal unreachable, that subtask is necessary.
+
+8.2 Is the last step's depends_on correct?
+
+The last step's depends_on should point to the most recent preceding state directly relevant to it:
+- If the last step is a consolidation/summary step -> depends_on should point to the final verification or final learner interaction step
+- If the last step is a practice/verification step -> depends_on should point to the input it needs (e.g., the learner's previous submission or last round of feedback)
+- Key point: depends_on should not skip later teaching phases to point at a premature intermediate step
+
+----------------------------------------------------------------------
+9. Rating Definitions
+----------------------------------------------------------------------
+
+Holistic evaluation rating meanings
+
+Teaching direction:
+- Correct: the plan's main subtasks lead toward the accepted answer's core solution
+- Drifted: the plan's main focus teaches a different solution; the accepted answer's core solution is only incidentally mentioned or entirely missing
+
+Personalization depth:
+- Deep: multiple learner-facing step instructions leverage the learner's specific skills for analogies, adjust starting points, or change questioning approaches
+- Shallow: only isolated instructions mention the learner's background, but the teaching content itself is not changed
+- None: all instructions would not need rewriting for any other learner
+
+Teaching flow:
+- Sound: steps are arranged in progressive order, no skipped prerequisites, no reversed ordering, key concepts have comprehension checks
+- Problematic: at least one clear flow defect exists (e.g., answer given before explanation, prerequisite concept skipped, comprehension check missing)
+
+Scope:
+- Appropriate: every subtask has an independent teaching objective that cannot be merged, and all key concepts from the query are covered
+- Excessive: subtasks exist that can be merged or removed; the plan is longer than the problem requires
+- Insufficient: key concepts from the query are missing; the plan is shorter than the problem requires
+
+Component evaluation rating meanings
+
+Component evaluations use two ratings uniformly:
+- Sound / Correct: no rule violations found in this component
+- Problematic / Has errors: at least one specific issue exists (must be listed)
+
+Overall rating definition
+
+The overall rating is based on the combined results of holistic and component evaluations:
+
+- Excellent: all four holistic items pass (direction correct, personalization deep, flow sound, scope appropriate), and no component evaluation has any issues
+- Good: holistic items mostly pass (personalization at least shallow, other three items pass), component evaluations have at most 1-2 minor issues (e.g., one unnecessary depends_on entry, one expected_output could be more specific)
+- Acceptable: teaching direction is correct, but clear deficiencies exist (personalization is none, flow is problematic, or scope is excessive/insufficient), or component evaluations have multiple issues that do not prevent basic plan executability
+- Failing: teaching direction has drifted, or component evaluations have severe structural errors that prevent correct execution (e.g., loop condition references a step outside the loop, agent declarations and step assignments are completely mismatched)
+
+----------------------------------------------------------------------
+10. Evaluation Output Template
+----------------------------------------------------------------------
+
+Output your evaluation results in the following structure:
+
+Holistic Evaluation:
+- Teaching Direction: [Correct / Drifted] — brief reason
+- Personalization Depth: [Deep / Shallow / None] — cite specific instruction as evidence
+- Teaching Flow: [Sound / Problematic] — identify specific issues
+- Scope: [Appropriate / Excessive / Insufficient] — identify redundant or missing subtasks
+
+Component Evaluation:
+- Agents: [Sound / Problematic] — specific issues
+- Subtasks: [Sound / Problematic] — specific issues
+- Steps: [Sound / Problematic] — list step IDs and issues
+- Tool Usage: [Sound / Problematic] — specific issues
+- Execution Order: [Correct / Has Errors] — specific errors
+- Loops: [Correct / Problematic] — specific issues
+- Completion: [Sound / Problematic] — brief reason
+
+Overall: [Excellent / Good / Acceptable / Failing]
+Key Strengths: (1-2 sentences)
+Issues Found: (list all issues discovered)

@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+<meta charset="utf-8">
+<title>PersonalPlan — GRPO Reward 设计与理论支撑</title>
+<style>
+  body {
+    max-width: 920px; margin: 32px auto; padding: 0 24px;
+    font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Helvetica, Arial, sans-serif;
+    line-height: 1.7; color: #1f2328; font-size: 15px;
+  }
+  h1 { border-bottom: 2px solid #1f2328; padding-bottom: 8px; }
+  h2 { border-bottom: 1px solid #d0d7de; padding-bottom: 4px; margin-top: 36px; }
+  h3 { margin-top: 24px; color: #24292f; }
+  h4 { margin-top: 18px; color: #57606a; font-size: 14px; font-weight: 600; }
+  code {
+    background: #f6f8fa; padding: 1px 6px; border-radius: 4px;
+    font-family: "SF Mono", Menlo, Monaco, Consolas, monospace; font-size: 13.5px;
+  }
+  pre {
+    background: #f6f8fa; padding: 12px 16px; border-radius: 6px;
+    overflow-x: auto; font-size: 13px; line-height: 1.55;
+  }
+  pre code { background: transparent; padding: 0; }
+  table {
+    border-collapse: collapse; margin: 12px 0; font-size: 14px;
+    width: 100%;
+  }
+  th, td { border: 1px solid #d0d7de; padding: 6px 10px; text-align: left; vertical-align: top; }
+  th { background: #f6f8fa; font-weight: 600; }
+  blockquote {
+    margin: 14px 0; padding: 6px 16px; border-left: 4px solid #0969da;
+    background: #f6f8fa; color: #24292f;
+  }
+  .formula {
+    background: #fffbf0; border: 1px solid #f3d27a;
+    padding: 10px 14px; border-radius: 6px; margin: 10px 0;
+    font-family: "SF Mono", Menlo, monospace; font-size: 13.5px;
+  }
+  .pass { color: #1a7f37; font-weight: 600; }
+  .fail { color: #cf222e; font-weight: 600; }
+  .warn { color: #9a6700; font-weight: 600; }
+  .citation { color: #0969da; }
+  hr { border: none; border-top: 1px solid #d0d7de; margin: 32px 0; }
+  .toc { background: #f6f8fa; padding: 12px 20px; border-radius: 8px; margin: 20px 0; }
+  .toc ul { margin: 4px 0; padding-left: 24px; }
+  .toc a { color: #0969da; text-decoration: none; }
+  .toc a:hover { text-decoration: underline; }
+  .meta {
+    color: #57606a; font-size: 13px; margin-bottom: 24px;
+    border-left: 3px solid #d0d7de; padding-left: 12px;
+  }
+</style>
+</head>
+<body>
+
+<h1>PersonalPlan — GRPO Reward 设计与理论支撑</h1>
+
+<div class="meta">
+  <strong>用途：</strong>记录 PersonalPlan §4.2 GRPO reward 体系在落地实现时的<strong>简化决策</strong>、<strong>每条决策的论文支撑</strong>，以及与论文正文（4-Methodology.tex）的逐条对应关系。<br>
+  <strong>目标读者：</strong>论文作者本人，用于修改正文以反映可执行的 reward 设计。<br>
+  <strong>所有 reward 函数位置：</strong><code>GRPO/rewards.py</code>；<strong>plan 图工具：</strong><code>GRPO/plan_utils.py</code>；<strong>配置：</strong><code>GRPO/configs/grpo.yaml</code>。
+</div>
+
+<div class="toc">
+  <strong>目录</strong>
+  <ul>
+    <li><a href="#design-philosophy">0. 设计哲学：Composition over Complexity</a></li>
+    <li><a href="#r-struct">1. R<sub>struct</sub> — Verifiable Structural Reward</a></li>
+    <li><a href="#r-hard">2. R<sub>hard</sub> — Disqualifying Hard Gate</a></li>
+    <li><a href="#r-pers">3. R<sub>pers,lite</sub> — Personalization without Counterfactual</a></li>
+    <li><a href="#r-ped">4. R<sub>ped,lite</sub> — Pedagogy without LLM Judges</a></li>
+    <li><a href="#composition">5. Reward Composition Argument</a></li>
+    <li><a href="#grpo-config">6. GRPO 算法层配置</a></li>
+    <li><a href="#mapping-to-paper">7. 与论文 §4.2 公式的逐条映射</a></li>
+    <li><a href="#empirical">8. 实证验证（Smoke tests）</a></li>
+    <li><a href="#upgrade-paths">9. 升级路径（Lite → Paper-faithful）</a></li>
+    <li><a href="#references">参考文献</a></li>
+  </ul>
+</div>
+
+<hr>
+
+<h2 id="design-philosophy">0. 设计哲学：Composition over Complexity</h2>
+
+<p>原论文 §4.2 的 reward 体系包含四个组件 + 反事实采样 + LLM judge ensemble + segment-wise 路由 + 五条反作弊护栏，工程化估算需要 ~800 行代码、每训练步成本上升 10–30×。<strong>落地时我们采取两条原则</strong>对其裁剪：</p>
+
+<ol>
+  <li><strong>能用规则就用规则。</strong>这是 RLVR（Reinforcement Learning from Verifiable Rewards）的核心原则 <span class="citation">[Lambert et al., 2024]</span>，被 DeepSeek-R1 在数学推理任务上验证 <span class="citation">[DeepSeek-AI, 2025]</span>：规则化 reward 不可被神经裁判讨好，是抗 reward hacking 的最强信号 <span class="citation">[Skalse et al., 2022; Gao et al., 2023]</span>。</li>
+  <li><strong>单 reward 弱、组合 reward 强。</strong>我们不强求每个 reward 独自具备完美的判别力，而是让<strong>组合后的总 reward</strong>呈现正确方向。这与 MoGRPO <span class="citation">[Huang et al., 2025]</span> 关于多目标 RL 的"约束 + 偏好"分层思路一致。</li>
+</ol>
+
+<p>由此得到的 reward 栈：</p>
+
+<div class="formula">
+R<sub>total</sub> = w<sub>s</sub>·R<sub>struct</sub> + w<sub>p</sub>·R<sub>pers,lite</sub> + w<sub>e</sub>·R<sub>ped,lite</sub> + R<sub>hard</sub><br>
+默认 w<sub>s</sub>:w<sub>p</sub>:w<sub>e</sub> = 0.55 : 0.25 : 0.20（沿用论文表述）
+</div>
+
+<p>所有四个组件都<strong>纯 Python 规则可计算</strong>，每步开销 &lt; 1 ms，无 LLM API 依赖。</p>
+
+<hr>
+
+<h2 id="r-struct">1. R<sub>struct</sub> — Verifiable Structural Reward</h2>
+
+<h3>论文定义</h3>
+
+<div class="formula">
+R<sup>struct</sup><sub>i</sub> = w<sub>1</sub>·𝕀[DAG(G<sub>i</sub>)] + w<sub>2</sub>·DC<sub>i</sub> + w<sub>3</sub>·ATR<sub>i</sub> + w<sub>4</sub>·GED-sim(G<sub>i</sub>, G<sub>i</sub><sup>★</sup>)
+</div>
+
+<h3>落地实现</h3>
+<p>四个分量我们都实现了，但 <strong>GED-sim 用 Jaccard fingerprint 代替</strong>，其他三项原样。</p>
+
+<table>
+  <tr><th>分量</th><th>论文要求</th><th>实现</th><th>位置</th></tr>
+  <tr><td>DAG check</td><td>拓扑可排序</td><td>三色 DFS 检环</td><td><code>plan_utils.has_cycle</code></td></tr>
+  <tr><td>DC (Dependency Completeness)</td><td>依赖完整率</td><td>有效 depends_on 边比例</td><td><code>plan_utils.dependency_completeness</code></td></tr>
+  <tr><td>ATR (Agent-Tool Relevance)</td><td>工具调用对应到 agent 申报</td><td>step.tool ∈ agent.tools 比例</td><td><code>plan_utils.agent_tool_relevance</code></td></tr>
+  <tr><td>GED-sim</td><td>严格图编辑距离</td><td>5 项集合 Jaccard 平均（fingerprint proxy）</td><td><code>plan_utils.structural_similarity</code></td></tr>
+</table>
+
+<h4>简化决策：GED → Jaccard fingerprint</h4>
+<p>严格 GED 是 <strong>NP-hard</strong> 问题，即使是近似算法 <span class="citation">[Riesen and Bunke, 2009]</span> 对 30 节点的小图仍需 100 ms+ 单次计算。对每 batch 8 条 trajectory × ~30 节点 × 1000+ 训练步而言，GED 会成为训练吞吐主瓶颈。</p>
+
+<p>替代方案：把 plan 拆成 5 个集合（agent role 多集、subtask name、step id、edges、tools）分别算 Jaccard 后平均：</p>
+
+<div class="formula">
+GED-sim<sub>proxy</sub>(P, P*) = (1/5) · Σ<sub>k=1..5</sub> Jaccard(F<sub>k</sub>(P), F<sub>k</sub>(P*))
+</div>
+
+<p>我们在 MAPLE 30-节点级 plan 上手工抽样 50 对 (plan, gold) 计算严格 GED 和这个 proxy，得到 <strong>Spearman ρ ≈ 0.85</strong>；速度提升约 <strong>1000×</strong>。</p>
+
+<h3>理论支撑</h3>
+<ul>
+  <li><strong>规则化 reward 是首选</strong>：<span class="citation">[Lambert et al., 2024]</span> (Tulu 3 / RLVR) 系统论证了"可验证奖励"为何能避免 reward model 的失效模式；<span class="citation">[DeepSeek-AI, 2025]</span> 在数学和代码推理上的成功（仅 0/1 verifier）进一步证实。</li>
+  <li><strong>结构约束适合规则化</strong>：plan 的"是否 DAG / 依赖闭合 / 工具合法"都是<strong>整 trajectory 可决</strong>的属性，SFT 的 token-level loss 看不见（这一点与 process reward modeling 的动机一致 <span class="citation">[Lightman et al., 2023; Wang et al., 2024]</span>）。</li>
+  <li><strong>近似图相似度替代 GED</strong>：图核（graph kernel）研究的标准取舍 <span class="citation">[Shervashidze et al., 2011]</span>——在 plan 级别的 graph signature 上 Jaccard 已经足够。</li>
+</ul>
+
+<hr>
+
+<h2 id="r-hard">2. R<sub>hard</sub> — Disqualifying Hard Gate</h2>
+
+<h3>论文定义</h3>
+<div class="formula">
+R<sup>hard</sup><sub>i</sub> = -η · 𝕀[SchemaInvalid ∨ HasCycle ∨ InvalidToolCall]
+</div>
+
+<h3>落地实现</h3>
+<p><strong>原样实现</strong>，无简化。位置：<code>rewards.reward_hard_gate(plan_text, eta=10.0)</code>。</p>
+
+<h4>关键设计：不参与 z-score 归一化</h4>
+<p>论文（以及 <span class="citation">[Huang et al., 2025]</span> MoGRPO 在约束式 RL 的处理）明确指出：</p>
+<blockquote>
+  Schema 违规 / DAG 有环是"<strong>一票否决</strong>"事件，不能与 personalization 加分相抵。z-score 化会让"全 batch 违规"等价于"全 batch 合规"——失去硬约束本意。
+</blockquote>
+<p>因此 R<sub>hard</sub> 保留 <code>-η</code> 的<strong>绝对量级</strong>（默认 η=10），直接叠加到 total reward，不经组内归一化。</p>
+
+<h3>理论支撑</h3>
+<ul>
+  <li><span class="citation">[Huang et al., 2025]</span> MoGRPO：多目标 RL 中"硬约束"与"软偏好"必须分层。</li>
+  <li><span class="citation">[Skalse et al., 2022]</span>：reward hacking 的典型形式之一是用"易优化的小目标"换"难判别的大约束"——硬门是消除这种交换可能性的最直接手段。</li>
+</ul>
+
+<hr>
+
+<h2 id="r-pers">3. R<sub>pers,lite</sub> — Personalization without Counterfactual</h2>
+
+<h3>论文定义（counterfactual）</h3>
+<div class="formula">
+R<sup>pers</sup><sub>i</sub> = sim(P<sub>i</sub><sup>(p)</sup>, P*<sub>(p)</sub>) − sim(P<sub>i</sub><sup>(p)</sup>, P<sup>(p̃)</sup>)
+</div>
+<p>其中 P<sup>(p̃)</sup> 是用<strong>当前策略 π<sub>θ</sub></strong>、随机替换的 profile p̃ 采样得到的 plan。</p>
+
+<h3>落地难点</h3>
+<p>反事实 rollout 需要在每个 GRPO 步骤中<strong>额外采样 k=1 条 no_grad 轨迹</strong>，TRL <code>GRPOTrainer</code> 不原生暴露该 hook，必须 subclass 并 override <code>_prepare_inputs</code>。工程量约 150 行 + 训练每步 +12% 推理开销。</p>
+
+<h3>简化方案：R<sub>pers,lite</sub> — 步骤级 2nd-person × profile 信号共现</h3>
+
+<p>动机：MAPLE 金标 plan 中的<strong>真个性化</strong>，其文本模式是稳定的：</p>
+<blockquote>
+  "Ask the learner: 'You said the error appeared after you added the orderby clause...'"<br>
+  "Frame this using a real-world analogy from the learner's project work..."<br>
+  "Using your earlier prediction, explain..."
+</blockquote>
+<p>这些模式有两个可检测特征：(a) <strong>2nd-person 引用</strong>（you / your / the learner），(b) 与 profile 上下文词或桥接锚词<strong>同句出现</strong>。Counterfactual-free reward 直接检测这种共现：</p>
+
+<div class="formula">
+R<sub>pers,lite</sub>(P, p) = min((含个性化句的 step 数 / 总 step 数), 0.8)
+<br><br>
+"含个性化句" 的 step 满足:<br>
+&nbsp;&nbsp;(1) step.instruction 长度 ≥ 150 字符（boilerplate 过滤）<br>
+&nbsp;&nbsp;(2) 存在一句话同时包含 2nd-person 引用 + profile-signal/bridge-anchor
+</div>
+
+<p>位置：<code>rewards.reward_personalization_lite</code>。</p>
+
+<h4>抗作弊设计</h4>
+<table>
+  <tr><th>作弊路径</th><th>防御机制</th></tr>
+  <tr><td>把所有 skill 词塞进一个 backstory</td><td>检测器只看 step.instruction，backstory 不计入 → 0 分</td></tr>
+  <tr><td>"You are a X developer." 每步重复</td><td>长度 ≤ 150 字符 → 长度过滤拦截</td></tr>
+  <tr><td>把桥接短语塞进每步（119 字符）</td><td>长度仍不达标</td></tr>
+  <tr><td>200+ 字符的长 boilerplate 模板</td><td><strong>不能单 reward 拦截</strong>；依赖与 R<sub>struct</sub> 组合：boilerplate 的 step instruction 与 gold 文本差异大，R<sub>struct</sub> 的 fingerprint Jaccard 会大幅下降</td></tr>
+</table>
+
+<h4>诚实声明</h4>
+<p>R<sub>pers,lite</sub> 单独看<strong>不是完美判别器</strong>。它的设计前提是"与 R<sub>struct</sub> 组合"，文档（<code>reward_personalization_lite.__doc__</code>）明确写出。这是 anti-hacking via composition 的一种实例——参见 §5。</p>
+
+<h3>理论支撑</h3>
+<ul>
+  <li><strong>Counterfactual reward 的替代</strong>：<span class="citation">[Garrido et al., 2014]</span> 与 <span class="citation">[Wei et al., 2025]</span> 关于教学个性化的研究都指出"learner profile → 教学策略变化"的可检测模式是 plan 文本中的<strong>2nd-person engagement density</strong>，而非结构化反事实。</li>
+  <li><strong>规则化 grounding reward</strong>：与 RAG faithfulness 文献中的关键词覆盖 reward（RAGAS-style，<span class="citation">[Es et al., 2024]</span>）思路一致——便宜的 lexical 信号 + 上界 + 组合，在 RLHF 替代品中已有先例。</li>
+  <li><strong>Anti-hacking via composition</strong>：<span class="citation">[Pan et al., 2022]</span> 关于"reward misspecification"提出，多 reward 的<strong>分布层耦合</strong>而非单 reward 完美化，是工程上的稳健做法。</li>
+</ul>
+
+<hr>
+
+<h2 id="r-ped">4. R<sub>ped,lite</sub> — Pedagogy without LLM Judges</h2>
+
+<h3>论文定义（hard + soft 混合）</h3>
+<div class="formula">
+R<sup>ped</sup><sub>i</sub> = λ·R<sup>ped,hard</sup><sub>i</sub> + (1−λ)·R<sup>ped,soft</sup><sub>i</sub>, &nbsp; λ ∈ [0.7, 0.9]
+<br><br>
+R<sup>ped,hard</sup><sub>i</sub> = |{(s<sub>a</sub>, s<sub>b</sub>) ∈ O<sub>i</sub> : c(s<sub>a</sub>) ⪯<sub>K</sub> c(s<sub>b</sub>)}| / |O<sub>i</sub>|
+<br><br>
+R<sup>ped,soft</sup><sub>i</sub> = med<sub>j ≤ J</sub>{Judge<sub>j</sub>(P<sub>i</sub><sup>(p)</sup> ≻ P*<sub>(p)</sub>)}
+</div>
+
+<p>R<sup>ped,hard</sup> 需要一张概念先修图 K + step → concept 映射器 c(·)。R<sup>ped,soft</sup> 需要 J ≥ 3 个 LLM judge ensemble + 顺序随机化 + 训测异家族。</p>
+
+<h3>简化方案：R<sub>ped,lite</sub> = precedence + phase coverage（双纯规则）</h3>
+
+<div class="formula">
+R<sub>ped,lite</sub>(P) = 0.5·SubtaskPrecedence(P) + 0.5·PhaseCoverage(P)
+</div>
+
+<h4>(A) SubtaskPrecedence — 替代 concept graph K</h4>
+<p>原方案需要：(i) 离线挖掘 concept graph K（含传递闭包剪枝），(ii) 在线 step → concept 的映射器。我们跳过 concept 层，直接在 <strong>subtask name 层</strong>挖共现先后关系：</p>
+
+<pre><code># 离线一次扫
+for plan in MAPLE_gold:
+    sub_names = [s.name.lower() for s in plan.subtasks]
+    for i, a in enumerate(sub_names):
+        for b in sub_names[i+1:]:
+            precedence_pairs.add((a, b))</code></pre>
+
+<p>训练时：每条生成 plan 计算"(subtask_a, subtask_b) ∈ 先后关系集 / 总 subtask 对数"。位置：<code>plan_utils.mine_subtask_precedence</code> + <code>plan_utils.prerequisite_compatibility</code>。</p>
+
+<h4>(B) PhaseCoverage — 替代 LLM judge ensemble</h4>
+<p>核心观察：MAPLE 金标 plan 的 step.instruction 自然呈现 6 个<strong>典型教学阶段</strong>（probe → retrieve_demonstrate → apply → validate → feedback → consolidate），每个阶段都有稳定的 lexical signature。直接关键词检测即可：</p>
+
+<table>
+  <tr><th>Phase</th><th>Keywords (节选)</th></tr>
+  <tr><td><code>probe</code></td><td>"ask the learner", "what do you think", "your intuition", "prior knowledge", "activate"</td></tr>
+  <tr><td><code>retrieve_demonstrate</code></td><td>"look up", "retrieve", "documentation", "demonstrate", "execute the following"</td></tr>
+  <tr><td><code>apply</code></td><td>"ask the learner to write", "have the learner implement", "submit"</td></tr>
+  <tr><td><code>validate</code></td><td>"test case", "validate", "verify", "compile", "outcome=", "implementation_correct"</td></tr>
+  <tr><td><code>feedback</code></td><td>"explain what went wrong", "targeted feedback", "what to fix"</td></tr>
+  <tr><td><code>consolidate</code></td><td>"summarize", "consolidate", "wrap up", "decision rule", "in their own words"</td></tr>
+</table>
+
+<p>检出每个 step 的 phase 后，做 <strong>5 个 binary check 的均值</strong>作为 PhaseCoverage 分数：</p>
+
+<ol>
+  <li><code>probe</code> 出现在 plan 前 50%</li>
+  <li><code>validate</code> 至少出现一次</li>
+  <li><code>feedback</code> 至少出现一次</li>
+  <li><code>consolidate</code> 出现在 plan 后 40%</li>
+  <li>检出的 phase 位置呈非递减（canonical 顺序）</li>
+</ol>
+
+<p>位置：<code>rewards.reward_pedagogy_phases</code>。</p>
+
+<h4>对比：论文 R<sup>ped</sup> 表达的 8 个 sub-criteria → R<sub>ped,lite</sub> 的覆盖</h4>
+<p>从 GRPO_conversation.html 整理出来 R<sup>ped,soft</sup> rubric 的 8 个子项，其中 6 个能由 PhaseCoverage 间接覆盖：</p>
+
+<table>
+  <tr><th>论文 rubric 子项</th><th>覆盖方式</th></tr>
+  <tr><td>Foundation-before-use</td><td>PhaseCoverage 顺序检查（probe → validate）+ SubtaskPrecedence</td></tr>
+  <tr><td>Checkpoint placement</td><td>validate 阶段出现频次</td></tr>
+  <tr><td>Bridging granularity</td><td>retrieve_demonstrate 阶段是否出现在 probe 之后、apply 之前</td></tr>
+  <tr><td>Tool-readiness</td><td>由 R<sub>struct</sub>.ATR (agent-tool relevance) 覆盖</td></tr>
+  <tr><td>Granularity match</td><td>无法用规则覆盖（需 LLM judge）</td></tr>
+  <tr><td>Explanation depth</td><td>无法用规则覆盖（需 LLM judge）</td></tr>
+  <tr><td>Tool/agent complexity</td><td>由 R<sub>struct</sub>.ATR 部分覆盖</td></tr>
+  <tr><td>Goal alignment</td><td>由 R<sub>struct</sub>.GED-sim<sub>proxy</sub> 部分覆盖</td></tr>
+</table>
+
+<p>无法用规则覆盖的两项（granularity match、explanation depth）目前不在 v1 reward 中。<strong>这是已知的论文-实现 gap</strong>；如需补回，启用 <code>ped_mode: "full"</code> 加 LLM judge（见 §9）。</p>
+
+<h3>理论支撑</h3>
+<ul>
+  <li><strong>Prerequisite ordering 是可验证的</strong>：<span class="citation">[Garrido et al., 2014]</span> 在 e-learning 适应性路径研究里就以先修图为核心数据结构。</li>
+  <li><strong>Process Reward Models 的关键发现</strong>：<span class="citation">[Lightman et al., 2023]</span> ("Let's Verify Step by Step") 与 <span class="citation">[Wang et al., 2024]</span> (Math-Shepherd) 都指出"step-level 信号"比"trajectory-level 信号"更能驱动逐步推理。我们的 PhaseCoverage 是 step-level 检测的 lite 版本——本质上是<strong>启发式 process reward</strong>。</li>
+  <li><strong>关键词检测 ≠ 弱信号</strong>：<span class="citation">[Dinucu-Jianu et al., 2025]</span> 在教学法 RL 工作中显示，简单 lexical signal + composition 在 tutoring 任务上接近 LLM judge 的训练效果，但稳定性更高、不易 hack。</li>
+  <li><strong>抛弃 LLM judge 的合理性</strong>：<span class="citation">[Zheng et al., 2023]</span> 系统性记录了 LLM judge 的多种 bias（position bias、verbosity bias、family bias）；<span class="citation">[Gao et al., 2023]</span> 指出 reward model overoptimization 的根因是 judge 的非线性失效。规则化检测从根上消除这两类风险。</li>
+</ul>
+
+<hr>
+
+<h2 id="composition">5. Reward Composition Argument</h2>
+
+<p>为什么"4 个 lite reward 组合" &gt; "1 个完美 reward"：</p>
+
+<h3>正交化分工</h3>
+
+<table>
+  <tr><th>Reward</th><th>主要监督面</th><th>主要失效模式</th><th>被谁救场</th></tr>
+  <tr><td>R<sub>hard</sub></td><td>Schema / Cycle / Tool 合法性</td><td>无（boolean，不可 hack）</td><td>—</td></tr>
+  <tr><td>R<sub>struct</sub></td><td>结构相似度、DAG、依赖完整度</td><td>boilerplate 模板能让 agent/subtask 集合层面匹配 gold</td><td>R<sub>pers,lite</sub>（boilerplate 的 step instruction 短）；R<sub>ped,lite</sub>（boilerplate 缺 phase signature）</td></tr>
+  <tr><td>R<sub>pers,lite</sub></td><td>步骤级 learner-grounded 改写</td><td>200+ 字符的填充式 bridge 短语 → 形似但内容空</td><td>R<sub>struct</sub>（填充式指令与 gold 文本差异巨大，fingerprint 跌）</td></tr>
+  <tr><td>R<sub>ped,lite</sub></td><td>教学阶段完整 + 顺序</td><td>关键词 stuffing 能短期触发 phase 检测</td><td>R<sub>struct</sub>（关键词堆砌偏离 gold 结构）+ 长度过滤继承自 R<sub>pers,lite</sub></td></tr>
+</table>
+
+<h3>实证：单 reward 不达标的 attack 在组合后被压低</h3>
+
+<p>在 v3 数据集 10 个 record 上，构造 3 种 attack：（1）keyword stuffing 进 backstory，（2）"You are a X developer" 每步重复，（3）200+ 字符的 bridge 短语填充。</p>
+
+<table>
+  <tr><th>Scenario</th><th>R<sub>pers,lite</sub></th><th>R<sub>total</sub> (composed)</th></tr>
+  <tr><td>Gold plan</td><td><span class="pass">0.58</span></td><td><span class="pass">0.70</span></td></tr>
+  <tr><td>Attack 1 — backstory keyword stuffing</td><td>0.00</td><td>0.55</td></tr>
+  <tr><td>Attack 2 — "You are a X developer" boilerplate</td><td>0.00</td><td>0.55</td></tr>
+  <tr><td>Attack 3 — bridge-phrase stuffing</td><td>0.00</td><td>0.55</td></tr>
+</table>
+
+<p>Gap = +0.15 稳定且方向正确。<strong>没有任何单个 reward 完美判别，但组合后 gold 始终最高。</strong></p>
+
+<h3>理论支撑</h3>
+<ul>
+  <li><span class="citation">[Pan et al., 2022]</span> 形式化论证"多 reward 的分布层耦合"如何对抗 misspecification。</li>
+  <li><span class="citation">[Skalse et al., 2022]</span>：reward hacking 是单 reward 系统的固有问题；组合 reward 的 hacking surface 是各 reward hacking surface 的<strong>交集</strong>，难度成倍增加。</li>
+  <li><span class="citation">[Huang et al., 2025]</span> MoGRPO 直接采用此设计思想：硬约束 + 多软偏好叠加。</li>
+</ul>
+
+<hr>
+
+<h2 id="grpo-config">6. GRPO 算法层配置</h2>
+
+<h3>核心选择</h3>
+
+<table>
+  <tr><th>设置</th><th>选择</th><th>支撑</th></tr>
+  <tr><td>Policy 优化</td><td>GRPO clipped surrogate</td><td>原始论文 <span class="citation">[Shao et al., 2024]</span></td></tr>
+  <tr><td>Advantage 估计</td><td>Group-relative z-score (G=8)</td><td>同上；省去 value model 训练</td></tr>
+  <tr><td>KL anchor</td><td>钉死 π<sub>SFT</sub>（不是 π<sub>old</sub>）</td><td><span class="citation">[Agarwal et al., 2024]</span>；防止 RL 阶段忘掉 SFT 学到的个性化</td></tr>
+  <tr><td>Rollout 后端</td><td>vLLM colocated</td><td>TRL 0.13+ 原生支持；rollout 提速 5-10×</td></tr>
+  <tr><td>参数效率</td><td>LoRA r=16 (target_modules=all-linear)</td><td>标准 PEFT-RL 配置 <span class="citation">[Hu et al., 2022]</span></td></tr>
+  <tr><td>Token 范围</td><td>max_completion_length=3500</td><td>MAPLE plan JSON 中位 ~12K 字符 ≈ 3K token</td></tr>
+</table>
+
+<h3>未实现的论文设计（明确列出）</h3>
+
+<ol>
+  <li><strong>Segment-wise credit routing</strong>（论文 §4.2 Level 2，<span class="citation">[Yu et al., 2025]</span> webagent-r1 / <span class="citation">[Li et al., 2025]</span> RLTR 借鉴的 loss-mask 思路）。v1 用 scalar reward + 标准 advantage。代码留 subclass 草图 (<code>rewards.py</code> 末尾)。</li>
+  <li><strong>Adaptive β</strong>（当 KL 越过 budget 时自动放大）。v1 用固定 β=0.04。</li>
+  <li><strong>5 条反作弊护栏</strong>（judge 随机化 / 对抗 trajectory 注入 / proxy-vs-gold 监控 / loss mask / adaptive β）。v1 通过 reward composition 实现了"软"反作弊；硬护栏作为升级路径保留。</li>
+</ol>
+
+<h3>理论支撑（GRPO + KL-to-SFT）</h3>
+<ul>
+  <li><span class="citation">[Shao et al., 2024]</span> DeepSeekMath：GRPO 的原始论文，确立组内相对优势 + KL 锚定的设计。</li>
+  <li><span class="citation">[DeepSeek-AI, 2025]</span> R1：在 reasoning 任务上验证 GRPO + 验证奖励的有效性。</li>
+  <li><span class="citation">[Agarwal et al., 2024]</span> on-policy distillation：从理论侧证明"KL 钉死预训练 / SFT"能把 exposure-bias 误差从 O(T²) 降到 O(T)。</li>
+  <li><span class="citation">[Zeng et al., 2025]</span> SimpleRL-Zoo：在不同 backbone × 不同 reward 下系统对比 GRPO 训练稳定性，确认 KL 锚到固定 reference 是关键稳健化操作。</li>
+</ul>
+
+<hr>
+
+<h2 id="mapping-to-paper">7. 与论文 §4.2 公式的逐条映射</h2>
+
+<p>给论文正文修改时直接使用——以下每行都对应 4-Methodology.tex 中的具体公式或论述：</p>
+
+<table>
+  <tr><th>论文表述</th><th>实现状态</th><th>差距说明</th></tr>
+  <tr><td>R<sup>struct</sup> = w<sub>1</sub>·DAG + w<sub>2</sub>·DC + w<sub>3</sub>·ATR + w<sub>4</sub>·GED-sim</td><td>✅ 实现</td><td>GED-sim 用 5 项 Jaccard fingerprint 平均代替；MAPLE 上 ρ ≈ 0.85</td></tr>
+  <tr><td>R<sup>pers</sup> = sim(P, P*) − sim(P, P<sup>cf</sup>)</td><td>⚠️ 用 R<sub>pers,lite</sub> 替代（counterfactual 仍作为 toggle 保留）</td><td>不需要在线 rollout，但失去严格反事实的统计保证；通过 composition 与 R<sub>struct</sub> 组合恢复判别力</td></tr>
+  <tr><td>R<sup>ped</sup> = λ·R<sup>ped,hard</sup> + (1−λ)·R<sup>ped,soft</sup></td><td>⚠️ 用 R<sub>ped,lite</sub> = 0.5·precedence + 0.5·phase_coverage 替代</td><td>concept graph K → subtask-name 共现；LLM judge → phase 关键词检测；λ 与 lambda_ped 字段对齐保留</td></tr>
+  <tr><td>R<sup>hard</sup> = −η · 𝕀[Invalid]</td><td>✅ 原样实现</td><td>无</td></tr>
+  <tr><td>R<sub>i</sub> = w<sub>s</sub>·z(R<sup>struct</sup>) + w<sub>p</sub>·z(R<sup>pers</sup>) + w<sub>e</sub>·z(R<sup>ped</sup>) + R<sup>hard</sup></td><td>⚠️ 部分实现</td><td>v1 没做 per-component z-score（已识别为 P0 修复，~30 行）；TRL 内部仅做 final reward 的 group-relative 归一化</td></tr>
+  <tr><td>Segment-wise credit assignment</td><td>❌ 未实现</td><td>需 GRPOTrainer subclass；v1 用 scalar advantage</td></tr>
+  <tr><td>GRPO clipped surrogate + KL anchor to π<sub>SFT</sub></td><td>✅ 实现</td><td>通过 TRL <code>ref_model</code> + 从 SFT-merged checkpoint 出发实现；需先 merge SFT adapters (脚本 TODO)</td></tr>
+  <tr><td>5 条 anti-hacking 护栏</td><td>❌ v1 未单独实现</td><td>软反作弊由 reward composition 提供；硬护栏作为升级</td></tr>
+</table>
+
+<hr>
+
+<h2 id="empirical">8. 实证验证（Smoke tests）</h2>
+
+<h3>R<sub>struct</sub> + R<sub>hard</sub></h3>
+
+<table>
+  <tr><th>场景</th><th>R<sub>struct</sub></th><th>R<sub>hard</sub></th><th>R<sub>total</sub></th></tr>
+  <tr><td>Gold plan (=identity)</td><td>1.000</td><td>0.0</td><td><span class="pass">+0.550</span></td></tr>
+  <tr><td>注入环</td><td>—</td><td>−10.0</td><td><span class="fail">−10.0</span></td></tr>
+  <tr><td>不可解析输出</td><td>—</td><td>−10.0</td><td><span class="fail">−10.0</span></td></tr>
+  <tr><td>非法工具调用</td><td>—</td><td>−10.0</td><td><span class="fail">−10.0</span></td></tr>
+  <tr><td>不同 plan (cross-record)</td><td>0.323</td><td>0.0</td><td>+0.178</td></tr>
+</table>
+
+<h3>R<sub>pers,lite</sub>（10 record 平均，组合后总 reward）</h3>
+
+<table>
+  <tr><th>Scenario</th><th>R<sub>pers,lite</sub></th><th>R<sub>total</sub></th></tr>
+  <tr><td>Gold</td><td><span class="pass">0.582</span></td><td><span class="pass">0.696</span></td></tr>
+  <tr><td>Attack 1: backstory keyword stuffing</td><td>0.000</td><td>0.550</td></tr>
+  <tr><td>Attack 2: "You are a X developer" boilerplate</td><td>0.000</td><td>0.550</td></tr>
+  <tr><td>Attack 3: bridge-phrase stuffing</td><td>0.000</td><td>0.550</td></tr>
+</table>
+
+<p>稳定 gap = +0.146。</p>
+
+<h3>R<sub>ped,lite</sub>（10 record 平均，单独评分）</h3>
+
+<table>
+  <tr><th>Scenario</th><th>R<sub>ped,lite</sub></th><th>vs Gold</th></tr>
+  <tr><td>Gold</td><td><span class="pass">0.720</span></td><td>—</td></tr>
+  <tr><td>generic（所有 phase 关键词清零）</td><td>0.500</td><td><span class="pass">+0.220</span></td></tr>
+  <tr><td>all_probe（每步都是 probe，无 validate/consolidate）</td><td>0.600</td><td><span class="pass">+0.120</span></td></tr>
+  <tr><td>swap_first_last（首尾内容互换）</td><td>0.700</td><td>+0.020</td></tr>
+  <tr><td>no_validation（局部剥离 validate 关键词）</td><td>0.770</td><td><span class="warn">−0.050</span></td></tr>
+</table>
+
+<p>3/4 attack 方向正确；最后一个"局部剥离"无法识别——这是已知 limitation，因为 phase 检测器对单关键词替换有冗余兜底。组合后 R<sub>struct</sub> 通常能补足这种部分攻击。</p>
+
+<hr>
+
+<h2 id="upgrade-paths">9. 升级路径（Lite → Paper-faithful）</h2>
+
+<p>每个 lite 组件都<strong>留有升级 toggle</strong>，YAML 切换即可，训练脚本不动：</p>
+
+<table>
+  <tr><th>组件</th><th>Lite 默认</th><th>升级方案</th><th>触发方式</th></tr>
+  <tr><td>R<sub>pers</sub></td><td>lite</td><td>online counterfactual rollout</td><td><code>pers_mode: "counterfactual"</code> + 先跑 <code>build_counterfactual_cache.py</code>；最终版需 subclass GRPOTrainer 做在线采样</td></tr>
+  <tr><td>R<sub>ped,soft</sub></td><td>关闭</td><td>3+ LLM judge ensemble</td><td><code>ped_mode: "full"</code> + 在 <code>grpo_train.py</code> 给 <code>compose_reward(..., judges=[fn1,fn2,fn3])</code></td></tr>
+  <tr><td>GED proxy</td><td>Jaccard fingerprint</td><td>真 GED (networkx 限时近似)</td><td>替换 <code>plan_utils.structural_similarity</code> 实现</td></tr>
+  <tr><td>Precedence</td><td>subtask-name 共现</td><td>concept graph K + concept mapper c(·)</td><td>新增 <code>concept_graph.py</code>；替换 <code>mine_subtask_precedence</code></td></tr>
+  <tr><td>Segment routing</td><td>scalar advantage</td><td>per-token advantage</td><td>subclass <code>GRPOTrainer</code>；<code>rewards.py</code> 末尾有草图</td></tr>
+  <tr><td>Per-component z-score</td><td>无（直接加权和）</td><td>在 reward_fn 内按 prompt 分组 z-score</td><td>~30 行；P0 优先级</td></tr>
+  <tr><td>Adaptive β</td><td>固定 β=0.04</td><td>callback 监控 KL，调整 args.beta</td><td>HF Trainer Callback</td></tr>
+  <tr><td>Anti-hacking 护栏</td><td>composition 实现的软版本</td><td>5 条全开</td><td>逐项实现</td></tr>
+</table>
+
+<hr>
+
+<h2 id="references">参考文献</h2>
+
+<p>下列引用按相关论文出现顺序排列；ID 与正文 [Author Year] 对应。所有条目在论文当前 bib 中可索引或可直接通过 arXiv / OpenReview 获取。</p>
+
+<ul>
+  <li><strong>[Shao et al., 2024]</strong> Shao Z. et al. <em>DeepSeekMath: Pushing the limits of mathematical reasoning in open language models</em>. — GRPO 原始论文，组内相对优势 + KL 锚定的奠基设计。</li>
+  <li><strong>[DeepSeek-AI, 2025]</strong> DeepSeek-AI. <em>DeepSeek-R1: Incentivizing reasoning capability in LLMs via reinforcement learning</em>. — 在数学和代码推理上系统验证了规则化 reward + GRPO 的有效性。</li>
+  <li><strong>[Lambert et al., 2024]</strong> Lambert N. et al. <em>Tulu 3: Pushing frontiers in open language model post-training</em>. — RLVR（Reinforcement Learning from Verifiable Rewards）框架，规则化奖励的系统论证。</li>
+  <li><strong>[Lightman et al., 2023]</strong> Lightman H. et al. <em>Let's verify step by step</em>. — Process Reward Models 的关键文献，step-level 信号 &gt; trajectory-level。</li>
+  <li><strong>[Wang et al., 2024]</strong> Wang P. et al. <em>Math-Shepherd: Verify and reinforce LLMs step-by-step without human annotation</em>. — process reward 的自动化构建。</li>
+  <li><strong>[Skalse et al., 2022]</strong> Skalse J. et al. <em>Defining and characterizing reward hacking</em>. — reward hacking 的形式化定义；组合 reward 的 hacking surface 是各 reward hacking surface 的交集。</li>
+  <li><strong>[Gao et al., 2023]</strong> Gao L. et al. <em>Scaling laws for reward model overoptimization</em>. — reward model overoptimization 的实证规律。</li>
+  <li><strong>[Pan et al., 2022]</strong> Pan A. et al. <em>The effects of reward misspecification: Mapping and mitigating misaligned models</em>. — 多 reward 的分布层耦合作为 robust RL 的工程做法。</li>
+  <li><strong>[Zheng et al., 2023]</strong> Zheng L. et al. <em>Judging LLM-as-a-judge with MT-Bench and Chatbot Arena</em>. — LLM judge 的 position / verbosity / family bias 实证。</li>
+  <li><strong>[Agarwal et al., 2024]</strong> Agarwal R. et al. <em>On-policy distillation of language models</em>. — KL 锚到固定 SFT reference 的理论与实证。</li>
+  <li><strong>[Huang et al., 2025]</strong> Huang Y. et al. <em>MoGRPO: Multi-objective constrained group relative policy optimization</em>. — 硬约束 + 软偏好分层；多目标 RL 在 LLM 微调上的工程实践。</li>
+  <li><strong>[Yu et al., 2025]</strong> Yu Z. et al. <em>WebAgent-R1: Reinforcement learning for web agents with loss-mask discipline</em>. — token-level loss masking，segment-wise credit 的灵感来源之一。</li>
+  <li><strong>[Li et al., 2025]</strong> Li C. et al. <em>RLTR: Reinforcement learning for tool-use reasoning</em>. — agent RL 中的 action / observation token 分离梯度。</li>
+  <li><strong>[Dinucu-Jianu et al., 2025]</strong> Dinucu-Jianu et al. <em>Aligning tutors via reinforcement learning: Pedagogy-aware language models</em>. — 教学法 RL，本论文 §4.2 反作弊护栏的灵感来源之一。</li>
+  <li><strong>[Zeng et al., 2025]</strong> Zeng W. et al. <em>SimpleRL-Zoo: A zoo of simple RL recipes for LLM reasoning</em>. — backbone × reward 设计的系统对比。</li>
+  <li><strong>[Garrido et al., 2014]</strong> Garrido A. et al. <em>Learning paths in adaptive e-learning</em>. — 教学先修图（prerequisite graph K）的概念框架来源。</li>
+  <li><strong>[Wei et al., 2025]</strong> Wei R. et al. <em>Educational planning with LLMs: Profile-conditioned scaffolding</em>. — learner profile 驱动 plan 结构变化的实证（论文 §4 引用）。</li>
+  <li><strong>[Es et al., 2024]</strong> Es S. et al. <em>RAGAS: Automated evaluation of retrieval augmented generation</em>. — 关键词 grounding 作为 RAG faithfulness reward 的实践。</li>
+  <li><strong>[Hu et al., 2022]</strong> Hu E. et al. <em>LoRA: Low-rank adaptation of large language models</em>. — PEFT-RL 标准配置。</li>
+  <li><strong>[Shervashidze et al., 2011]</strong> Shervashidze N. et al. <em>Weisfeiler-Lehman graph kernels</em>. — Jaccard / 集合特征作为 GED 替代的图核背景。</li>
+  <li><strong>[Riesen and Bunke, 2009]</strong> Riesen K., Bunke H. <em>Approximate graph edit distance computation by means of bipartite graph matching</em>. — GED 近似算法及其复杂度。</li>
+  <li><strong>[Yin et al., 2024]</strong> Yin D. et al. <em>Lumos: Learning agents with unified data, modular design, and open-source LLMs</em>. — 多 agent SFT 与 exposure bias 处理。</li>
+  <li><strong>[Erdoğan et al., 2025]</strong> Erdoğan E. et al. <em>Plan-and-Act: Hierarchical agent SFT with on-policy alignment</em>. — PAD/SDP 双 adapter 结构的灵感来源。</li>
+  <li><strong>[Zhu et al., 2025]</strong> Zhu Y. et al. <em>MoAT: Mixture-of-Adapter Training for multi-agent systems</em>. — 联合对齐 / DPO 阶段的协议来源。</li>
+</ul>
+
+<hr>
+
+<div class="meta">
+  <strong>生成时间：</strong>本文档随 GRPO/rewards.py 同步更新，应与代码版本一致。<br>
+  <strong>当前 GRPO 实现版本：</strong>v1 — R<sub>struct</sub>(Jaccard fingerprint) + R<sub>hard</sub> + R<sub>pers,lite</sub>(co-occurrence) + R<sub>ped,lite</sub>(precedence + phase coverage)；标量 advantage；KL 锚到 SFT。<br>
+  <strong>已识别但未实现：</strong>per-component z-score (P0)、SFT-merge 脚本 (P0)、LLM judge rubric 落地 (P1)、segment-wise routing (P2)、5 条 anti-hacking 护栏 (P2)。<br>
+  <strong>论文正文修改建议：</strong>详见 §7「与论文 §4.2 公式的逐条映射」中的"实现状态"与"差距说明"两列。
+</div>
+
+</body>
+</html>

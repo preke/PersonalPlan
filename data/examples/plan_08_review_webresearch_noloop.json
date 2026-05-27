@@ -1,0 +1,123 @@
+{
+  "input": {
+    "query": "Which Python HTTP client should we standardize on for a new microservice — requests, httpx, or aiohttp?\n\nI need to make a one-time decision and document the trade-offs for the team. The service will make a mix of sync calls (small admin endpoints) and async calls (high-fanout webhooks). It is greenfield, so backward compatibility doesn't matter.",
+    "learner": {
+      "self_description": "Staff engineer responsible for platform-wide library standards. Familiar with all three options superficially. Care primarily about long-term maintenance, async-friendliness, and team-onboarding friction.",
+      "skills": ["python", "http", "async", "requests", "httpx"]
+    }
+  },
+  "output": {
+    "agents": [
+      {
+        "agent_role": "http_client_web_researcher",
+        "goal": "Search the current web for recent ecosystem signals — maintenance activity, recent CVEs, async support maturity — for requests, httpx, and aiohttp.",
+        "description": "You are a focused web researcher. You search the open web for recent (past 12 months) signals on each of the three libraries: release cadence, recent security advisories, official async stance, and notable adoption changes. You return bullet-point findings with the source URL for each claim.",
+        "tools": ["FirecrawlSearchTool"]
+      },
+      {
+        "agent_role": "http_client_docs_retriever",
+        "goal": "Retrieve the official API surface for each library to confirm sync vs async support and the canonical client construction pattern.",
+        "description": "You are a precise docs retriever. You confirm directly from each project's official documentation: whether sync and async are both supported in one client, the recommended way to construct a reusable client, and any documented timeout default.",
+        "tools": ["CodeDocsSearchTool"]
+      },
+      {
+        "agent_role": "library_decision_tutor",
+        "goal": "Guide the staff engineer to a written, defensible recommendation by reframing the choice along the two dimensions they care about (long-term maintenance, async-friendliness) rather than feature-by-feature.",
+        "description": "You are a pragmatic staff-engineer collaborator. You compress library comparisons into the two or three decision dimensions that actually matter for the questioner, and you push for a written recommendation with explicit trade-off acknowledgement. You do not produce 'use whichever you prefer' answers.",
+        "tools": []
+      }
+    ],
+    "subtasks": [
+      {
+        "id": "S1",
+        "name": "Gather current ecosystem signals on the three libraries",
+        "subtask_objective": "Learner has a one-page summary of recent maintenance and adoption signals for requests, httpx, and aiohttp with sources.",
+        "steps": [
+          {
+            "id": "S1-1",
+            "agent": "http_client_web_researcher",
+            "objective": "Pull recent ecosystem signals.",
+            "instruction": "Search the open web for the most recent 12 months of signals on each library: (a) requests — release cadence, maintainer count, official position on async, any major announcement; (b) httpx — version trajectory, sync/async parity claims, adoption trends; (c) aiohttp — release activity, scope (client vs server framing), notable users. Return one short paragraph per library with 2-3 cited findings.",
+            "tool": "FirecrawlSearchTool",
+            "requires_human_input": false,
+            "expected_output": "Three short paragraphs (one per library) with recent cited signals: release activity, async support stance, adoption trend.",
+            "depends_on": []
+          },
+          {
+            "id": "S1-2",
+            "agent": "http_client_docs_retriever",
+            "objective": "Confirm API-level claims from each library's docs.",
+            "instruction": "Retrieve from each project's official documentation: (a) does this library offer both a sync and an async Client in one package (httpx yes; requests no; aiohttp async-only with sync via session.run helper)? (b) what is the documented default timeout (often unset for requests, 5 seconds for httpx)? (c) what is the canonical reusable-client pattern (Session for requests, Client/AsyncClient for httpx, ClientSession for aiohttp)? Confirm each precisely.",
+            "tool": "CodeDocsSearchTool",
+            "requires_human_input": false,
+            "expected_output": "Per-library answers to (a) dual sync+async support, (b) default timeout, (c) reusable-client construction pattern.",
+            "depends_on": []
+          }
+        ]
+      },
+      {
+        "id": "S2",
+        "name": "Reframe along the two decision dimensions the staff engineer cares about",
+        "subtask_objective": "Learner has a 2x3 comparison table (rows = long-term maintenance, async-friendliness; columns = the three libraries) populated from S1's findings.",
+        "steps": [
+          {
+            "id": "S2-1",
+            "agent": "library_decision_tutor",
+            "objective": "Steer past feature-matrix comparison to the two dimensions stated in the query.",
+            "instruction": "Tell the learner that the query already named the two dimensions that matter — long-term maintenance and async-friendliness — plus a third implicit one, team onboarding friction. Anything else (granular feature differences, HTTP/2 support, file uploads) is below the resolution that matters for a one-time platform standardization decision. Ask the learner to confirm these three are the right axes, or to add at most one more.",
+            "tool": null,
+            "requires_human_input": true,
+            "expected_output": "Learner's confirmed three decision dimensions for this comparison.",
+            "depends_on": []
+          },
+          {
+            "id": "S2-2",
+            "agent": "library_decision_tutor",
+            "objective": "Populate the comparison table.",
+            "instruction": "Using the confirmed dimensions from S2-1 and the findings from S1-1 and S1-2, build a 3x3 table — rows are the three dimensions, columns are the three libraries. Each cell is at most two sentences citing the specific finding from S1. Present the table and ask the learner to flag any cell they disagree with based on their own experience with the libraries.",
+            "tool": null,
+            "requires_human_input": true,
+            "expected_output": "3x3 comparison table with learner-flagged disagreements (if any) on specific cells.",
+            "depends_on": ["S1-1", "S1-2", "S2-1"]
+          }
+        ]
+      },
+      {
+        "id": "S3",
+        "name": "Produce a written recommendation",
+        "subtask_objective": "Learner has drafted a one-paragraph recommendation citing the comparison table, with explicit acknowledgement of the trade-off accepted.",
+        "steps": [
+          {
+            "id": "S3-1",
+            "agent": "library_decision_tutor",
+            "objective": "Ask for the actual recommendation.",
+            "instruction": "Ask the learner to write a single paragraph: 'We will standardize on X because…' that cites two of the cells from the S2-2 table. The paragraph must also include one sentence on what is being given up by not choosing the other two libraries. Push back if the recommendation hedges without committing to one — the question called for a decision, not a survey.",
+            "tool": null,
+            "requires_human_input": true,
+            "expected_output": "Learner's one-paragraph recommendation citing specific table cells and naming the trade-off accepted.",
+            "depends_on": ["S2-2"]
+          },
+          {
+            "id": "S3-2",
+            "agent": "library_decision_tutor",
+            "objective": "Reflect on what would change the decision.",
+            "instruction": "Ask the learner: what concrete future condition would cause them to revisit this choice — e.g., httpx maintainer step-down, a new HTTP/3 mandate, the team moving to a fully synchronous architecture? Have them write one sentence so the team knows when to reopen this decision.",
+            "tool": null,
+            "requires_human_input": true,
+            "expected_output": "Learner's one-sentence revisit-trigger statement appended to the recommendation.",
+            "depends_on": ["S3-1"]
+          }
+        ]
+      }
+    ],
+    "execution_order": [
+      "S1-1",
+      "S1-2",
+      "S2-1",
+      "S2-2",
+      "S3-1",
+      "S3-2"
+    ]
+  }
+},
+{"answer":"For a new greenfield service that needs both sync and async, httpx is the strongest default: it offers Client (sync) and AsyncClient (async) with parallel APIs, has active maintenance, sane timeout defaults (5s), and the smallest onboarding cost for teams already familiar with requests since the API is intentionally similar. requests is fine for pure-sync services and remains widely understood, but offers no async; using it forces a second library when async paths arrive. aiohttp is async-first and battle-tested as a server framework, but its client API diverges further from requests and adds onboarding friction. Trade-off accepted with httpx: slightly newer codebase than requests and a smaller (but actively engaged) maintainer pool."}

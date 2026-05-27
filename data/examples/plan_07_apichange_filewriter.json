@@ -1,0 +1,173 @@
+{
+  "input": {
+    "query": "How do I migrate from Pydantic v1 to Pydantic v2 in my FastAPI service?\n\nWe pinned Pydantic v1 in our requirements years ago. The team wants to upgrade to v2 for the performance improvements, but our models use Config classes, validator decorators, and a few .dict() calls scattered through handlers. What is the actual migration path — what changes, what stays, and what's the safest order?",
+    "learner": {
+      "self_description": "Backend tech lead, eleven years in Python, four on this FastAPI service. Comfortable rewriting models but worried about runtime regressions because we don't have full test coverage on the serialization paths.",
+      "skills": ["python", "pydantic", "fastapi", "migration", "type-hints"]
+    }
+  },
+  "output": {
+    "agents": [
+      {
+        "agent_role": "pydantic_v2_migration_tutor",
+        "goal": "Walk the learner through the Pydantic v1→v2 changes in dependency order, with explicit risk callouts for the lightly-tested serialization paths, focusing on the four specific surfaces their service actually uses (Config classes, validator decorators, .dict() calls, model_config).",
+        "description": "You are a senior Python migration tutor. You sequence breaking-change fixes by failure risk, not by docs order. You explicitly call out which v1 idioms are silently changed (warnings only) vs which are hard removals. You never propose 'mass-rename everything' — you propose one surface at a time so each can be tested independently.",
+        "tools": []
+      },
+      {
+        "agent_role": "pydantic_changelog_retriever",
+        "goal": "Surface the authoritative v1→v2 migration notes from the official Pydantic documentation for each of the four surfaces.",
+        "description": "You are a focused docs retriever for Pydantic. You retrieve the v2 migration guide entries for validator decorators (now field_validator), Config classes (now model_config), .dict() (now model_dump()), and any silent behavioural changes in default values or unset-field handling.",
+        "tools": ["CodeDocsSearchTool"]
+      },
+      {
+        "agent_role": "pydantic_test_runner",
+        "goal": "Run the learner's migrated model against representative serialization test cases to confirm output JSON is unchanged from v1.",
+        "description": "You are a Pydantic regression tester. You instantiate both v1 and v2 versions of a model with the same inputs (or import-equivalent fixtures), serialize both, and diff the resulting JSON dicts. You flag any field whose serialization changed.",
+        "tools": ["CodeInterpreterTool"]
+      },
+      {
+        "agent_role": "migration_script_author",
+        "goal": "Write the final approved migrated model file once it has been validated for serialization parity.",
+        "description": "You are a careful file authoring agent. You only persist a file after the test runner has confirmed serialization parity with v1. You preserve module-level imports, docstrings, and class ordering from the original file.",
+        "tools": ["FileWriterTool"]
+      }
+    ],
+    "subtasks": [
+      {
+        "id": "S1",
+        "name": "Enumerate the four migration surfaces this service uses",
+        "subtask_objective": "Learner has a written inventory of which Pydantic v1 features their codebase relies on, ranked by serialization-impact risk.",
+        "steps": [
+          {
+            "id": "S1-1",
+            "agent": "pydantic_v2_migration_tutor",
+            "objective": "Surface which v1 idioms appear in the codebase.",
+            "instruction": "Ask the learner to confirm which of these their service uses today, with a rough count of occurrences if they know it: (a) class Config: inside models, (b) @validator decorators, (c) .dict() calls in handler code, (d) Field(..., env=...) for settings. The four surfaces map to four distinct v2 changes; ranking them by occurrence guides the migration order.",
+            "tool": null,
+            "requires_human_input": true,
+            "expected_output": "Learner's inventory of which of the four v1 surfaces appear in their codebase, with approximate counts.",
+            "depends_on": []
+          },
+          {
+            "id": "S1-2",
+            "agent": "pydantic_changelog_retriever",
+            "objective": "Pull the v2 migration entries for the surfaces in play.",
+            "instruction": "Look up the official Pydantic v2 migration guide. For each surface confirmed in S1-1, retrieve the exact v2 replacement: Config → model_config (a ConfigDict on the class); @validator → @field_validator; .dict() → model_dump(); env in Field → pydantic-settings package or model_config['env_prefix']. Confirm names and import paths.",
+            "tool": "CodeDocsSearchTool",
+            "requires_human_input": false,
+            "expected_output": "Authoritative v2 names and import paths for each surface from S1-1.",
+            "depends_on": ["S1-1"]
+          },
+          {
+            "id": "S1-3",
+            "agent": "pydantic_v2_migration_tutor",
+            "objective": "Order the migrations by risk.",
+            "instruction": "Using the inventory from S1-1 and the docs from S1-2, present the migration order: (1) Config → model_config first, because it changes behaviour subtly but rarely fails tests; (2) @validator → @field_validator next, because v2 will raise a deprecation but still works during transition; (3) .dict() → model_dump() last, because this is where serialization output can drift silently. Ask the learner to confirm the order or argue for a different one given their test coverage.",
+            "tool": null,
+            "requires_human_input": true,
+            "expected_output": "Learner's confirmed (or amended) migration order with rationale.",
+            "depends_on": ["S1-1", "S1-2"]
+          }
+        ]
+      },
+      {
+        "id": "S2",
+        "name": "Iteratively migrate one representative model and verify serialization parity",
+        "subtask_objective": "Learner produces a single migrated model whose model_dump() output equals the v1 model's .dict() output across the test fixtures.",
+        "steps": [
+          {
+            "id": "S2-1",
+            "agent": "pydantic_v2_migration_tutor",
+            "objective": "Pick the model to migrate first and ask for the migration.",
+            "instruction": "Ask the learner to pick the single model that is most exercised by handlers — typically the request body model on the busiest endpoint. Ask them to rewrite that one model in v2 syntax: Config → model_config = ConfigDict(...), @validator → @field_validator with @classmethod, no other behavioural changes yet. On retry iterations, use S2-3's feedback to ask only for the specific field or decorator that still mismatches, not a full rewrite.",
+            "tool": null,
+            "requires_human_input": true,
+            "expected_output": "Learner's migrated model file using v2 syntax for this iteration.",
+            "depends_on": ["S1-3"]
+          },
+          {
+            "id": "S2-2",
+            "agent": "pydantic_test_runner",
+            "objective": "Diff v1 vs v2 serialization for the migrated model.",
+            "instruction": "Take the learner's v2 model from S2-1 and the original v1 model. Instantiate both with the same fixture inputs (provide three representative cases including: required fields only, all optional fields populated, edge case with null defaults). Call .dict() on v1 and model_dump() on v2; deep-diff the resulting JSON-able dicts. Print any field that differs in presence, value, or type. Set serialization_matches=true if all three fixtures produce identical output, false otherwise.",
+            "tool": "CodeInterpreterTool",
+            "requires_human_input": false,
+            "expected_output": "Per-field diff across three fixtures, and serialization_matches=true if no diffs, false otherwise.",
+            "depends_on": ["S2-1"]
+          },
+          {
+            "id": "S2-3",
+            "agent": "pydantic_v2_migration_tutor",
+            "objective": "Targeted feedback on the specific regression.",
+            "instruction": "Use S2-2's diff: identify the one field whose serialization changed. Common causes: v2 includes fields with defaults that v1 excluded under exclude_unset=False, or a v1 @validator returned a coerced type that the new @field_validator no longer applies. Tell the learner the precise model_config setting or validator to fix; do not rewrite their model.",
+            "tool": null,
+            "requires_human_input": false,
+            "expected_output": "Targeted feedback identifying the single config or validator fix needed.",
+            "depends_on": ["S2-2"]
+          },
+          {
+            "id": "S2-4",
+            "agent": "pydantic_v2_migration_tutor",
+            "objective": "Resolve the migration loop.",
+            "instruction": "If S2-2's final serialization_matches=true: confirm the migration has zero serialization regression on the fixtures. Note that this is the smallest-evidence positive result — full coverage would require running prod-shape inputs through, which the team should add. If max iterations exhausted: present a canonical v2 form of the model with each Config flag mapped explicitly to its model_config key and each validator with its @field_validator equivalent.",
+            "tool": null,
+            "requires_human_input": false,
+            "expected_output": "Resolution statement: confirmation of serialization parity or canonical v2 model with explicit field-by-field mapping.",
+            "depends_on": ["S2-2"]
+          }
+        ]
+      },
+      {
+        "id": "S3",
+        "name": "Persist the migrated model as a reviewable file",
+        "subtask_objective": "Learner has a file containing the validated migrated model, ready to PR alongside the original v1 file for diff review.",
+        "steps": [
+          {
+            "id": "S3-1",
+            "agent": "migration_script_author",
+            "objective": "Write the approved migrated model to disk.",
+            "instruction": "Take the v2 model from S2-4 (either the learner's last accepted version or the canonical version). Write it to a file named models_v2.py preserving the original module's imports and class ordering. Add a single line at the top: # Migrated from models.py (Pydantic v1) — verified serialization parity on three fixtures, see S2-2. Do not include the v1 model alongside it; the original file remains untouched for PR review.",
+            "tool": "FileWriterTool",
+            "requires_human_input": false,
+            "expected_output": "Confirmation that models_v2.py has been written, with content shown.",
+            "depends_on": ["S2-4"]
+          }
+        ]
+      },
+      {
+        "id": "S4",
+        "name": "Plan the .dict() replacement across handlers",
+        "subtask_objective": "Learner has a written rollout plan for replacing .dict() with model_dump() in handler code, including a feature-flag option to flip back if regressions are caught in staging.",
+        "steps": [
+          {
+            "id": "S4-1",
+            "agent": "pydantic_v2_migration_tutor",
+            "objective": "Have the learner draft the handler-side rollout plan.",
+            "instruction": "Ask the learner to write a three-step rollout plan for replacing .dict() with model_dump() in their handlers, given that they have low test coverage on serialization paths. The plan must include: (a) a grep-first inventory of every .dict() call site, (b) the safest staging-first deployment order, (c) a quick rollback path (e.g., a shim method on the base model that dispatches to either v1 or v2 depending on a feature flag). Push back if the plan skips the feature-flag shim — that is what addresses their specific risk from S1.",
+            "tool": null,
+            "requires_human_input": true,
+            "expected_output": "Learner's three-step rollout plan with grep inventory, staging order, and a feature-flag shim.",
+            "depends_on": ["S3-1"]
+          }
+        ]
+      }
+    ],
+    "execution_order": [
+      "S1-1",
+      "S1-2",
+      "S1-3",
+      {
+        "loop": {
+          "steps": ["S2-1", "S2-2", "S2-3"],
+          "condition": "S2-2.serialization_matches == false",
+          "max_iterations": 4
+        }
+      },
+      "S2-4",
+      "S3-1",
+      "S4-1"
+    ]
+  }
+},
+{"answer":"The v1→v2 migration touches four main surfaces. Replace class Config: with model_config = ConfigDict(...). Replace @validator with @field_validator (and add @classmethod). Replace .dict() with model_dump() and .json() with model_dump_json(). For environment-driven settings, install pydantic-settings and use BaseSettings from there. Migration order by risk: model_config first (subtle behaviour, rarely test-failing), then validators (v2 warns on @validator during transition), then .dict() calls last (these can silently drift serialization output). Always diff serialization output across representative fixtures before merging — v2 changes defaults around exclude_unset / exclude_none that can change emitted JSON in ways your tests may not catch."}

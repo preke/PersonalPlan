@@ -1,0 +1,99 @@
+{
+  "input": {
+    "query": "Why does my Java code throw NullPointerException on this line?\n\npublic String getUserName(User user) { return user.getName().toUpperCase(); } I call this from a loop reading user records from a database; it works for most rows but throws NullPointerException at line 2 for some records. I am new to Java and not sure why this only happens sometimes.",
+    "learner": {
+      "self_description": "Bootcamp graduate, six months into my first job. Strong in Python; just switched to a Java backend team and getting used to static types and method chaining.",
+      "skills": ["java", "spring", "python", "debugging", "exceptions"]
+    }
+  },
+  "output": {
+    "agents": [
+      {
+        "agent_role": "java_npe_diagnostician",
+        "goal": "Walk the learner from their Python None-check intuition to recognising that any object reference in a method chain can be null in Java, and that the fix is a single explicit null check before the chain.",
+        "description": "You are a patient Java tutor who translates Java idioms into Python equivalents the learner already knows. You read the learner's stack trace literally, pinpoint the exact reference that is null, and avoid teaching defensive programming patterns that distract from the specific bug at hand.",
+        "tools": []
+      },
+      {
+        "agent_role": "java_code_validator",
+        "goal": "Run the learner's revised method against an input row where getName() returns null and confirm the NullPointerException no longer occurs.",
+        "description": "You are a meticulous Java code runner. You compile and execute submitted snippets using CodeInterpreterTool against the specific null-row test case the tutor has identified, and you report whether the chain still throws NPE.",
+        "tools": ["CodeInterpreterTool"]
+      }
+    ],
+    "subtasks": [
+      {
+        "id": "S1",
+        "name": "Locate the actual null reference inside the method chain",
+        "subtask_objective": "Learner can state which of user, user.getName(), or .toUpperCase() is the null reference, and why.",
+        "steps": [
+          {
+            "id": "S1-1",
+            "agent": "java_npe_diagnostician",
+            "objective": "Activate the learner's Python intuition about None propagation in attribute chains.",
+            "instruction": "Ask the learner: in Python, if you wrote user.name.upper() and got AttributeError: 'NoneType' object has no attribute 'upper', which value would you check first? Have them answer in one sentence before introducing Java specifics.",
+            "tool": null,
+            "requires_human_input": true,
+            "expected_output": "Learner's answer naming which Python value would be None.",
+            "depends_on": []
+          },
+          {
+            "id": "S1-2",
+            "agent": "java_npe_diagnostician",
+            "objective": "Map the Python None analogy onto the Java method chain and identify the null reference.",
+            "instruction": "Using the learner's answer from S1-1, walk through user.getName().toUpperCase() left-to-right. Ask: which of the two references — user itself, or the return value of getName() — would Java try to call a method on before crashing on line 2? Have them name the reference and justify by reading the stack trace's line position.",
+            "tool": null,
+            "requires_human_input": true,
+            "expected_output": "Learner's identification: the value returned by getName() is null, since user being null would have crashed inside getName() itself, one frame earlier.",
+            "depends_on": ["S1-1"]
+          }
+        ]
+      },
+      {
+        "id": "S2",
+        "name": "Apply a targeted null check and confirm the fix",
+        "subtask_objective": "Learner rewrites the method with a single null check on getName() and confirms it no longer throws on the null-row test case.",
+        "steps": [
+          {
+            "id": "S2-1",
+            "agent": "java_npe_diagnostician",
+            "objective": "Have the learner write the smallest possible fix.",
+            "instruction": "Ask the learner to revise getUserName so that when getName() returns null, the method returns an empty string instead of throwing. Insist on the minimal change — one if-check, no Optional, no try/catch — to match the diagnosis from S1-2.",
+            "tool": null,
+            "requires_human_input": true,
+            "expected_output": "Learner's revised getUserName method body using a single null guard on the result of getName().",
+            "depends_on": ["S1-2"]
+          },
+          {
+            "id": "S2-2",
+            "agent": "java_code_validator",
+            "objective": "Run the revised method against a null-row test case.",
+            "instruction": "Take the learner's revised method from S2-1 and execute it inside a minimal harness that calls it with two User objects: one where getName() returns \"alice\" and one where getName() returns null. Print the result and any exception for both inputs.",
+            "tool": "CodeInterpreterTool",
+            "requires_human_input": false,
+            "expected_output": "Execution output showing \"ALICE\" for the first call and an empty string (no exception) for the null-row call.",
+            "depends_on": ["S2-1"]
+          },
+          {
+            "id": "S2-3",
+            "agent": "java_npe_diagnostician",
+            "objective": "Confirm the lesson and connect back to the Python analogy.",
+            "instruction": "Present the run output from S2-2 and confirm the fix worked. Tell the learner that the rule generalises: in any Java method chain a.b().c(), every intermediate return value is a potential null, and the fix is whichever single guard matches the actual null reference identified from the stack trace — exactly the same diagnostic move they would make in Python with AttributeError.",
+            "tool": null,
+            "requires_human_input": false,
+            "expected_output": "Confirmation message summarising the diagnosis-to-fix rule.",
+            "depends_on": ["S2-2"]
+          }
+        ]
+      }
+    ],
+    "execution_order": [
+      "S1-1",
+      "S1-2",
+      "S2-1",
+      "S2-2",
+      "S2-3"
+    ]
+  }
+},
+{"answer":"The NullPointerException occurs because getName() returns null for some User records. In Java any reference in a method chain can be null, and calling .toUpperCase() on a null reference throws NPE. Fix by guarding the result of getName(): public String getUserName(User user) { String name = user.getName(); return name == null ? \"\" : name.toUpperCase(); } If user itself can also be null, add an outer guard, but the stack trace pointing to line 2 indicates the null was the getName() return value, not user."}

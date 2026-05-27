@@ -1,0 +1,105 @@
+{
+  "global": {
+    "n_rows": 3043,
+    "n_unique_qids": 1730,
+    "nprof_per_qid": {
+      "1": 759,
+      "2": 720,
+      "3": 183,
+      "4": 53,
+      "5": 7,
+      "6": 8
+    },
+    "profile_index_dist": {
+      "0": 1727,
+      "1": 972,
+      "2": 253,
+      "3": 68,
+      "4": 15,
+      "5": 8
+    }
+  },
+  "splits": {
+    "train": {
+      "n_qids": 1384,
+      "n_rows": 2433,
+      "nprof_per_qid": {
+        "1": 607,
+        "2": 576,
+        "3": 147,
+        "4": 43,
+        "5": 5,
+        "6": 6
+      },
+      "profile_index_dist": {
+        "0": 1381,
+        "1": 778,
+        "2": 203,
+        "3": 54,
+        "4": 11,
+        "5": 6
+      },
+      "n_qids_ge2_profiles": 777,
+      "n_qids_ge3_profiles": 201,
+      "leakage_rows": 0
+    },
+    "dev": {
+      "n_qids": 173,
+      "n_rows": 305,
+      "nprof_per_qid": {
+        "1": 76,
+        "2": 72,
+        "3": 18,
+        "4": 5,
+        "5": 1,
+        "6": 1
+      },
+      "profile_index_dist": {
+        "0": 173,
+        "1": 97,
+        "2": 25,
+        "3": 7,
+        "4": 2,
+        "5": 1
+      },
+      "n_qids_ge2_profiles": 97,
+      "n_qids_ge3_profiles": 25,
+      "leakage_rows": 0
+    },
+    "test": {
+      "n_qids": 173,
+      "n_rows": 305,
+      "nprof_per_qid": {
+        "1": 76,
+        "2": 72,
+        "3": 18,
+        "4": 5,
+        "5": 1,
+        "6": 1
+      },
+      "profile_index_dist": {
+        "0": 173,
+        "1": 97,
+        "2": 25,
+        "3": 7,
+        "4": 2,
+        "5": 1
+      },
+      "n_qids_ge2_profiles": 97,
+      "n_qids_ge3_profiles": 25,
+      "leakage_rows": 0
+    }
+  },
+  "overlap_check": {
+    "train_dev": 0,
+    "train_test": 0,
+    "dev_test": 0
+  },
+  "seed": 42,
+  "fractions": {
+    "test": 0.1,
+    "dev": 0.1,
+    "train": 0.8
+  },
+  "src_file": "multi_agent_dataset_filtered_qap.jsonl"
+}

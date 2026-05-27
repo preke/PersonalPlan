@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>MAPLE Joint Alignment 设计与实现文档</title>
+<script>
+  MathJax = { tex: {inlineMath: [['$','$'], ['\\(','\\)']]} };
+</script>
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+<style>
+  body { font-family: -apple-system, "Segoe UI", "PingFang SC", "Helvetica Neue", Arial, sans-serif;
+         max-width: 1080px; margin: 36px auto; padding: 0 24px; color: #1f2937; line-height: 1.65; }
+  h1 { color: #111827; border-bottom: 3px solid #2563eb; padding-bottom: 8px; }
+  h2 { color: #1d4ed8; margin-top: 38px; border-left: 4px solid #2563eb; padding-left: 10px; }
+  h3 { color: #1e3a8a; margin-top: 26px; }
+  h4 { color: #334155; margin-top: 20px; }
+  code { background: #f1f5f9; padding: 1px 6px; border-radius: 3px; font-size: 0.92em; }
+  pre  { background: #0f172a; color: #e2e8f0; padding: 14px 16px; border-radius: 6px;
+         overflow-x: auto; font-size: 0.86em; line-height: 1.5; }
+  pre code { background: transparent; color: inherit; padding: 0; }
+  blockquote { border-left: 4px solid #fbbf24; background: #fffbeb;
+               padding: 10px 16px; margin: 14px 0; color: #78350f; }
+  blockquote.note { border-color: #38bdf8; background: #f0f9ff; color: #075985; }
+  blockquote.warn { border-color: #ef4444; background: #fef2f2; color: #7f1d1d; }
+  table { border-collapse: collapse; width: 100%; margin: 14px 0; font-size: 0.92em; }
+  th, td { border: 1px solid #cbd5e1; padding: 7px 10px; text-align: left; vertical-align: top; }
+  th { background: #e0e7ff; color: #1e3a8a; }
+  tr:nth-child(even) td { background: #f8fafc; }
+  .toc { background: #f8fafc; border: 1px solid #cbd5e1; padding: 14px 22px; border-radius: 6px; }
+  .toc ol { margin: 0; padding-left: 22px; }
+  .toc a { color: #2563eb; text-decoration: none; }
+  .toc a:hover { text-decoration: underline; }
+  .pill { display: inline-block; background: #ddd6fe; color: #4c1d95;
+          padding: 1px 8px; border-radius: 12px; font-size: 0.78em; margin-right: 4px; }
+  .pill.green { background: #bbf7d0; color: #14532d; }
+  .pill.orange { background: #fed7aa; color: #7c2d12; }
+  .pill.red { background: #fecaca; color: #7f1d1d; }
+  .diagram { background: #f8fafc; border: 1px solid #cbd5e1; padding: 16px;
+             border-radius: 6px; font-family: "SFMono-Regular", Consolas, monospace;
+             font-size: 0.88em; white-space: pre; overflow-x: auto; }
+  .footer { color: #64748b; font-size: 0.85em; margin-top: 40px; border-top: 1px solid #e2e8f0; padding-top: 14px; }
+  .filepath { color: #6b21a8; font-family: monospace; font-size: 0.9em; }
+</style>
+</head>
+<body>
+
+<h1>MAPLE Joint Alignment 设计与实现</h1>
+<p style="color:#475569;font-size:0.95em">
+  <span class="pill">SFT Stage 2 / Stage 3</span>
+  <span class="pill green">K = 1</span>
+  <span class="pill orange">Phase A: PAD DPO</span>
+  <span class="pill orange">Phase B: SDP on-policy SFT</span>
+  <span class="pill">backbone: Qwen3-32B-Instruct</span>
+</p>
+
+<p>本文档综合 <code>SFT/README.md</code>、<code>SFT/bigmodel_training/EXPERIMENT_PLAN_2026-05-15.html §3.2</code>、<code>readmore_518_sft.md</code>、训练报告 <code>MAPLE_Qwen_32B_training_report_2026-05-20.html</code> 以及 Python 代码（<code>joint_alignment_data.py</code> / <code>train_dpo_lora.py</code> / <code>train_sft_lora.py</code> / <code>train_joint.sh</code>），系统介绍 MAPLE 第三阶段 "Joint Alignment" 的<strong>设计动机、参考工作、数学公式、实现切片</strong>。</p>
+
+<div class="toc">
+<strong>目录</strong>
+<ol>
+<li><a href="#sec-1">为什么需要 Joint Alignment：exposure bias 与协作错配</a></li>
+<li><a href="#sec-2">参考工作 (Related Work)</a></li>
+<li><a href="#sec-3">总体设计：双 Phase 交替结构</a></li>
+<li><a href="#sec-4">Phase A — PAD DPO（修 PAD）</a></li>
+<li><a href="#sec-5">Phase B — SDP on-policy SFT（修 SDP）</a></li>
+<li><a href="#sec-6">外循环与命名说明</a></li>
+<li><a href="#sec-7">实测结果（32B）</a></li>
+<li><a href="#sec-8">完整运行指令</a></li>
+<li><a href="#sec-9">已知偏离与限制</a></li>
+</ol>
+</div>
+
+<!-- ============================================ -->
+<h2 id="sec-1">1. 为什么需要 Joint Alignment</h2>
+
+<h3>1.1 MAPLE 的双 adapter 分解</h3>
+<p>MAPLE 把"为学习者生成多智能体计划"这个任务拆成两个串行的子任务，每个由一个 LoRA adapter 承载：</p>
+
+<table>
+<thead><tr><th>Adapter</th><th>输入</th><th>输出（loss target）</th><th>论文符号</th></tr></thead>
+<tbody>
+<tr><td><strong>PAD</strong>（Personalized Agent Decomposition）</td>
+    <td>query <code>$I_q$</code> + 学习者 profile <code>$I_p$</code></td>
+    <td>scaffold：agents <code>$\mathcal{A}^\star$</code> + subtask 元信息 <code>$\mathcal{T}^\star$</code></td>
+    <td><code>$\pi_{\text{PAD}}(\mathcal{A},\mathcal{T} \mid I_q, I_p)$</code></td></tr>
+<tr><td><strong>SDP</strong>（Step Decomposition Planner）</td>
+    <td>query + profile + <em>gold</em> scaffold <code>$(\mathcal{A}^\star, \mathcal{T}^\star)$</code></td>
+    <td>steps <code>$\mathcal{S}^\star$</code> + execution_order <code>$\mathcal{O}^\star$</code></td>
+    <td><code>$\pi_{\text{SDP}}(\mathcal{S},\mathcal{O} \mid I_q, I_p, \mathcal{A}^\star, \mathcal{T}^\star)$</code></td></tr>
+</tbody>
+</table>
+
+<h3>1.2 暴露偏差 (Exposure Bias)</h3>
+
+<p>Stage 1 单独训练时，<strong>SDP 看到的是 gold scaffold</strong>。但推理时它消费的是 PAD 生成的 scaffold <code>$(\mathcal{A}', \mathcal{T}') \sim \pi_{\text{PAD}}$</code>。两个分布存在系统性 gap，这正是 Ranzato 等 (2015) 提出的经典 <em>exposure bias</em> 在分层生成场景下的版本：</p>
+
+<p style="text-align:center">
+$$ \mathbb{E}_{(\mathcal{A}^\star,\mathcal{T}^\star)\sim p_{\text{gold}}}[\mathcal{L}_{\text{SDP}}] \;\neq\;
+   \mathbb{E}_{(\mathcal{A}',\mathcal{T}')\sim \pi_{\text{PAD}}}[\mathcal{L}_{\text{SDP}}] $$
+</p>
+
+<p>同时 PAD 自己也不知道下游的 SDP "喜欢什么形状的 scaffold"——它只优化 NLL on gold scaffold，没有任何来自下游的反馈。这两点合起来导致 <strong>PAD↔SDP coordination bias</strong>，Joint Alignment 的目标就是同时修这两个口子。</p>
+
+<blockquote class="note">
+<strong>设计哲学：narrow signal at this stage.</strong>
+我们在 Joint Alignment 阶段<em>故意</em>只用最贴近"coordination"动机的信号：scaffold-level 结构相似度。R_pers / R_ped 这类"全套 reward"被留给 Stage 3 GRPO 独享，避免同一 reward 在 DPO 与 GRPO 里被优化两遍（消融时也能干净分离 "Joint Alignment 贡献 vs GRPO 贡献"）。
+</blockquote>
+
+<!-- ============================================ -->
+<h2 id="sec-2">2. 参考工作 (Related Work)</h2>
+
+<table>
+<thead><tr><th>方向</th><th>参考</th><th>对 MAPLE 的影响</th></tr></thead>
+<tbody>
+<tr><td>Exposure bias / Scheduled Sampling</td>
+    <td>Bengio et al. NeurIPS'15；Ranzato et al. ICLR'16 (MIXER)</td>
+    <td>动机来源：on-policy 输入修 teacher-forcing 训练带来的分布偏移</td></tr>
+<tr><td>Direct Preference Optimization</td>
+    <td>Rafailov et al. NeurIPS'23</td>
+    <td>Phase A 的损失形式直接复用；用 ranked pairs 而非 reward model</td></tr>
+<tr><td>Hierarchical / 分层 RL with on-policy distillation</td>
+    <td>STaR (Zelikman 2022)；Self-Distill (Yang 2022)；ReST (Gulcehre 2023)</td>
+    <td>Phase B "on-policy SFT" 的设计：用当前策略采样作下一阶段输入</td></tr>
+<tr><td>多 agent 协同与 critic feedback</td>
+    <td>Constitutional AI (Bai 2022)；RLAIF (Lee 2023)</td>
+    <td>启发了"用一个 module 的信号去对齐另一个 module"的双向闭环视角</td></tr>
+<tr><td>Rule-based preference for DPO</td>
+    <td>WebAgent-R1 (2024)；PlanTuning (2024)</td>
+    <td>支持"用结构 Jaccard 等廉价规则信号代替 reward model"的做法；β 选 0.1 也参考了 PlanTuning 的取值</td></tr>
+<tr><td>Iterative DPO / outer-loop alternation</td>
+    <td>Iterative DPO (Xu 2023)；SPIN (Chen 2024)</td>
+    <td>支持外循环 K ∈ {1, 2} 的可行性；MAPLE 论文 §4 锁定 K=1 已经足够</td></tr>
+<tr><td>LoRA + QLoRA</td>
+    <td>Hu et al. ICLR'22；Dettmers 2023</td>
+    <td>所有 adapter 用 LoRA r=16/α=32，PAD↔SDP 两个独立 adapter 挂同一 base</td></tr>
+</tbody>
+</table>
+
+<!-- ============================================ -->
+<h2 id="sec-3">3. 总体设计：双 Phase 交替结构</h2>
+
+<div class="diagram">
+                  外循环 (K = 1, 论文锁定)
+   ┌──────────────────────────────────────────────────┐
+   │                                                  │
+   │  ┌──────────────────────────────────────────┐    │
+   │  │ Phase A — PAD DPO（修 PAD）              │    │
+   │  │   π_PAD 采 2 个 scaffold → R_struct 排序 │    │
+   │  │   chosen/rejected → DPO on π_PAD         │    │
+   │  └──────────────────────────────────────────┘    │
+   │                     ↓                            │
+   │  ┌──────────────────────────────────────────┐    │
+   │  │ Phase B — SDP on-policy SFT（修 SDP）   │    │
+   │  │   用新 PAD 采 scaffold 作输入            │    │
+   │  │   gold (S*, O*) 作 target → NLL          │    │
+   │  └──────────────────────────────────────────┘    │
+   │                                                  │
+   └──────────────────────────────────────────────────┘
+
+   ⚠ CLI 命名漂移：代码里 `phase-a` = 论文 Phase B (修 SDP)
+                    `phase-b` = 论文 Phase A (修 PAD)
+   本文档按论文命名行文。
+</div>
+
+<table>
+<thead><tr><th>Phase</th><th>修谁</th><th>训练 task</th><th>损失</th><th>data 量</th></tr></thead>
+<tbody>
+<tr><td>Phase A</td><td>PAD</td><td>DPO (TRL <code>DPOTrainer</code>)</td>
+    <td>$\mathcal{L}_{\text{DPO}}^{\text{PAD}} = -\mathbb{E}\!\left[\log\sigma(\beta \Delta_{\text{PAD}}^{w,l})\right]$</td>
+    <td>1198 pairs（32B 实测）</td></tr>
+<tr><td>Phase B</td><td>SDP</td><td>SFT (TRL <code>SFTTrainer</code>)</td>
+    <td>$\mathcal{L}_{\text{SDP}}^{\text{ja}} = -\mathbb{E}_{(\mathcal{A}',\mathcal{T}')\sim\pi_{\text{PAD}}}\!\left[\log\pi_{\text{SDP}}(\mathcal{S}^\star,\mathcal{O}^\star \mid \cdot)\right]$</td>
+    <td>2426 rows（32B 实测）</td></tr>
+</tbody>
+</table>
+
+<!-- ============================================ -->
+<h2 id="sec-4">4. Phase A — PAD DPO</h2>
+
+<h3>4.1 数学形式</h3>
+
+<p>对每个训练样本 <code>$(I_q, I_p)$</code>：</p>
+
+<ol>
+<li>从当前 PAD 采样两个 scaffold：<br>
+    $w_1, w_2 \sim \pi_{\text{PAD}}(\cdot \mid I_q, I_p)$，温度 0.8 / top_p 0.9。</li>
+<li>对每个 scaffold 算 <strong>scaffold-level R_struct</strong>（vs gold scaffold）：
+<p style="text-align:center">
+$$ R_{\text{struct}}(w) \;=\; \tfrac12 \cdot J_{\text{multiset}}\!\left(\text{agents}(w),\, \text{agents}^\star\right)
+   \;+\; \tfrac12 \cdot J_{\text{set}}\!\left(\text{subtasks}(w),\, \text{subtasks}^\star\right) $$
+</p>
+其中：
+<ul>
+<li>$J_{\text{multiset}}(A,B) = \sum_x \min(c_A(x),c_B(x)) \big/ \sum_x \max(c_A(x),c_B(x))$（多重集加权 Jaccard，agents 用这个因为允许重复角色）</li>
+<li>$J_{\text{set}}(A,B) = |A\cap B|/|A\cup B|$（集合 Jaccard，subtask 名字用这个）</li>
+</ul>
+</li>
+<li>按 R_struct 排序：高者为 chosen <code>$w$</code>，低者为 rejected <code>$l$</code>。两者得分相等则丢弃。</li>
+<li>定义 DPO log-ratio：
+<p style="text-align:center">
+$$ \Delta_{\text{PAD}}^{w,l} \;=\;
+   \log \frac{\pi_{\text{PAD}}(w \mid I_q, I_p)}{\pi_{\text{ref}}(w \mid I_q, I_p)}
+   - \log \frac{\pi_{\text{PAD}}(l \mid I_q, I_p)}{\pi_{\text{ref}}(l \mid I_q, I_p)} $$
+</p>
+</li>
+<li>DPO 损失：
+<p style="text-align:center">
+$$ \boxed{\;\mathcal{L}_{\text{DPO}}^{\text{PAD}} \;=\; -\mathbb{E}_{(w,l)\sim\mathcal{D}_{\text{pref}}}\!\left[\log\sigma\!\big(\beta\,\Delta_{\text{PAD}}^{w,l}\big)\right]\;} $$
+</p>
+$\beta = 0.1$，$\pi_{\text{ref}}$ 在每轮 outer iteration 开始时刷新为上一轮 PAD checkpoint。
+</li>
+</ol>
+
+<h3>4.2 实现切片</h3>
+
+<h4>(a) Scaffold 打分函数</h4>
+<p>位于 <span class="filepath">SFT/bigmodel_training/joint_alignment_data.py:260-279</span></p>
+<pre><code>def _multiset_jaccard(a, b) -> float:
+    """Weighted Jaccard over multisets. Mirrors GRPO/plan_utils.py."""
+    ca, cb = Counter(a), Counter(b)
+    if not ca and not cb:
+        return 1.0
+    inter = sum((ca & cb).values())
+    union = sum((ca | cb).values())
+    return inter / union if union else 1.0
+
+
+def _jaccard(a, b) -> float:
+    A, B = set(a), set(b)
+    if not A and not B:
+        return 1.0
+    return len(A & B) / len(A | B)
+
+
+def scaffold_struct_score(scaffold, gold_scaffold) -> float:
+    """Scaffold-only structural similarity to gold, in [0, 1]."""
+    if not isinstance(scaffold, dict):
+        return 0.0
+    p_agents = [a.get("agent_role", "") for a in (scaffold.get("agents") or [])]
+    g_agents = [a.get("agent_role", "") for a in (gold_scaffold.get("agents") or [])]
+    p_subs = {s.get("name", "") for s in (scaffold.get("subtasks") or [])}
+    g_subs = {s.get("name", "") for s in (gold_scaffold.get("subtasks") or [])}
+    return 0.5 * _multiset_jaccard(p_agents, g_agents) + 0.5 * _jaccard(p_subs, g_subs)
+</code></pre>
+
+<h4>(b) DPO pair 生成主循环</h4>
+<p>位于 <span class="filepath">SFT/bigmodel_training/joint_alignment_data.py:371-473</span>（<code>cmd_phase_b</code>，CLI 名 phase-b = 论文 Phase A）</p>
+<pre><code>def cmd_phase_b(args):
+    """Plan §3.2 Phase A: DPO on PAD using scaffold-level R_struct."""
+    tok, pad_model = load_base_and_adapter(
+        args.base_model, args.pad_adapter, args.device, torch.bfloat16
+    )
+    src_rows = load_jsonl(Path(args.src).resolve())
+    out_rows = []
+    skipped = 0
+
+    for chunk_start in range(0, len(src_rows), flush_every):
+        chunk = src_rows[chunk_start : chunk_start + flush_every]
+        jobs, prompts_data = [], []
+        for r in chunk:
+            inp = r["plan"]["input"]
+            query, (desc, skills) = inp["query"], extract_learner(inp["learner"])
+            gold_scaffold = pad_target(r["plan"]["output"])
+            for pair_idx in range(args.pairs_per_query):
+                jobs.append((r, pair_idx, query, desc, skills, gold_scaffold))
+                # 每对样本要采 2 次 → 入队 2 份相同 prompt
+                prompts_data.extend([(query, desc, skills), (query, desc, skills)])
+
+        # 批量采样（左 padding，避免 prompt 截断）
+        results = batch_sample_scaffolds(
+            pad_model, tok, prompts_data,
+            temperature=args.temperature, top_p=args.top_p,
+            max_new=args.max_new_pad, batch_size=args.batch_size,
+            phase_label="phase-b",
+        )
+
+        result_idx = 0
+        for job in jobs:
+            r, pair_idx, query, desc, skills, gold_scaffold = job
+            candidates = []
+            for _ in range(2):
+                scaffold, raw_text = results[result_idx]; result_idx += 1
+                score = scaffold_struct_score(scaffold, gold_scaffold)
+                candidates.append((score, raw_text))
+            if candidates[0][0] == candidates[1][0]:   # 平局 → 丢弃
+                skipped += 1; continue
+            candidates.sort(key=lambda x: -x[0])       # 降序
+            chosen_text, rejected_text = candidates[0][1], candidates[1][1]
+            prompt_text = render_chat(tok, [
+                {"role": "system", "content": PAD_SYSTEM},
+                {"role": "user",   "content": PAD_USER_TEMPLATE.format(
+                    query=query, self_description=desc or "(no self-description provided)",
+                    skills=json.dumps(skills, ensure_ascii=False))},
+            ])
+            out_rows.append({
+                "prompt": prompt_text, "chosen": chosen_text, "rejected": rejected_text,
+                "delta_struct": candidates[0][0] - candidates[1][0],  # 诊断用
+            })
+</code></pre>
+
+<h4>(c) DPO Trainer 调用</h4>
+<p>位于 <span class="filepath">SFT/bigmodel_training/train_dpo_lora.py:204-247</span></p>
+<pre><code>dpo_args = DPOConfig(
+    output_dir=project_name,
+    num_train_epochs=float(params["epochs"]),       # = 1
+    per_device_train_batch_size=int(params["batch_size"]),
+    gradient_accumulation_steps=int(params["gradient_accumulation"]),
+    learning_rate=float(params["lr"]),              # = 5e-5
+    bf16=True,
+    gradient_checkpointing=True,
+    beta=float(params.get("dpo_beta", 0.1)),        # β = 0.1
+    max_length=max_length,                          # = 4096
+    precompute_ref_log_probs=True,                  # ★ 关键省显存
+)
+
+# 关键技巧：ref_model=None + precompute_ref_log_probs=True
+# 在 trainer 初始化时（policy == reference == 起点 PAD adapter）
+# 一次性算完 reference log-probs，之后训练只剩一个模型在 GPU 上。
+trainer = DPOTrainer(
+    model=model, ref_model=None, args=dpo_args,
+    train_dataset=train_dataset, eval_dataset=eval_dataset,
+    processing_class=tokenizer, peft_config=peft_config,
+)
+trainer.train()
+</code></pre>
+
+<blockquote class="note">
+<strong>Reference policy 是谁？</strong> 由 YAML 中 <code>peft_model: ./maple-pad-sft</code> 指定 — 即 Stage 1 PAD 出口的 LoRA adapter。这与论文 eq. (139) 中 $\pi^{\text{ref}}_{\text{PAD}}$ 的定义一致。$\beta=0.1$ 取自 PlanTuning，主流值 0.1–0.5。
+</blockquote>
+
+<!-- ============================================ -->
+<h2 id="sec-5">5. Phase B — SDP on-policy SFT</h2>
+
+<h3>5.1 数学形式</h3>
+
+<p>把 Stage 1 SDP 的 NLL 损失从 gold scaffold 输入改成<strong>当前 PAD 采样的 scaffold</strong> 输入：</p>
+
+<p style="text-align:center">
+$$ \boxed{\;\mathcal{L}_{\text{SDP}}^{\text{ja}} \;=\;
+  -\,\mathbb{E}_{(\mathcal{A}',\mathcal{T}')\sim\pi_{\text{PAD}}}\!\left[
+     \log \pi_{\text{SDP}}\!\big(\mathcal{S}^\star,\mathcal{O}^\star \,\big|\, I_q, I_p, \mathcal{A}', \mathcal{T}'\big)
+  \right]\;} $$
+</p>
+
+<p>注意：<strong>目标 $(\mathcal{S}^\star, \mathcal{O}^\star)$ 仍是 gold</strong>，只有<em>输入</em>变成 on-policy。这是 scheduled sampling 在分层规划任务下的实例化。</p>
+
+<h3>5.2 实现切片</h3>
+
+<h4>(a) On-policy SFT 数据生成</h4>
+<p>位于 <span class="filepath">SFT/bigmodel_training/joint_alignment_data.py:284-366</span>（<code>cmd_phase_a</code>，CLI 名 phase-a = 论文 Phase B）</p>
+<pre><code>def cmd_phase_a(args):
+    tok, pad_model = load_base_and_adapter(
+        args.base_model, args.pad_adapter, args.device, torch.bfloat16
+    )
+    src_rows = load_jsonl(Path(args.src).resolve())
+    out_rows, skipped = [], 0
+
+    for chunk_start in range(0, len(src_rows), flush_every):
+        chunk = src_rows[chunk_start : chunk_start + flush_every]
+        jobs, prompts_data = [], []
+        for r in chunk:
+            inp = r["plan"]["input"]
+            query, (desc, skills) = inp["query"], extract_learner(inp["learner"])
+            gold_sdp = sdp_target(r["plan"]["output"])     # gold (S*, O*) — target
+            for k in range(args.samples_per_query):
+                jobs.append((r, k, query, desc, skills, gold_sdp))
+                prompts_data.append((query, desc, skills))
+
+        # 用 PAD 批量采样 scaffold
+        results = batch_sample_scaffolds(
+            pad_model, tok, prompts_data,
+            temperature=args.temperature, top_p=args.top_p,
+            max_new=args.max_new_pad, batch_size=args.batch_size,
+            phase_label="phase-a",
+        )
+
+        for job, (scaffold, _) in zip(jobs, results):
+            r, k, query, desc, skills, gold_sdp = job
+            if scaffold is None or "agents" not in scaffold or "subtasks" not in scaffold:
+                skipped += 1; continue
+
+            # 把 PAD 采到的 scaffold 灌进 SDP 的 user prompt
+            user_text = SDP_USER_TEMPLATE.format(
+                query=query,
+                self_description=desc or "(no self-description provided)",
+                skills=json.dumps(skills, ensure_ascii=False),
+                agents=json.dumps(scaffold["agents"],   ensure_ascii=False, indent=2),
+                subtasks=json.dumps(scaffold["subtasks"], ensure_ascii=False, indent=2),
+            )
+            # target 仍然是 gold (S*, O*)
+            assistant_text = json.dumps(gold_sdp, ensure_ascii=False, indent=2)
+            out_rows.append({
+                "messages": [
+                    {"role": "system",    "content": SDP_SYSTEM},
+                    {"role": "user",      "content": user_text},
+                    {"role": "assistant", "content": assistant_text},
+                ],
+                "question_id": r["question_id"],
+                "profile_index": r["profile_index"],
+                "scaffold_sample_id": k,
+            })
+</code></pre>
+
+<h4>(b) SFT Trainer 调用</h4>
+<p>位于 <span class="filepath">SFT/bigmodel_training/train_sft_lora.py:129-167</span></p>
+<pre><code>sft_args = SFTConfig(
+    output_dir=project_name,
+    num_train_epochs=float(params["epochs"]),     # = 1 (corrective pass)
+    learning_rate=float(params["lr"]),            # = 5e-5（比 Stage 1 的 1e-4 低）
+    bf16=True,
+    gradient_checkpointing=True,
+    max_length=4096,
+    packing=False,
+    completion_only_loss=True,                    # ★ loss 只算 assistant token
+)
+trainer = SFTTrainer(
+    model=model,                                  # base + Stage-1 SDP LoRA (trainable)
+    args=sft_args,
+    train_dataset=train_dataset, eval_dataset=eval_dataset,
+    processing_class=tokenizer,
+    peft_config=lora_config,                      # None if peft_model already loaded
+)
+trainer.train()
+</code></pre>
+
+<blockquote class="note">
+<strong>关键设计点：从已训 SDP adapter 继续训，不是从头训。</strong>
+YAML 中 <code>peft_model: ./maple-sdp-sft</code> 让 <code>train_sft_lora.py</code> 通过 <code>PeftModel.from_pretrained(model, adapter_path, is_trainable=True)</code> 加载 Stage-1 出口 adapter，继续微调同一套 LoRA 权重。<code>completion_only_loss=True</code> 确保 loss 只在 assistant 段计算。
+</blockquote>
+
+<h4>(c) Adapter loading：embedding resize 防呆</h4>
+<p>位于 <span class="filepath">SFT/bigmodel_training/joint_alignment_data.py:100-147</span></p>
+<pre><code>def load_base_and_adapter(base_model, adapter_path, device, dtype):
+    """Load the base model + one PEFT adapter."""
+    tok = AutoTokenizer.from_pretrained(adapter_path, trust_remote_code=True)
+    if tok.pad_token is None:
+        tok.pad_token = tok.eos_token
+
+    base = AutoModelForCausalLM.from_pretrained(
+        base_model, torch_dtype=dtype, device_map=device, trust_remote_code=True,
+    )
+    # ★ ben 5/14 踩过的坑：AutoTrain 训 LoRA 时会自动 resize tokenizer，
+    #   adapter 里就带上了完整 embed_tokens（几十 MB → 1.9 GB）。
+    #   加载时 base model 不知道要 resize，会形状不匹配。
+    target_vocab_size = _adapter_vocab_size(adapter_path) or len(tok)
+    current_vocab_size = base.get_input_embeddings().weight.shape[0]
+    if current_vocab_size != target_vocab_size:
+        base.resize_token_embeddings(target_vocab_size)
+    model = PeftModel.from_pretrained(base, adapter_path)
+    model.eval()
+    return tok, model
+</code></pre>
+
+<!-- ============================================ -->
+<h2 id="sec-6">6. 外循环与命名说明</h2>
+
+<h3>6.1 train_joint.sh 的外循环</h3>
+<p>位于 <span class="filepath">SFT/bigmodel_training/train_joint.sh:47-95</span></p>
+<pre><code>for ((iter = 1; iter &lt;= K; iter++)); do
+  # ---- 论文 Phase B / CLI phase-a: on-policy SDP ----
+  python joint_alignment_data.py phase-a \
+      --src "$SRC" --base-model "$BASE_MODEL" \
+      --pad-adapter "$PAD_CURRENT" \
+      --samples-per-query 1 \
+      --out "data/joint/iter${iter}/phase_a"
+  # 用 train_sft_lora.py 继续训 SDP adapter
+  python train_sft_lora.py --config configs/_phase_a_iter${iter}.yml
+  SDP_CURRENT="./maple-sdp-onpolicy-iter${iter}"
+
+  # ---- 论文 Phase A / CLI phase-b: PAD DPO ----
+  python joint_alignment_data.py phase-b \
+      --src "$SRC" --base-model "$BASE_MODEL" \
+      --pad-adapter "$PAD_CURRENT" \
+      --pairs-per-query 1 \
+      --out "data/joint/iter${iter}/phase_b"
+  python train_dpo_lora.py --config configs/_phase_b_iter${iter}.yml
+  PAD_CURRENT="./maple-pad-dpo-iter${iter}"
+done</code></pre>
+
+<h3>6.2 命名漂移整理表</h3>
+<table>
+<thead><tr><th>论文 §3.2 名</th><th>CLI 命令</th><th>YAML 模板</th><th>修谁</th><th>损失</th></tr></thead>
+<tbody>
+<tr><td>Phase A</td><td><code>phase-b</code></td><td><code>joint_phase_b_autotrain.yml</code></td><td>PAD</td><td>DPO</td></tr>
+<tr><td>Phase B</td><td><code>phase-a</code></td><td><code>joint_phase_a_autotrain.yml</code></td><td>SDP</td><td>on-policy SFT</td></tr>
+</tbody>
+</table>
+
+<blockquote>
+<strong>为什么不改名？</strong> CLI 标签是历史遗留，改名要同步动 4 个 config / 多份 README / 已落地的训练日志命名，影响面大。<code>readmore_518_sft.md</code> 推荐的"四步手动模式"按论文顺序执行（先 PAD DPO 再 SDP on-policy），但脚本 <code>train_joint.sh</code> 的执行顺序是反的（先 SDP 后 PAD）。K=1 时两种顺序差异极小；K≥2 时两者会逐步收敛到同一不动点。
+</blockquote>
+
+<!-- ============================================ -->
+<h2 id="sec-7">7. 实测结果 (32B, K=1)</h2>
+
+<p>数据出处：<code>SFT/bigmodel_training/MAPLE_Qwen_32B_training_report_2026-05-20.html</code>。</p>
+
+<table>
+<thead><tr><th>阶段</th><th>指标</th><th>初值 → 终值</th><th>说明</th></tr></thead>
+<tbody>
+<tr><td>Phase A PAD DPO</td><td>eval reward accuracy</td><td>0.8364 → <strong>0.8973</strong></td><td>chosen 比 rejected 的 reward 更高的比例</td></tr>
+<tr><td>Phase A PAD DPO</td><td>eval reward margin</td><td>2.539 → <strong>2.723</strong></td><td>$\beta \cdot \Delta_{\text{PAD}}^{w,l}$ 的 batch 均值</td></tr>
+<tr><td>Phase B SDP SFT</td><td>eval loss</td><td>0.5414 → <strong>0.5262</strong></td><td>注：略高于 Stage 1 SDP 终态 0.5097（因输入分布从 gold 换成 PAD 采样，合理）</td></tr>
+<tr><td>Phase B SDP SFT</td><td>token accuracy</td><td>0.8393 → <strong>0.8426</strong></td><td>—</td></tr>
+<tr><td>数据生成</td><td>Phase A pairs</td><td>1198 / 2433</td><td>跳过的 ~50% 来自"两次采样得分相等"</td></tr>
+<tr><td>数据生成</td><td>Phase B SFT rows</td><td>2426 / 2433（99.7%）</td><td>只跳过 7 条 unparseable scaffold</td></tr>
+</tbody>
+</table>
+
+<blockquote class="warn">
+<strong>评估警告（来自训练报告）。</strong> Phase A / Phase B 在该实现里复用了 generated train file 作为 valid split，因此上述 eval metrics 更适合作为<em>训练稳定性</em>信号，不应直接当成 held-out dev 泛化指标。真正的泛化判定靠 Stage 2 出口的 pass@1 / pass@8 gate（详见 §3.4 of <code>EXPERIMENT_PLAN</code>）。
+</blockquote>
+
+<!-- ============================================ -->
+<h2 id="sec-8">8. 完整运行指令（recovery-safe 四步模式）</h2>
+
+<p>来自 <code>readmore_518_sft.md</code>。推荐 <strong>不</strong>用 <code>train_joint.sh</code> 一次跑完，分四步执行——任一步失败只重跑那一步。</p>
+
+<pre><code># 环境
+export BASE_MODEL=/root/autodl-tmp/Qwen3-32B-Instruct
+export PAD_ADAPTER=./maple-pad-sft
+export SDP_ADAPTER=./maple-sdp-sft
+export SRC=data/raw/train.jsonl
+export DEVICE=cuda:0
+export MAX_NEW_PAD=1536
+export BATCH_SIZE=32
+
+# 2.1 生成 Phase A (PAD DPO) 数据
+python joint_alignment_data.py phase-b \
+  --src "$SRC" --base-model "$BASE_MODEL" --device "$DEVICE" \
+  --pad-adapter "$PAD_ADAPTER" --pairs-per-query 1 \
+  --max-new-pad "$MAX_NEW_PAD" --batch-size "$BATCH_SIZE" \
+  --out data/joint/iter1/phase_a_pad_dpo
+
+# 2.2 训 Phase A PAD DPO（输出 → maple-pad-dpo-iter1/）
+python train_dpo_lora.py --config configs/_phase_a_pad_dpo_iter1.yml
+
+# 2.3 生成 Phase B (SDP on-policy SFT) 数据，注意用更新后的 PAD
+python joint_alignment_data.py phase-a \
+  --src "$SRC" --base-model "$BASE_MODEL" --device "$DEVICE" \
+  --pad-adapter ./maple-pad-dpo-iter1 --samples-per-query 1 \
+  --max-new-pad "$MAX_NEW_PAD" --batch-size "$BATCH_SIZE" \
+  --out data/joint/iter1/phase_b_sdp_sft
+
+# 2.4 训 Phase B SDP on-policy SFT（输出 → maple-sdp-onpolicy-iter1/）
+python train_sft_lora.py --config configs/_phase_b_sdp_sft_iter1.yml
+</code></pre>
+
+<h3>8.1 关键超参（两个 Phase 共享）</h3>
+<table>
+<thead><tr><th>项</th><th>值</th></tr></thead>
+<tbody>
+<tr><td>base model</td><td>Qwen3-32B-Instruct</td></tr>
+<tr><td>LoRA r / α / dropout</td><td>16 / 32 / 0.05</td></tr>
+<tr><td>target_modules</td><td>all-linear</td></tr>
+<tr><td>optimizer</td><td>paged_adamw_8bit</td></tr>
+<tr><td>learning rate</td><td>5e-5（比 Stage 1 的 1e-4 低；refining 而非 cold start）</td></tr>
+<tr><td>scheduler / warmup</td><td>cosine / 0.1</td></tr>
+<tr><td>batch / grad_accum</td><td>1 / 16（effective 16）</td></tr>
+<tr><td>epochs</td><td>1</td></tr>
+<tr><td>mixed precision</td><td>bf16</td></tr>
+<tr><td>gradient checkpointing</td><td>开（32B + bf16 必开，否则 OOM）</td></tr>
+<tr><td>DPO β</td><td>0.1</td></tr>
+<tr><td>采样温度 / top_p（生成阶段）</td><td>0.8 / 0.9</td></tr>
+<tr><td>max_new_pad</td><td>1536 tok</td></tr>
+</tbody>
+</table>
+
+<!-- ============================================ -->
+<h2 id="sec-9">9. 已知偏离与限制</h2>
+
+<ol>
+<li><strong>Phase A 偏好信号简化</strong>。论文/EXPERIMENT_PLAN 描述的"完整版" Phase A 应该是：PAD 采 2 scaffold → frozen SDP 各生成完整 plan → 用 $R_{\text{struct}}+R_{\text{pers}}+R_{\text{ped}}$ 全套 reward 排序。当前实现退化为 <strong>scaffold-vs-gold 结构 Jaccard</strong>，理由：
+  <ul>
+  <li>(a) 把 $R_{\text{pers}}/R_{\text{ped}}$ 留给 GRPO 独享，消融 RQ3 时可干净分离贡献；</li>
+  <li>(b) 不调 SDP forward pass，单条样本快 ~2×；</li>
+  <li>(c) Phase A 的<em>动机</em>只是修 coordination bias，结构信号最贴这个动机。</li>
+  </ul>
+  这一偏离在 <code>readmore_518_sft.md</code> §"Important deviation from strict paper text" 已明文记录。
+</li>
+<li><strong>valid split = train split</strong>。Phase A/B 都把生成的 <code>train.jsonl</code> 同时当 valid split，eval metrics 仅供训练稳定性参考。</li>
+<li><strong>外循环 K=1</strong>。论文允许 K ∈ {1,2}，当前只跑 K=1。K≥2 时需要把 <code>train_joint.sh</code> 里循环 PAD_CURRENT / SDP_CURRENT 的指针更新打通到 data 生成命令——脚本已支持，未实测。</li>
+<li><strong>pass@1 / pass@8 gate 未自动化</strong>。Joint Alignment 出口后理论上要跑 hard gate（详见 EXPERIMENT_PLAN §3.4）才能进 GRPO，此目录暂未实现 <code>runs/sft_gate_report.json</code>。</li>
+<li><strong>autotrain-advanced==0.8.36 不可用</strong>。它 pin <code>transformers==4.48.0</code>，加载不了 Qwen3。必须用 <code>train_sft_lora.py</code> / <code>train_dpo_lora.py</code> 直接走 TRL。</li>
+<li><strong>DPO 数据格式</strong>。<code>chosen/rejected</code> 当前写成 Python list 字符串，由 <code>train_dpo_lora.py:message_payload_to_text</code> 解析；如改 <code>joint_alignment_data.py</code> 输出格式，需同步改解析器。</li>
+</ol>
+
+<!-- ============================================ -->
+<div class="footer">
+<p>生成时间：2026-05-23。文档基于以下源整理：</p>
+<ul>
+<li><code>SFT/README.md</code></li>
+<li><code>SFT/bigmodel_training/EXPERIMENT_PLAN_2026-05-15.html</code> §3.2 (Stage 2 — Joint Alignment)</li>
+<li><code>SFT/bigmodel_training/readmore_518_sft.md</code></li>
+<li><code>SFT/bigmodel_training/MAPLE_Qwen_32B_training_report_2026-05-20.html</code></li>
+<li><code>SFT/bigmodel_training/joint_alignment_data.py</code> (519 lines)</li>
+<li><code>SFT/bigmodel_training/train_dpo_lora.py</code> (252 lines)</li>
+<li><code>SFT/bigmodel_training/train_sft_lora.py</code> (172 lines)</li>
+<li><code>SFT/bigmodel_training/train_joint.sh</code> (101 lines)</li>
+<li><code>SFT/bigmodel_training/prompts.py</code></li>
+<li><code>SFT/bigmodel_training/configs/joint_phase_{a,b}_autotrain.yml</code></li>
+</ul>
+</div>
+
+</body>
+</html>

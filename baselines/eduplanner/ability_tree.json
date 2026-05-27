@@ -1,0 +1,58 @@
+{
+  "ability_tree": {
+    "target_knowledge": "Programming Concept Mastery",
+    "total_score": 25,
+    "ability": [
+      {
+        "Name": "Python Idioms",
+        "Score": [
+          {"score": 1, "Description": "Aware of basic syntax; copies snippets without understanding."},
+          {"score": 2, "Description": "Writes scripts with loops/functions; doesn't yet reach for stdlib."},
+          {"score": 3, "Description": "Comfortable with stdlib (itertools, collections); thinks idiomatically."},
+          {"score": 4, "Description": "Reads CPython source occasionally; understands GIL/iterators/generators."},
+          {"score": 5, "Description": "Senior Python; designs APIs, knows performance trade-offs cold."}
+        ]
+      },
+      {
+        "Name": "SQL / Data Wrangling",
+        "Score": [
+          {"score": 1, "Description": "Knows SELECT/WHERE; struggles with JOINs."},
+          {"score": 2, "Description": "Writes multi-table JOINs; awkward with GROUP BY + window functions."},
+          {"score": 3, "Description": "Comfortable with window functions, CTEs, aggregation patterns."},
+          {"score": 4, "Description": "Reads EXPLAIN output; thinks about indexes and query plans."},
+          {"score": 5, "Description": "Senior; designs schemas, partitioning strategies, ETL pipelines."}
+        ]
+      },
+      {
+        "Name": "Debugging & Diagnostics",
+        "Score": [
+          {"score": 1, "Description": "Reads stack traces; uses print statements."},
+          {"score": 2, "Description": "Uses a debugger; understands breakpoints, watch expressions."},
+          {"score": 3, "Description": "Uses pdb/lldb fluently; bisects regressions with git bisect."},
+          {"score": 4, "Description": "Uses tracing (strace/lsof/tcpdump on Linux); profiles hot paths."},
+          {"score": 5, "Description": "Diagnoses production incidents under time pressure; flame graphs, eBPF."}
+        ]
+      },
+      {
+        "Name": "Algorithms & Data Structures",
+        "Score": [
+          {"score": 1, "Description": "Knows basic arrays/dicts; cannot reason about complexity."},
+          {"score": 2, "Description": "Uses sorting/hashing; informal big-O understanding."},
+          {"score": 3, "Description": "Comfortable with trees/graphs, recursion, DP basics."},
+          {"score": 4, "Description": "Designs algorithms with rigorous big-O analysis; advanced DS (segment trees, union-find)."},
+          {"score": 5, "Description": "Expert; reads/contributes algorithm research; designs novel solutions."}
+        ]
+      },
+      {
+        "Name": "Web Frameworks / API Design",
+        "Score": [
+          {"score": 1, "Description": "Knows what HTTP is; never built an API."},
+          {"score": 2, "Description": "Builds CRUD with a framework; doesn't think about REST conventions."},
+          {"score": 3, "Description": "Designs RESTful APIs; knows auth/middleware/status codes."},
+          {"score": 4, "Description": "Architects multi-service systems; queues, async, idempotency."},
+          {"score": 5, "Description": "Designs framework-level abstractions; writes OSS libraries."}
+        ]
+      }
+    ]
+  }
+}

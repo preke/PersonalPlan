@@ -1,0 +1,767 @@
+{
+  "A_overview": {
+    "total_records": 3043,
+    "unique_questions": 1730,
+    "unique_profiles_by_text": 2738,
+    "rows_per_qid_mean": 1.7589595375722544,
+    "empty_profile_records": 0,
+    "nonempty_profile_records": 3043,
+    "nonempty_profile_pct": 1.0,
+    "learner_schema_distribution": {
+      "('about_me', 'top_tags')": 3042,
+      "('about_me', 'about_me_summary', 'top_tags')": 1
+    },
+    "questions_with_multi_profile": 971,
+    "max_profiles_per_question": 6,
+    "profile_index_distribution": {
+      "0": 1727,
+      "1": 972,
+      "3": 68,
+      "2": 253,
+      "4": 15,
+      "5": 8
+    },
+    "nprof_per_qid_distribution": {
+      "2": 720,
+      "1": 759,
+      "3": 183,
+      "6": 8,
+      "4": 53,
+      "5": 7
+    },
+    "query_len_chars": {
+      "mean": 592.1340782122905,
+      "median": 532.0,
+      "min": 34,
+      "max": 2340,
+      "p25": 340.0,
+      "p75": 774.5
+    },
+    "desc_len_chars_all": {
+      "mean": 169.77029247453171,
+      "median": 130.0,
+      "min": 2,
+      "max": 1460
+    },
+    "skills_per_profile_all": {
+      "mean": 4.877423595136379,
+      "median": 5.0,
+      "min": 0,
+      "max": 5
+    },
+    "agent_backstory_len_chars": {
+      "mean": 393.83591366256076,
+      "median": 374.0
+    },
+    "agent_goal_len_chars": {
+      "mean": 166.45022036388292,
+      "median": 160.0
+    },
+    "instruction_len_chars": {
+      "mean": 378.9843255224826,
+      "median": 361.0
+    }
+  },
+  "B_splits": {
+    "rows": {
+      "train": 2433,
+      "dev": 305,
+      "test": 305
+    },
+    "qids": {
+      "train": 1384,
+      "dev": 173,
+      "test": 173
+    },
+    "intent_x_split": {
+      "train": {
+        "API_USAGE": 915,
+        "CONCEPTUAL": 1186,
+        "DISCREPANCY": 122,
+        "ERRORS": 61,
+        "REVIEW": 98,
+        "API_CHANGE": 41,
+        "LEARNING": 10,
+        "UNKNOWN": 0
+      },
+      "dev": {
+        "API_USAGE": 107,
+        "CONCEPTUAL": 145,
+        "DISCREPANCY": 26,
+        "ERRORS": 1,
+        "REVIEW": 13,
+        "API_CHANGE": 11,
+        "LEARNING": 2,
+        "UNKNOWN": 0
+      },
+      "test": {
+        "API_USAGE": 92,
+        "CONCEPTUAL": 157,
+        "DISCREPANCY": 24,
+        "ERRORS": 8,
+        "REVIEW": 18,
+        "API_CHANGE": 6,
+        "LEARNING": 0,
+        "UNKNOWN": 0
+      }
+    },
+    "intent_x_split_pct": {
+      "train": {
+        "API_USAGE": 37.61,
+        "CONCEPTUAL": 48.75,
+        "DISCREPANCY": 5.01,
+        "ERRORS": 2.51,
+        "REVIEW": 4.03,
+        "API_CHANGE": 1.69,
+        "LEARNING": 0.41,
+        "UNKNOWN": 0.0
+      },
+      "dev": {
+        "API_USAGE": 35.08,
+        "CONCEPTUAL": 47.54,
+        "DISCREPANCY": 8.52,
+        "ERRORS": 0.33,
+        "REVIEW": 4.26,
+        "API_CHANGE": 3.61,
+        "LEARNING": 0.66,
+        "UNKNOWN": 0.0
+      },
+      "test": {
+        "API_USAGE": 30.16,
+        "CONCEPTUAL": 51.48,
+        "DISCREPANCY": 7.87,
+        "ERRORS": 2.62,
+        "REVIEW": 5.9,
+        "API_CHANGE": 1.97,
+        "LEARNING": 0.0,
+        "UNKNOWN": 0.0
+      }
+    },
+    "profile_index_x_split": {
+      "train": {
+        "0": 1381,
+        "1": 778,
+        "2": 203,
+        "3": 54,
+        "4": 11,
+        "5": 6
+      },
+      "dev": {
+        "0": 173,
+        "1": 97,
+        "2": 25,
+        "3": 7,
+        "4": 2,
+        "5": 1
+      },
+      "test": {
+        "0": 173,
+        "1": 97,
+        "2": 25,
+        "3": 7,
+        "4": 2,
+        "5": 1
+      }
+    },
+    "nprof_x_split": {
+      "train": {
+        "1": 607,
+        "2": 576,
+        "3": 147,
+        "4": 43,
+        "5": 5,
+        "6": 6
+      },
+      "dev": {
+        "1": 76,
+        "2": 72,
+        "3": 18,
+        "4": 5,
+        "5": 1,
+        "6": 1
+      },
+      "test": {
+        "1": 76,
+        "2": 72,
+        "3": 18,
+        "4": 5,
+        "5": 1,
+        "6": 1
+      }
+    },
+    "balance_chi2": {
+      "intent": {
+        "chi2": 28.711736474347,
+        "cramers_v": 0.0686852930628743
+      },
+      "profile_index": {
+        "chi2": 0.5626019443188076,
+        "cramers_v": 0.009614675703277745
+      },
+      "nprof_per_qid": {
+        "chi2": 0.5015058643486272,
+        "cramers_v": 0.012039264571818292
+      }
+    }
+  },
+  "C_counts_vs_unique": {
+    "per_plan": {
+      "agents_per_plan_mean": 2.907985540584949,
+      "agents_per_plan_median": 3.0,
+      "unique_agent_roles_per_plan_mean": 2.907985540584949,
+      "duplicate_agent_role_within_plan_count": 0,
+      "subtasks_per_plan_mean": 3.976339139007558,
+      "unique_subtask_names_per_plan_mean": 3.976339139007558,
+      "duplicate_subtask_name_within_plan_count": 0,
+      "steps_per_plan_mean": 10.377916529740387,
+      "tools_per_plan_total_mean": 1.89516924088071,
+      "unique_tools_per_plan_mean": 1.8941833716726915
+    },
+    "dataset_total": {
+      "total_agent_instances": 8849,
+      "unique_agent_roles_global": 4380,
+      "total_subtask_instances": 12100,
+      "unique_subtask_names_global": 11488,
+      "total_step_instances": 31580,
+      "unique_tools_global": 5
+    }
+  },
+  "C_complexity": {
+    "agents_per_plan": {
+      "mean": 2.907985540584949,
+      "median": 3.0,
+      "min": 2,
+      "max": 4,
+      "distribution": {
+        "3": 2659,
+        "2": 332,
+        "4": 52
+      }
+    },
+    "subtasks_per_plan": {
+      "mean": 3.976339139007558,
+      "median": 4.0,
+      "min": 2,
+      "max": 6,
+      "distribution": {
+        "3": 475,
+        "4": 2094,
+        "5": 449,
+        "2": 24,
+        "6": 1
+      }
+    },
+    "steps_per_plan": {
+      "mean": 10.377916529740387,
+      "median": 10.0,
+      "min": 5,
+      "max": 23
+    },
+    "steps_per_subtask": {
+      "mean": 2.6099173553719006,
+      "median": 2.0
+    },
+    "human_input_steps_per_plan_mean": 5.685836345711469,
+    "human_input_step_ratio_overall": 0.5478784040531982,
+    "plans_with_loop": 2454,
+    "plans_with_loop_pct": 0.8064410121590536,
+    "plans_with_multiple_loops": 23,
+    "loops_total": 2481,
+    "loop_step_count_mean": 2.5078597339782345,
+    "loop_max_iter_distribution": {
+      "3": 2071,
+      "2": 410
+    }
+  },
+  "C_dag": {
+    "longest_path_len": {
+      "mean": 5.447255997371015,
+      "median": 5.0,
+      "min": 2,
+      "max": 15
+    },
+    "max_layer_width": {
+      "mean": 3.5787052251068023,
+      "median": 3.0
+    },
+    "edges_per_plan_mean": 7.915543871179757,
+    "edges_per_node_mean": 0.7627295756808107,
+    "parallelizable_ratio_mean": 0.4685965192687678
+  },
+  "D_agents": {
+    "unique_agent_roles": 4380,
+    "top20_roles": [
+      [
+        "cpp_code_validator",
+        219
+      ],
+      [
+        "csharp_code_validator",
+        207
+      ],
+      [
+        "cpp_docs_retriever",
+        121
+      ],
+      [
+        "java_code_validator",
+        105
+      ],
+      [
+        "cpp_standard_docs_retriever",
+        92
+      ],
+      [
+        "csharp_docs_retriever",
+        91
+      ],
+      [
+        "js_code_validator",
+        90
+      ],
+      [
+        "dotnet_docs_retriever",
+        89
+      ],
+      [
+        "php_code_validator",
+        73
+      ],
+      [
+        "r_code_validator",
+        71
+      ],
+      [
+        "css_docs_retriever",
+        65
+      ],
+      [
+        "php_docs_retriever",
+        59
+      ],
+      [
+        "java_docs_retriever",
+        52
+      ],
+      [
+        "css_code_validator",
+        51
+      ],
+      [
+        "js_docs_retriever",
+        50
+      ],
+      [
+        "c_code_validator",
+        48
+      ],
+      [
+        "python_code_validator",
+        39
+      ],
+      [
+        "android_docs_retriever",
+        35
+      ],
+      [
+        "rust_code_validator",
+        33
+      ],
+      [
+        "android_code_validator",
+        29
+      ]
+    ],
+    "tools_per_agent_mean": 0.6517120578596451,
+    "zero_tool_agents_pct": 0.34851395637925187,
+    "total_agents": 8849,
+    "unique_tools": 5,
+    "all_tools": [
+      [
+        "CodeInterpreterTool",
+        2980
+      ],
+      [
+        "CodeDocsSearchTool",
+        2652
+      ],
+      [
+        "FirecrawlSearchTool",
+        126
+      ],
+      [
+        "FileWriterTool",
+        8
+      ],
+      [
+        "ArxivPaperTool",
+        1
+      ]
+    ],
+    "role_family_distribution": {
+      "debugger": 130,
+      "retriever": 2770,
+      "validator": 2942,
+      "tutor": 2968,
+      "other": 29,
+      "generator": 8,
+      "reviewer": 2
+    },
+    "roles_per_plan_mean": 2.907985540584949
+  },
+  "E_personalization": {
+    "nonempty_profile_records": 3043,
+    "questions_with_multi_profile": 971,
+    "total_pairs": 1777,
+    "pair_with_identical_profile_text": 83,
+    "agent_role_jaccard_mean": 0.32006324195406916,
+    "agent_role_jaccard_median": 0.2,
+    "agent_family_jaccard_mean": 0.9259050834740199,
+    "tool_jaccard_mean": 0.9112736822359784,
+    "subtask_name_jaccard_mean": 0.22903664926414713,
+    "step_count_diff_mean": 1.814856499718627,
+    "records_with_skills": 3003,
+    "skill_lex_hit_ratio_mean": 0.4286158286158286,
+    "skill_lex_hit_ratio_median": 0.4,
+    "skill_at_least_one_record_count": 2857,
+    "skill_at_least_one_pct": 0.9513819513819514,
+    "desc_token_hit_ratio_mean": 0.28795655103078155,
+    "divergence_by_intent": [
+      {
+        "intent": "API_USAGE",
+        "mean_diff": 0.6476003294399522,
+        "median_diff": 0.8,
+        "n_pairs": 636
+      },
+      {
+        "intent": "CONCEPTUAL",
+        "mean_diff": 0.69645390070922,
+        "median_diff": 0.8,
+        "n_pairs": 893
+      },
+      {
+        "intent": "DISCREPANCY",
+        "mean_diff": 0.6504629629629628,
+        "median_diff": 0.775,
+        "n_pairs": 108
+      },
+      {
+        "intent": "ERRORS",
+        "mean_diff": 0.723,
+        "median_diff": 0.75,
+        "n_pairs": 50
+      },
+      {
+        "intent": "REVIEW",
+        "mean_diff": 0.7258333333333333,
+        "median_diff": 0.8,
+        "n_pairs": 60
+      },
+      {
+        "intent": "API_CHANGE",
+        "mean_diff": 0.8041666666666666,
+        "median_diff": 0.9,
+        "n_pairs": 24
+      },
+      {
+        "intent": "LEARNING",
+        "mean_diff": 0.8650793650793651,
+        "median_diff": 0.9285714285714286,
+        "n_pairs": 6
+      }
+    ],
+    "profile_vs_plan_pearson_r": 0.14612870250924045
+  },
+  "J_pedagogy": {
+    "phase_stats": {
+      "probe": {
+        "plans": 3043,
+        "plan_pct": 1.0,
+        "steps": 22247,
+        "step_pct": 0.7044648511716276
+      },
+      "retrieve_demonstrate": {
+        "plans": 2984,
+        "plan_pct": 0.9806112389089714,
+        "steps": 10517,
+        "step_pct": 0.3330272324255858
+      },
+      "apply": {
+        "plans": 3033,
+        "plan_pct": 0.9967137693066053,
+        "steps": 19777,
+        "step_pct": 0.6262507916402786
+      },
+      "validate": {
+        "plans": 3043,
+        "plan_pct": 1.0,
+        "steps": 18983,
+        "step_pct": 0.6011082963901203
+      },
+      "feedback": {
+        "plans": 2720,
+        "plan_pct": 0.8938547486033519,
+        "steps": 5690,
+        "step_pct": 0.18017732742241926
+      },
+      "consolidate": {
+        "plans": 2941,
+        "plan_pct": 0.9664804469273743,
+        "steps": 5947,
+        "step_pct": 0.1883153894870171
+      }
+    },
+    "phase_conditions": {
+      "probe_first_half_pct": 1.0,
+      "validate_present_pct": 1.0,
+      "ordered_core_4_phase_pct": 0.1656260269470917,
+      "phasecov_v2_mean": 0.7218753423156972,
+      "phasecov_v2_full_pct": 0.1656260269470917
+    },
+    "plan_size_quality_mean": 0.9899583533456356,
+    "r_ped_proxy_mean": 0.8559168478306663,
+    "method_stats": {
+      "Socratic probing": {
+        "plans": 3043,
+        "plan_pct": 1.0,
+        "steps": 22247,
+        "step_pct": 0.7044648511716276
+      },
+      "Scaffolding/fading": {
+        "plans": 1092,
+        "plan_pct": 0.35885639171869865,
+        "steps": 1223,
+        "step_pct": 0.038727042431918934
+      },
+      "Analogy/bridging": {
+        "plans": 2216,
+        "plan_pct": 0.7282287216562603,
+        "steps": 3354,
+        "step_pct": 0.10620645978467384
+      },
+      "Docs grounding": {
+        "plans": 2987,
+        "plan_pct": 0.9815971081169899,
+        "steps": 10517,
+        "step_pct": 0.3330272324255858
+      },
+      "Worked example": {
+        "plans": 2701,
+        "plan_pct": 0.8876109102859021,
+        "steps": 6124,
+        "step_pct": 0.19392020265991133
+      },
+      "Practice/application": {
+        "plans": 3041,
+        "plan_pct": 0.9993427538613211,
+        "steps": 19777,
+        "step_pct": 0.6262507916402786
+      },
+      "Validation/testing": {
+        "plans": 3043,
+        "plan_pct": 1.0,
+        "steps": 18983,
+        "step_pct": 0.6011082963901203
+      },
+      "Iterative feedback": {
+        "plans": 2912,
+        "plan_pct": 0.9569503779165297,
+        "steps": 5690,
+        "step_pct": 0.18017732742241926
+      },
+      "Metacognitive consolidation": {
+        "plans": 2943,
+        "plan_pct": 0.9671376930660532,
+        "steps": 5947,
+        "step_pct": 0.1883153894870171
+      }
+    },
+    "top_phase_sequences": [
+      [
+        "probe > apply > validate > retrieve_demonstrate",
+        961
+      ],
+      [
+        "probe > apply > retrieve_demonstrate > validate",
+        591
+      ],
+      [
+        "probe > retrieve_demonstrate > apply > validate",
+        504
+      ],
+      [
+        "probe > validate > retrieve_demonstrate > apply",
+        469
+      ],
+      [
+        "probe > retrieve_demonstrate > validate > apply",
+        307
+      ],
+      [
+        "probe > validate > apply > retrieve_demonstrate",
+        140
+      ],
+      [
+        "probe > apply > validate",
+        41
+      ],
+      [
+        "probe > validate > apply",
+        18
+      ],
+      [
+        "probe > retrieve_demonstrate > validate",
+        6
+      ],
+      [
+        "probe > validate > retrieve_demonstrate",
+        4
+      ]
+    ],
+    "personalization_proxy": {
+      "grounded_step_ratio_overall": 0.46912602913236223,
+      "grounded_steps_per_plan_mean": 4.8685507722642125,
+      "plans_with_grounded_step_pct": 0.9645087085113375,
+      "r_pers_proxy_mean": 0.4730050401314394,
+      "r_pers_proxy_median": 0.5
+    },
+    "lengths": {
+      "plan_text_chars_mean": 8645.962536970095,
+      "plan_text_tokens_mean": 1206.1708839960565,
+      "plan_json_chars_mean": 12078.132106473875,
+      "step_instruction_chars_mean": 378.9843255224826,
+      "step_instruction_chars_median": 361.0
+    }
+  },
+  "F_intent_summary": [
+    {
+      "primary_intent": "API_USAGE",
+      "n": 1114,
+      "agents": 2.93,
+      "subtasks": 3.95,
+      "steps": 10.31,
+      "longest_path": 5.77,
+      "loops_mean": 0.94,
+      "loop_pct": 0.93,
+      "human_input_mean": 5.63,
+      "tools": 1.92
+    },
+    {
+      "primary_intent": "CONCEPTUAL",
+      "n": 1488,
+      "agents": 2.9,
+      "subtasks": 4.03,
+      "steps": 10.54,
+      "longest_path": 5.16,
+      "loops_mean": 0.69,
+      "loop_pct": 0.69,
+      "human_input_mean": 5.73,
+      "tools": 1.89
+    },
+    {
+      "primary_intent": "DISCREPANCY",
+      "n": 172,
+      "agents": 2.85,
+      "subtasks": 3.85,
+      "steps": 9.98,
+      "longest_path": 5.49,
+      "loops_mean": 0.91,
+      "loop_pct": 0.9,
+      "human_input_mean": 5.6,
+      "tools": 1.83
+    },
+    {
+      "primary_intent": "ERRORS",
+      "n": 70,
+      "agents": 2.84,
+      "subtasks": 3.66,
+      "steps": 9.54,
+      "longest_path": 5.39,
+      "loops_mean": 0.83,
+      "loop_pct": 0.83,
+      "human_input_mean": 5.39,
+      "tools": 1.81
+    },
+    {
+      "primary_intent": "REVIEW",
+      "n": 129,
+      "agents": 2.81,
+      "subtasks": 3.91,
+      "steps": 10.32,
+      "longest_path": 5.88,
+      "loops_mean": 0.97,
+      "loop_pct": 0.93,
+      "human_input_mean": 6.19,
+      "tools": 1.82
+    },
+    {
+      "primary_intent": "API_CHANGE",
+      "n": 58,
+      "agents": 2.9,
+      "subtasks": 3.78,
+      "steps": 9.48,
+      "longest_path": 5.34,
+      "loops_mean": 0.81,
+      "loop_pct": 0.81,
+      "human_input_mean": 4.97,
+      "tools": 1.88
+    },
+    {
+      "primary_intent": "LEARNING",
+      "n": 12,
+      "agents": 3.5,
+      "subtasks": 4.5,
+      "steps": 11.92,
+      "longest_path": 6.92,
+      "loops_mean": 0.92,
+      "loop_pct": 0.92,
+      "human_input_mean": 5.83,
+      "tools": 2.5
+    }
+  ],
+  "G_lexical": {
+    "query": {
+      "tokens": 269554,
+      "vocab": 13953,
+      "ttr": 0.05176328305274639,
+      "distinct_1": 0.05176328305274639,
+      "distinct_2": 0.3252829684700226,
+      "distinct_3": 0.511059090639283
+    },
+    "plan_text": {
+      "tokens": 3670378,
+      "vocab": 70838,
+      "ttr": 0.01929991951782623,
+      "distinct_1": 0.01929991951782623,
+      "distinct_2": 0.25957088331798067,
+      "distinct_3": 0.5784543599892763
+    },
+    "skills": {
+      "tokens": 14842,
+      "vocab": 2500
+    },
+    "agent_roles": {
+      "tokens": 8849,
+      "vocab": 4380
+    }
+  },
+  "H_long_tail": {
+    "top10_tool_share": 1.0,
+    "unique_tools": 5
+  },
+  "I_quality": {
+    "plans_with_unknown_agent_ref": 0,
+    "plans_with_unknown_depends_on": 0,
+    "plans_with_unknown_step_in_exec": 0,
+    "plans_with_missing_step_in_exec": 0,
+    "plans_with_loop_step_unknown": 0,
+    "plans_with_cycle": 0,
+    "plans_with_any_issue": 0,
+    "valid_plans": 3043,
+    "valid_rate": 1.0,
+    "loop_schema_plural_steps": 2262,
+    "loop_schema_singular_step": 219,
+    "steps_missing_depends_on": 5,
+    "agents_missing_backstory": 1
+  }
+}

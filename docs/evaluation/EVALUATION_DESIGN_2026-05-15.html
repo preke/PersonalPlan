@@ -1,0 +1,2551 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<title>PersonalPlan / MAPLE 评估方法重新设计 — 2026-05-15</title>
+<script>
+  window.MathJax = {
+    tex: {
+      inlineMath: [['\\(', '\\)']],
+      displayMath: [['\\[', '\\]']],
+      tags: 'none',
+      packages: {'[+]': ['mathtools', 'ams']}
+    },
+    options: { skipHtmlTags: ['script','noscript','style','textarea','pre','code'] }
+  };
+</script>
+<script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+<style>
+  :root {
+    --fg: #1f2328;
+    --muted: #57606a;
+    --bg: #ffffff;
+    --bg-soft: #f6f8fa;
+    --border: #d0d7de;
+    --accent: #0969da;
+    --accent-soft: #ddf4ff;
+    --warn: #9a6700;
+    --warn-soft: #fff8c5;
+    --bad: #cf222e;
+    --bad-soft: #ffebe9;
+    --ok: #1a7f37;
+    --ok-soft: #dafbe1;
+    --purple: #6f42c1;
+    --purple-soft: #f5edff;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+                 "Hiragino Sans GB", "Helvetica Neue", Arial, sans-serif;
+    color: var(--fg);
+    background: var(--bg);
+    line-height: 1.65;
+    max-width: 1120px;
+    margin: 32px auto;
+    padding: 0 28px 80px;
+    font-size: 15.5px;
+  }
+  h1 { font-size: 28px; border-bottom: 2px solid var(--border); padding-bottom: 10px; margin-bottom: 4px; }
+  h2 { font-size: 22px; margin-top: 44px; padding-bottom: 6px; border-bottom: 1px solid var(--border); }
+  h3 { font-size: 18px; margin-top: 28px; color: #24292f; }
+  h4 { font-size: 16px; margin-top: 20px; color: #24292f; }
+  .subtitle { color: var(--muted); margin-top: 0; font-size: 15px; }
+  .meta { color: var(--muted); font-size: 13.5px; margin-bottom: 8px; }
+  code, .mono { font-family: var(--mono); font-size: 0.92em; background: var(--bg-soft);
+                 padding: 1px 6px; border-radius: 4px; border: 1px solid var(--border); }
+  pre { background: var(--bg-soft); border: 1px solid var(--border); border-radius: 6px;
+        padding: 12px 14px; overflow-x: auto; font-family: var(--mono); font-size: 13px; line-height: 1.55; }
+  table { border-collapse: collapse; width: 100%; margin: 12px 0 18px; font-size: 14px; }
+  th, td { border: 1px solid var(--border); padding: 8px 10px; vertical-align: top; text-align: left; }
+  th { background: var(--bg-soft); font-weight: 600; }
+  tr:nth-child(even) td { background: #fbfcfd; }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; font-family: var(--mono); }
+  .tag { display: inline-block; padding: 1px 8px; border-radius: 999px;
+         font-size: 12px; font-weight: 600; border: 1px solid var(--border); background: var(--bg-soft); }
+  .tag.accent { color: var(--accent); background: var(--accent-soft); border-color: #b6e3ff; }
+  .tag.warn   { color: var(--warn);   background: var(--warn-soft); border-color: #eac54f; }
+  .tag.ok     { color: var(--ok);     background: var(--ok-soft);   border-color: #aceebb; }
+  .tag.bad    { color: var(--bad);    background: var(--bad-soft);  border-color: #ff8182; }
+  .tag.purple { color: var(--purple); background: var(--purple-soft); border-color: #d4bef7; }
+  blockquote { border-left: 3px solid var(--accent); margin: 12px 0; padding: 6px 14px;
+               background: var(--accent-soft); color: #24292f; border-radius: 0 4px 4px 0; }
+  blockquote.warn { border-color: #eac54f; background: var(--warn-soft); }
+  blockquote.bad  { border-color: #ff8182; background: var(--bad-soft); }
+  blockquote.ok   { border-color: #aceebb; background: var(--ok-soft); }
+  blockquote.purple { border-color: #d4bef7; background: var(--purple-soft); }
+  hr { border: none; border-top: 1px solid var(--border); margin: 28px 0; }
+  ul, ol { padding-left: 22px; }
+  li { margin: 3px 0; }
+  .toc { background: var(--bg-soft); border: 1px solid var(--border); border-radius: 8px;
+         padding: 14px 22px; margin: 20px 0 28px; font-size: 14.5px; }
+  .toc a { color: var(--accent); text-decoration: none; }
+  .toc a:hover { text-decoration: underline; }
+  .footnote { font-size: 13px; color: var(--muted); margin-top: 8px; }
+  .em { color: var(--accent); font-weight: 600; }
+  .metric-card { border: 1px solid var(--border); border-radius: 8px; padding: 12px 16px;
+                 margin: 10px 0; background: var(--bg-soft); }
+  .metric-card h4 { margin-top: 0; }
+  .formula { background: #fff; border: 1px dashed var(--border); padding: 8px 12px;
+             border-radius: 6px; font-family: var(--mono); font-size: 13.5px; margin: 6px 0; }
+  .ref-pill { display: inline-block; padding: 0 6px; border-radius: 4px;
+              background: var(--accent-soft); color: var(--accent); font-size: 11px;
+              font-weight: 600; margin-right: 4px; border: 1px solid #b6e3ff; }
+  .spec { border: 1px solid var(--border); border-radius: 8px;
+          padding: 0; margin: 18px 0; background: #fff; overflow: hidden; }
+  .spec > .spec-header { background: var(--accent-soft); color: var(--accent);
+          padding: 10px 16px; font-weight: 700; font-size: 16px;
+          border-bottom: 1px solid #b6e3ff; }
+  .spec > .spec-header .spec-tag { float: right; font-size: 11px;
+          background: #fff; color: var(--accent); padding: 1px 8px; border-radius: 999px;
+          border: 1px solid #b6e3ff; font-weight: 600; }
+  .spec dl { margin: 0; padding: 8px 16px 12px; }
+  .spec dt { font-weight: 700; color: #24292f; margin-top: 10px; font-size: 13.5px;
+             letter-spacing: 0.02em; text-transform: uppercase; }
+  .spec dd { margin: 4px 0 0 0; padding: 0; font-size: 14px; }
+  .spec dd pre { margin: 6px 0 0 0; }
+  .spec dd table { font-size: 13px; margin: 6px 0 0 0; }
+  .spec.rule > .spec-header { background: var(--ok-soft); color: var(--ok); border-color: #aceebb; }
+  .spec.rule > .spec-header .spec-tag { color: var(--ok); border-color: #aceebb; }
+  .spec.judge > .spec-header { background: var(--warn-soft); color: var(--warn); border-color: #eac54f; }
+  .spec.judge > .spec-header .spec-tag { color: var(--warn); border-color: #eac54f; }
+  .spec.hybrid > .spec-header { background: var(--purple-soft); color: var(--purple); border-color: #d4bef7; }
+  .spec.hybrid > .spec-header .spec-tag { color: var(--purple); border-color: #d4bef7; }
+  .arrow-up { color: var(--ok); font-weight: 700; }
+  .arrow-down { color: var(--bad); font-weight: 700; }
+  .latex-src { margin: 6px 0 0 0; }
+  .latex-src summary { cursor: pointer; color: var(--muted); font-size: 12.5px;
+                       padding: 2px 0; user-select: none; }
+  .latex-src summary:hover { color: var(--accent); }
+  .latex-src pre { margin: 4px 0 0 0; font-size: 12.5px; background: #fafbfc; }
+  .display-math { margin: 6px 0 4px 0; padding: 4px 8px; background: #fcfcfd;
+                  border-left: 3px solid var(--accent-soft); border-radius: 0 4px 4px 0; }
+</style>
+</head>
+<body>
+
+<h1>PersonalPlan / MAPLE 评估方法重新设计</h1>
+<p class="subtitle">基于 20 篇 ACL/EMNLP 2024–2025 论文 + 现有 Stage&nbsp;3 多智能体执行流水线的可落地评估方案</p>
+<p class="meta">
+  日期：2026-05-15　·　版本：Eval&nbsp;v1<br/>
+  适用对象：<code>main.tex</code> §5（评估）、<code>5-Experiments.tex</code> 重写依据<br/>
+  参考实现：<code>multi_agent_datasets/5_14/SHC/Execution/plan_mapper_fixed/</code>（已可跑通的 PlanRuntime + 四项 LLM 检查 evaluator）
+</p>
+
+<blockquote class="purple">
+<strong>设计原则总览（一句话）</strong>：评估必须同时满足（a）<em>三层结构</em>覆盖静态质量 + 在线执行 + 学习者偏好——这是 KELE / Aligning-Pedagogy / Personality-Sim 的标准做法；（b）<em>编程专属</em>评估必须落到代码可执行性与代码正确性，而不仅停留在"plan 结构对不对"；（c）<em>每个 RQ 至少有一个可计算的核心指标</em>——RQ1 主表、RQ2 profile 反事实、RQ3 ablation 矩阵、RQ4 Pareto 曲线；（d）<em>防 reward hacking</em>——主判与训练判不同模型族 + M-judge 乘积 + 100 条人工 κ/ICC 校准。
+</blockquote>
+
+<div class="toc">
+<strong>目录</strong>
+<ol>
+  <li><a href="#diagnosis">对论文现有评估的诊断</a></li>
+  <li><a href="#references">小同行评估方法综述（ACL/EMNLP 2024–2025）</a></li>
+  <li><a href="#framework">新评估框架总览</a></li>
+  <li><a href="#tier1">Tier 1 — 静态 plan 质量（11 项，自动）</a></li>
+  <li><a href="#tier2">Tier 2 — 多智能体执行（4 项 = 1 执行 EVR + 3 教学 PAS/PQS/r<sub>sol</sub>）</a></li>
+  <li><a href="#tier3">Tier 3 — 个性化对照偏好（学习者视角 pairwise）</a></li>
+  <li><a href="#rqmap">RQ → 评估指标映射</a></li>
+  <li><a href="#judge">LLM 判卷协议与防 hack 设计</a></li>
+  <li><a href="#feasibility">可行性、预算与实施时间表</a></li>
+  <li><a href="#summary">论文级别的指标定义稿（可直接搬到 §5）</a></li>
+  <li><a href="#spec-sheet">每项指标的完整规格（输入 / 公式 / 代码 / 方向 / 评分标准）</a></li>
+</ol>
+</div>
+
+<!-- =========================================================== -->
+<h2 id="diagnosis">1. 对论文现有评估的诊断</h2>
+
+<p>当前 <code>5-Experiments.tex</code> 中的评估配置是：</p>
+<ul>
+  <li><strong>5 项规则式结构指标</strong>：SV、AR、DC、ATR、GED-sim。</li>
+  <li><strong>3 项 LLM judge</strong>：Personalization (Pers.)、Feasibility (Feas.)、Satisfaction (Sati.)。</li>
+  <li><strong>三层协议</strong>：Tier 1 静态、Tier 2 在线 MAS（仅作 Plan Executability Rate）、Tier 3 对话级 rubric。</li>
+</ul>
+
+<table>
+<thead><tr><th>维度</th><th>评估</th><th>问题 / 缺口</th></tr></thead>
+<tbody>
+<tr>
+  <td>结构性</td>
+  <td><span class="tag ok">合理</span></td>
+  <td>SV/AR/DC/ATR/GED-sim 是规则式的、廉价、与多数 ACL/EMNLP plan-quality 论文一致（参考 PLAN-TUNING、WebAgent-R1）。可保留。</td>
+</tr>
+<tr>
+  <td>个性化</td>
+  <td><span class="tag warn">薄</span></td>
+  <td>只有 Pers. 一项 LLM judge。<strong>缺一个反事实信号</strong>：同 query 不同 profile，plan 是否真的变？若不变就说明 PAD 没起作用——这是 RQ2 / RQ3 的核心。需要补 <em>Profile-Variance Score</em> 与 <em>Profile-No-Profile Gap</em>。</td>
+</tr>
+<tr>
+  <td>教学法</td>
+  <td><span class="tag bad">缺</span></td>
+  <td>Feas. 关注 dependency / 工具，<em>不</em>评估教学结构（阶段覆盖、阶梯难度、苏格拉底比例）。论文方法明明引入了 phase coverage + subtask precedence 两项 reward（§3.3 R_ped），却没有对应的 evaluation 指标——RQ3 没法支撑。需补 <em>Pedagogy Score</em>（仿 KELE 4 指标）。</td>
+</tr>
+<tr>
+  <td>执行可行性</td>
+  <td><span class="tag warn">单点</span></td>
+  <td>只有 Executability Rate（端到端跑通比例）。<strong>实际上你们已经实现了完整的 4 项 LLM 检查</strong>（Instruction Fidelity / Workflow Completeness / Interaction Quality / Content Correctness）——白白没用。这是 Tier 2 最强的判别器，应该单独成主评估。</td>
+</tr>
+<tr>
+  <td>编程专属</td>
+  <td><span class="tag bad">缺</span></td>
+  <td>MAPLE 全是编程查询，但评估里<strong>没有任何代码相关指标</strong>。SafeCodeInterpreterTool 已经能跑 14 种语言、能拿到真实 stdout/stderr——这些信号没进评估。需补 <em>Code Execution Rate</em>、<em>Code Correctness Rate</em>、<em>Learner Solve Transition</em>。</td>
+</tr>
+<tr>
+  <td>对话级评估</td>
+  <td><span class="tag warn">声明了未落地</span></td>
+  <td>论文里 Tier 3 写了"dialogue-level rubric"，但缺具体 rubric。现有 evaluator 的 Check 3（Interaction Quality）+ Check 4（Guidance Effectiveness）正好就是 dialogue-level rubric 的落地，可直接接入。</td>
+</tr>
+<tr>
+  <td>判卷者可信度</td>
+  <td><span class="tag warn">声明了未落地</span></td>
+  <td>论文写了"κ ≥ 0.65 / ICC ≥ 0.7"——但没有具体的 calibration 子集大小、anchor 校准方式、judge family 配对。需要明确 100 条 pilot + Aligning-Pedagogy 风格的 M-judge 乘积。</td>
+</tr>
+</tbody>
+</table>
+
+<blockquote class="warn">
+<strong>核心修订点</strong>：保留 5 项规则式结构指标；保留 LLM-judge Pers./Feas./Sati. 但<em>细化 rubric</em>；新增 <strong>Pedagogy Score</strong>、<strong>Profile-Variance / Profile-No-Profile</strong>、<strong>4 项编程专属指标</strong>、<strong>4 项 Tier 2 LLM 检查</strong>。再加上跨模型族 judge + 人工 κ/ICC 校准。最终 8 项 → 18 项（分三层）。
+</blockquote>
+
+<!-- =========================================================== -->
+<h2 id="references">2. 小同行评估方法综述（ACL/EMNLP 2024–2025）</h2>
+
+<p>从 <code>related_papers/</code> 下 20 篇 ACL/EMNLP 论文中，按"评估侧重点"归类：</p>
+
+<h3>2.1 静态 plan 质量类</h3>
+<table>
+<thead><tr><th>论文</th><th>评估手段</th><th>启示</th></tr></thead>
+<tbody>
+<tr>
+<td><strong>PLAN-TUNING</strong> (EMNLP 2025)</td>
+<td>双指标 reward——<code>R_plan</code>（Gemini-2.0-Flash 与 gold plan 相似度，∈ [0,1]）+ <code>R_ans</code>（验证答案正确性，∈ {0,2}）；用 PlanGEN verifier 打 ≥80 分作为 SFT 训练数据过滤。</td>
+<td>Plan-quality 用 LLM-judge 相似度，answer correctness 用规则式——和我们 GED-sim + 代码可执行性的组合完全对应。</td>
+</tr>
+<tr>
+<td><strong>MPO</strong> (Findings EMNLP 2025)</td>
+<td>SFT 之后用 GPT-4o 对每个 meta-plan 评 3 个维度（correctness / followability / standardisation）+ MC rollout completion rate。</td>
+<td>训练时用 rollout 信号（不调 LLM judge），评估时再用 GPT-4o 复核——和我们"GRPO 训练全规则式、Test 才调 judge"一致。</td>
+</tr>
+<tr>
+<td><strong>iTool</strong> (EMNLP 2025)</td>
+<td>BFCL v3 五个子集（Non-live / Live / Multi-turn / Rel / Irrel）+ API-Bank L1/L2，每个子集用精确字段比对（参数名 / 参数值 EM）。</td>
+<td>把"plan 结构错误"细分成"参数名错"vs"参数值错"——启示我们 SV 应该分顶层 key 缺失 vs 类型错误 vs schema 嵌套错误。</td>
+</tr>
+</tbody>
+</table>
+
+<h3>2.2 多智能体 / 执行类</h3>
+<table>
+<thead><tr><th>论文</th><th>评估手段</th><th>启示</th></tr></thead>
+<tbody>
+<tr>
+<td><strong>AgentGym</strong> (ACL 2025)</td>
+<td>11 个 env 端到端跑通 + reward；OOD 测试用 ALF/Baby-OOD、AM、ST 三个 held-out env。</td>
+<td>"plan 喂进 env 跑通"是最强 discriminator——我们已经有 CrewAI runtime，应该把执行评估提到主表。</td>
+</tr>
+<tr>
+<td><strong>WebAgent-R1</strong> (EMNLP 2025)</td>
+<td>WebArena-Lite 165 个验证 task，规则式二元 reward（URL match / string match / program exec）；OOD 在 5 个 WebVoyager 域上测。</td>
+<td>Tier 2 的执行检查应该用<em>规则式</em>判定（代码跑没跑通、输出对没对），<em>不</em>用 LLM。LLM 只判语义合理性。</td>
+</tr>
+<tr>
+<td><strong>AgentPro</strong> (EMNLP 2025)</td>
+<td>MCTS 每步 m=3 simulated completions，PRM 标"+/-"；trajectory reward 是 step 平均。</td>
+<td>启示：plan 的"过程级"评估应该用 MCTS rollout 而不是单次 run——但我们没必要做 MCTS，1 次 live run 即可，因为 plan 是静态产物。</td>
+</tr>
+<tr>
+<td><strong>LRPLAN</strong> (Findings EMNLP 2025)</td>
+<td>TravelPlanner 用 commonsense pass-rate / hard pass-rate / final pass-rate；TimeArena-Static 用 FCR/TCR/Avg-Progress/Dependency Violations。</td>
+<td>把"硬约束 pass-rate"和"软约束 pass-rate"分开报——直接对应我们 R_hard vs R_soft 的设计；可以加 "Hard Constraint Violation Rate" 主表列。</td>
+</tr>
+</tbody>
+</table>
+
+<h3>2.3 教学法 / 个性化类（最重要）</h3>
+<table>
+<thead><tr><th>论文</th><th>评估手段</th><th>启示</th></tr></thead>
+<tbody>
+<tr>
+<td><strong>KELE</strong> (Findings EMNLP 2025)</td>
+<td>4 项 single-turn 结构指标：PRR (Pedagogical Rule Reasonableness)、NDAR (No-Direct-Answer Rate)、SPR (Stage Progression Rate)、IAR (Inductive Aptness Rate)；100 条人工 κ 0.65–0.75；5 项 multi-turn GPT-4o 1–5 评分 + 研究生 ICC 0.68–0.83；ROUGE-1/2/L + BLEU-4。</td>
+<td><strong>直接搬过来作我们 Pedagogy Score 的 4 个子维度</strong>，但把"5 苏格拉底阶段"换成我们的 6 个 instructional phase（probe / retrieve-demonstrate / apply / validate / feedback / consolidate）。κ/ICC 阈值照搬。</td>
+</tr>
+<tr>
+<td><strong>Aligning-Pedagogy</strong> (EMNLP 2025)</td>
+<td>双指标 reward——<code>r_sol</code>（K=8 个 student 采样的 post-dialog solve rate，对 gold 验证）+ <code>r_ped</code>（M 个独立 LLM-judge 的 <em>乘积</em>，含 Answer-Leakage + Helpfulness）；λ 参数 sweep 出 Pareto 曲线；训练 judge 用 Qwen2.5-14B，评估 judge 用 Gemma3-27B（<em>不同模型族</em>）。</td>
+<td><strong>这是最值得抄的设计</strong>：(1) M-judge 乘积比平均更敏感；(2) 训练 / 评估 judge 模型族必须分开；(3) λ Pareto 图本身就是 RQ4 的图。我们 GRPO reward 权重 sweep 5 个 run 就是为这张图。</td>
+</tr>
+<tr>
+<td><strong>TreeInstruct</strong> (Findings EMNLP 2024)</td>
+<td>Socratic Debugging Benchmark + MULTI-DEBUG（自建 50 LeetCode 多 bug 集）；定量指标 = 与 ground-truth fix 同构的 success rate；定性 = Relevance / Indirectness / Logical Flow / 平均轮数。</td>
+<td>"plan 同构性"作 ground-truth 对比——和我们 GED-sim 一致。"Indirectness"（不直接给答案）应该作为 Pedagogy Score 的一个子项（NDAR）。</td>
+</tr>
+<tr>
+<td><strong>Personality-aware Student Sim</strong> (EMNLP 2024)</td>
+<td>500 dialogue × 7 scaffolding 类型 heatmap；BFI 44 题 Pearson 相关；500 dialogue 中 50 条人工 validation。</td>
+<td>启示：profile 评估应该看"plan 在不同 profile 下的 scaffolding 类型分布"——但是我们短期内不做 scaffolding 分类（成本太高），保留 7 类作 case study。</td>
+</tr>
+<tr>
+<td><strong>Student Data Paradox</strong> (Findings EMNLP 2024)</td>
+<td>TruthfulQA / ARC / MMLU / WinoGrande 等 9 个 benchmark 测 tutor 模型在通用能力上的"side-effect"。</td>
+<td>启示：profile-conditioned tutor 不能伤通用能力——但我们只训 LoRA + GRPO 1 ep，理论上影响很小；可以可选加一个"backbone 通用能力保持"sanity check（MMLU + HumanEval 各 50 条）。</td>
+</tr>
+</tbody>
+</table>
+
+<h3>2.4 评估模式横向总结（§C 9 项 pattern）</h3>
+<ol>
+  <li><strong>多层评估</strong>（plan rubric + 执行成功 + dialogue 评分）<span class="ref-pill">KELE</span><span class="ref-pill">Aligning-Pedagogy</span><span class="ref-pill">TreeInstruct</span></li>
+  <li><strong>LLM-judge 防 bias</strong>（order randomization + criterion-by-criterion + ensemble + reference-grounded）<span class="ref-pill">Aligning-Pedagogy</span><span class="ref-pill">KELE</span><span class="ref-pill">MAgIC</span></li>
+  <li><strong>Held-in + OOD split</strong><span class="ref-pill">AgentBank</span><span class="ref-pill">PLAN-TUNING</span><span class="ref-pill">WebAgent-R1</span></li>
+  <li><strong>Pareto / Trade-off 曲线</strong>（λ sweep）<span class="ref-pill">Aligning-Pedagogy</span><span class="ref-pill">iTool</span></li>
+  <li><strong>人工 IRR（κ / ICC ≥ 0.7）</strong><span class="ref-pill">KELE</span><span class="ref-pill">Personality-Sim</span></li>
+  <li><strong>消融矩阵</strong>（移除每个 reward / 组件）<span class="ref-pill">IPR</span><span class="ref-pill">TreeInstruct</span><span class="ref-pill">Aligning-Pedagogy</span></li>
+  <li><strong>成本 / 效率表</strong>（token / API call / GPU-hour）<span class="ref-pill">AgentInit</span><span class="ref-pill">KELE</span><span class="ref-pill">iTool</span></li>
+  <li><strong>鲁棒性探针</strong>（profile-counterfactual / backbone-swap / adversarial）<span class="ref-pill">MSI</span><span class="ref-pill">WebAgent-R1</span></li>
+  <li><strong>Reward-vs-human agreement</strong>（reward 信号本身与人工 F1 / κ）<span class="ref-pill">RLTR</span></li>
+</ol>
+
+<!-- =========================================================== -->
+<h2 id="framework">3. 新评估框架总览</h2>
+
+<pre>
+┌────────────────────────────────────────────────────────────────────┐
+│                  Test 集 (305 条) 评估流水线                       │
+│                                                                    │
+│  Plan JSON ──┬──> Tier 1 静态评估（11 项，全 305 条，全自动）      │
+│              │      • 6 项规则式结构性                             │
+│              │      • 4 项 LLM judge plan-quality                  │
+│              │      • 1 项 profile-counterfactual 探针             │
+│              │                                                     │
+│              ├──> Tier 2 多智能体执行（4 项，100 条子集）          │
+│              │      via PlanRuntime → CrewAI live mode             │
+│              │      • Q1 执行: EVR (≈ AgentGym task success)       │
+│              │      • Q2 教学: PAS / PQS / r_sol (KELE+Aligning-P) │
+│              │                                                     │
+│              └──> Tier 3 学习者偏好（2 项，全 305 条）             │
+│                     • Sati. profile-conditioned pairwise vs GT     │
+│                     • Sati. 跨 judge 一致性（M-judge 乘积）        │
+│                                                                    │
+│  + 特殊研究层：                                                    │
+│     • RQ2: Profile-Sensitivity (25 个 ≥3 profile 的 qid)           │
+│     • RQ3: Component Ablation (7 个 variant)                       │
+│     • RQ4: Reward-weight Pareto (5 个 weight setting)              │
+│     • Robustness: backbone-swap + profile-counterfactual           │
+└────────────────────────────────────────────────────────────────────┘
+</pre>
+
+<table>
+<thead><tr>
+<th>Tier</th><th>评估目标</th><th>覆盖测试集</th>
+<th>判定方式</th><th>每条耗时</th><th>预算（Test 全跑 / 主表 ~20 baseline）</th>
+</tr></thead>
+<tbody>
+<tr>
+  <td><strong>Tier 1</strong></td>
+  <td>静态 plan 质量</td>
+  <td>305（全集）</td>
+  <td>规则式 + 单条 LLM judge</td>
+  <td class="num">≤30 s</td>
+  <td>~$200（GPT-5 + Claude 共 ~12K judge call）</td>
+</tr>
+<tr>
+  <td><strong>Tier 2</strong></td>
+  <td>多智能体执行可行性</td>
+  <td>100（分层子集）</td>
+  <td>CrewAI live run + 4 项 evaluator</td>
+  <td class="num">~6 min</td>
+  <td>~$400（包含 Teacher + Student kickoff + evaluator）</td>
+</tr>
+<tr>
+  <td><strong>Tier 3</strong></td>
+  <td>个性化学习者偏好</td>
+  <td>305（全集）</td>
+  <td>pairwise vs GT，跨 judge</td>
+  <td class="num">~20 s</td>
+  <td>~$120（每对 2 次 AB 互换 × 2 judge）</td>
+</tr>
+<tr style="background:var(--accent-soft)">
+  <td colspan="5"><strong>主表（20 个 method × Tier 1 / Tier 3 全集 + Tier 2 100 条）</strong></td>
+  <td>~$15K（含 ablation 与 sensitivity）</td>
+</tr>
+</tbody>
+</table>
+
+<!-- =========================================================== -->
+<h2 id="tier1">4. Tier 1 — 静态 Plan 质量（11 项）</h2>
+
+<h3>4.1 6 项规则式结构性指标</h3>
+
+<div class="metric-card">
+<h4>SV — Schema Validity</h4>
+<p><strong>定义</strong>：\(\mathrm{SV}(\mathcal{P}) = \mathbb{I}[\mathrm{validate}_{\mathrm{schema}}(\mathcal{P})] \in \{0,1\}\)。\(\mathrm{validate}_{\mathrm{schema}}(\mathcal{P})\) 取真当且仅当下列 <strong>4 个条件全部成立</strong>：</p>
+<ol>
+  <li>\(\mathcal{P}\) 可被解析为合法 JSON；</li>
+  <li>顶层 4 个必需 key 齐全：<code>agents</code> / <code>subtasks</code> / <code>steps</code> / <code>execution_order</code>；</li>
+  <li>所有字段类型与声明一致（如 <code>agents</code> 是 array of <code>AgentSpec</code>, <code>execution_order</code> 是 array of <code>step_id</code> string）；</li>
+  <li>所有嵌套对象（<code>AgentSpec</code> / <code>SubtaskSpec</code> / <code>StepSpec</code> / <code>LoopSpec</code>）均通过 Pydantic 校验。</li>
+</ol>
+<p><strong>实现</strong>：直接复用 <code>plan_mapper_fixed/models.py</code> 里的 <code>PlanPayload.model_validate()</code>。完整公式见 §11.1。</p>
+<p><strong>来源</strong>：<span class="ref-pill">PLAN-TUNING</span> 的"两阶段过滤"第一步。</p>
+</div>
+
+<div class="metric-card">
+<h4>AR — Acyclicity Rate</h4>
+<p><strong>定义</strong>：plan 的 step 依赖图 <em>G=(S, O)</em>（<em>O</em> 是 <code>depends_on</code> 边）通过拓扑排序的比例。1/0。</p>
+<p><strong>实现</strong>：<code>networkx.is_directed_acyclic_graph(G)</code>。</p>
+<p><strong>来源</strong>：<span class="ref-pill">LRPLAN</span> 的 Dependency Violations。</p>
+</div>
+
+<div class="metric-card">
+<h4>DC — Dependency Completeness</h4>
+<p><strong>定义</strong>：\(\mathrm{DC}(\mathcal{P}) = |\mathcal{D}_{\mathrm{sat}}| / |\mathcal{D}_{\mathrm{tot}}|\)，其中 \(\mathcal{D}_{\mathrm{sat}}\) 是 <code>depends_on</code> 指向的 step 实际存在于 plan 内的依赖数，\(\mathcal{D}_{\mathrm{tot}}\) 是所有声明依赖数。∈ [0,1]。完整公式见 §11.1。</p>
+<p><strong>实现</strong>：遍历 <code>step.depends_on</code> + <code>step_index</code> 查找。</p>
+<p><strong>来源</strong>：论文 §3 已定义，沿用。</p>
+</div>
+
+<div class="metric-card">
+<h4>ATR — Agent-Tool Relevance</h4>
+<p><strong>定义</strong>：\(\mathrm{ATR}(\mathcal{P}) = \frac{1}{N}\sum_{j=1}^{N} (I^{(j)}_{A\to S} + I^{(j)}_{T\to A} + I^{(j)}_{T\to S}) / 3 \in [0,1]\)。对每个 step \(s_j\)，三个 0/1 indicator 的判定条件为：</p>
+<ol>
+  <li>\(I^{(j)}_{A\to S} = 1\) 当且仅当 agent 角色关键词出现在 subtask 的推荐角色表（rubric YAML）内，<em>或</em> agent role 与 subtask 描述的 embedding cosine \(> 0.30\)；</li>
+  <li>\(I^{(j)}_{T\to A} = 1\) 当且仅当 \(s_j.\mathrm{tool} \ne \varnothing\) <em>且</em> \(s_j.\mathrm{tool} \in \mathrm{ag}(s_j).\mathrm{tools}\)（若 tool 为 null 则直接置 0）；</li>
+  <li>\(I^{(j)}_{T\to S} = 1\) 当且仅当 \(s_j.\mathrm{tool}\) 出现在 subtask 所属类别的推荐工具集中（同样的 mapping 表，如 <code>SecurityAdvisor → {nmap, burp, ...}</code>）。</li>
+</ol>
+<p><strong>实现</strong>：论文 §3 已定义。注意 <strong>当 <code>step.tool=null</code> 时 \(I_{T\to A}\) 和 \(I_{T\to S}\) 直接置 0</strong>，避免无工具步骤被错误扣分。完整公式见 §11.1。</p>
+</div>
+
+<div class="metric-card">
+<h4>TBV — Tool-Budget Validity <span class="tag accent">新增</span></h4>
+<p><strong>定义</strong>：\(\mathrm{TBV}(\mathcal{P}) = \frac{1}{|\mathcal{S}_{\mathrm{tool}}|}\sum_{s \in \mathcal{S}_{\mathrm{tool}}} v(s) \in [0,1]\)（若 \(|\mathcal{S}_{\mathrm{tool}}|=0\) 则取 1）。对每个带 tool 的 step \(s\)，\(v(s) = 1\) 当且仅当下列 <strong>2 个条件同时成立</strong>：</p>
+<ol>
+  <li>\(s.\mathrm{tool}\) 来自预定义 8 工具池 \(\Pi\)：<code>{FirecrawlSearchTool, RagTool, CodeInterpreterTool, DirectoryReadTool, FileReadTool, FileWriterTool, CodeDocsSearchTool, ArxivPaperTool}</code>；</li>
+  <li>\(s.\mathrm{tool}\) 出现在该 step 所属 agent 的 <code>tools</code> 列表内（\(s.\mathrm{tool} \in \mathrm{ag}(s).\mathrm{tools}\)）。</li>
+</ol>
+<p><strong>实现</strong>：直接复用 <code>compiler.py:compile_plan()</code> 的 <code>tool_binding_errors</code>。完整公式见 §11.1。</p>
+<p><strong>来源</strong>：<span class="ref-pill">iTool</span> 提出"77% 的 tool 错误集中在 Parameter-Value / Name"——我们等价地拆出 tool-binding 错误率。<em>已经在 compiler 里实现，不计入额外开发成本。</em></p>
+</div>
+
+<div class="metric-card">
+<h4>GED-sim — Structural Similarity to Gold</h4>
+<p><strong>定义</strong>：\(\mathrm{GED\text{-}sim}(\mathcal{P}, \mathcal{P}^{\star}) = 1 - \mathrm{GED}(G', G^{\star}) / \max(|\mathcal{S}'|+|\mathcal{O}'|, |\mathcal{S}^{\star}|+|\mathcal{O}^{\star}|)\)，其中 \(\mathrm{GED}\) 是 graph edit distance，\(G'\) 是 candidate 的 (step, dependency) 图，\(G^{\star}\) 是 gold plan 的同结构图。∈ [0,1]。完整公式见 §11.1。</p>
+<p><strong>实现</strong>：<code>networkx.graph_edit_distance(G1, G2, timeout=2.0)</code>，timeout 2s 防止大图卡死。</p>
+<p><strong>来源</strong>：论文 §3 已定义 + <span class="ref-pill">TreeInstruct</span> 的"plan 同构性"思想。</p>
+</div>
+
+<h3>4.2 4 项 LLM-judge plan-quality 指标</h3>
+
+<div class="metric-card">
+<h4>Pers. — Personalization（3 个子维度）</h4>
+<p><strong>3 个子维度（独立 1–5 Likert，5/3/1 anchored）</strong>：</p>
+<ol>
+  <li><strong>Skill Match</strong>：plan 起点是否匹配 learner 的实际技能水平（不解释已知 / 不跳过缺口）</li>
+  <li><strong>Goal Orientation</strong>：每个 subtask 是否都服务于 query 的核心问题</li>
+  <li><strong>Background Adaptation</strong>：例子、agent role、解释方式是否引用 <code>about_me</code> 与 <code>top_tags</code></li>
+</ol>
+<p><strong>聚合</strong>：3 子维度均值，归一到 [0,1] via <code>(mean − 1) / 4</code>。</p>
+<p><strong>实现</strong>：现有 prompt 模板基础上拆 3 次独立 LLM call（防止 halo effect）。</p>
+<p><strong>来源</strong>：<span class="ref-pill">KELE</span> 5/3/1 anchored + <span class="ref-pill">Personality-Sim</span> 子维度独立打分。</p>
+</div>
+
+<div class="metric-card">
+<h4>Feas. — Feasibility（3 个子维度）</h4>
+<ol>
+  <li><strong>Dependency Ordering</strong>：execution_order 与 depends_on 一致、无环</li>
+  <li><strong>Task Decomposition</strong>：subtask / step 粒度合理（不太粗也不太细）</li>
+  <li><strong>Agent-Tool Appropriateness</strong>：agent 角色与 step 匹配、tool 调用合理</li>
+</ol>
+<p><strong>聚合 + 实现</strong>：同 Pers.</p>
+<p><strong>判卷要点</strong>：把 gold plan 的 <code>execution_order</code> 作为 reference 给 judge（reference-grounded），让 judge 判 candidate "是否同样合理"——参考 <span class="ref-pill">Aligning-Pedagogy</span> 的做法，比 zero-shot 判定准很多。</p>
+</div>
+
+<div class="metric-card">
+<h4>Ped. — Pedagogy <span class="tag accent">新增</span>（4 个子维度，仿 KELE）</h4>
+<p>这是<strong>论文里 R_ped reward 在评估上的对应</strong>，目前完全缺失。4 个子维度：</p>
+<ol>
+  <li><strong>PRR</strong> (Pedagogical Rule Reasonableness)：subtask 之间的先后关系是否符合学习规律（先概念后实现、先实现后调试 …）。LLM 5/3/1 anchored。</li>
+  <li><strong>NDAR</strong> (No-Direct-Answer Rate)：plan 是否避免在前期就直接给 accepted_answer。LLM 评是否包含"先给结论后让学生套用"反模式。1/0 比例（NDAR 高代表"不直接给答案"）。</li>
+  <li><strong>SPR</strong> (Stage Progression Rate)：6 个标准 instructional phase（probe / retrieve-demonstrate / apply / validate / feedback / consolidate）的覆盖率。\(\mathrm{SPR}(\mathcal{P}) = \frac{1}{|\Phi|}\sum_{\phi \in \Phi} \mathbb{I}[\exists s \in \mathcal{S}: \mathrm{phase}(s) = \phi]\)。规则式（用 phase keyword + LLM 二分类辅助）。</li>
+  <li><strong>IAR</strong> (Inductive Aptness Rate)：plan 是否采用 inductive style（从具体例子归纳到一般规律）vs deductive style（先抛出规则）。LLM 5/3/1。inductive 更适合初学者 profile，deductive 更适合高级 profile——根据 profile 加权。</li>
+</ol>
+<p><strong>聚合</strong>：<code>Ped. = (PRR + NDAR + SPR + IAR) / 4</code>，∈ [0,1]。</p>
+<p><strong>来源</strong>：<span class="ref-pill">KELE</span> 直接 port 4 项；<span class="ref-pill">Aligning-Pedagogy</span> 的 r_ped 多 judge 乘积思想用在 PRR/IAR 上。</p>
+<p><strong>实现成本</strong>：3 个 LLM call（PRR/NDAR/IAR）+ 1 个规则式（SPR）。每条 plan ~$0.03（GPT-5）。</p>
+</div>
+
+<div class="metric-card">
+<h4>PVS — Profile-Variance Score <span class="tag accent">新增，专为 RQ2 设计</span></h4>
+<p><strong>动机</strong>：如果 PAD 真的起作用，那么<em>同一 query、不同 profile</em>生成的 plan 必然有显著差异。这是个 sanity check——如果差异为零，说明 profile 信号被忽略。</p>
+<p><strong>定义</strong>：对 Test 中 \(k_q \ge 2\) profile variants 的 query（共 97 个 qid），定义 \(\mathrm{PVS}(q) = 1 - \binom{k_q}{2}^{-1}\sum_{i<j} \mathrm{GED\text{-}sim}(\mathcal{P}_q^{(i)}, \mathcal{P}_q^{(j)})\)，跨该 query 所有 profile pair。然后报全集均值 \(\mathrm{PVS} = \mathbb{E}_q[\mathrm{PVS}(q)]\)。完整公式见 §11.3。</p>
+<p><strong>实现</strong>：1 行——已有 GED-sim 直接复用。</p>
+<p><strong>预期结果</strong>：
+<br/>　ours PVS ≈ 0.35–0.50（plan 大体相同，profile 部分变化）
+<br/>　w/o PAD baseline PVS ≈ 0.05–0.10（plan 几乎不变 → PAD 没用）
+<br/>　profile-shuffled control PVS ≈ ours（因为 shuffled profile 仍然引导生成）</p>
+<p><strong>来源</strong>：<span class="ref-pill">MSI-Agent</span> kitchen→bedroom OOD shift 的方法变体；<span class="ref-pill">Personality-Sim</span> 的"with vs without BF-TC"对照。</p>
+</div>
+
+<!-- =========================================================== -->
+<h2 id="tier2">5. Tier 2 — 多智能体执行评估（4 项 = 1 执行可行 + 3 教学效果）</h2>
+
+<blockquote class="ok">
+<strong>Tier 2 直接回答论文最 high-stakes 的两个判断</strong>：
+<ol style="margin:6px 0 0 0">
+<li><strong>(Q1) Plan 是否真的能被 CrewAI 正确执行？</strong>——把 plan JSON 喂进 PlanRuntime，跑 Teacher×Student dialogue，看声明用 CodeInterpreterTool 的 step 是否在 execution log 里有真实 tool 调用事件、sandbox 是否成功执行（exit code = 0、无 unhandled exception）、所有 step 是否按 execution_order 跑完。这是<em>不可 hack 的</em> objective signal——代码跑不通就是跑不通。</li>
+<li><strong>(Q2) MAS 教学过程是否真的体现出"个性化 + 教学法 + 学生学会"？</strong>——这条进一步拆成 3 个独立 sub-judgment：(a) 教师 utterance 是否反映 learner profile？(b) 教学是否遵循好教学法（scaffolding / formative / non-direct）？(c) 学生 agent 在对话结束后是否真的能独立解题？</li>
+</ol>
+对应 <strong>4 个 headline 指标</strong>——每个直接 port 一个公认 prior-art 指标，<em>不引入任何新缩写</em>：EVR (≈ AgentGym task success) / PAS (= KELE PRR) / PQS (= mean of KELE NDAR + SPR + IAR) / r<sub>sol</sub> (= Aligning-Pedagogy post-dialog solve rate)。现有 evaluator.py 的 4 项 (IF/WC/IQ/CCGE) <em>不丢弃</em>，作为这 4 个 headline 的底层 sub-check，在 appendix 完整 breakdown 报告。
+</blockquote>
+
+<h3>5.1 评估子集（100 条）</h3>
+<p>从 Test 305 中分层抽 100 条，分层键 = (programming category C1–C5) × (profile_index 0 vs ≥1)：</p>
+<ul>
+  <li>每个 category 抽 20 条，按 profile_index 0 / 1+ 各 50%。</li>
+  <li>该 100 条在所有 method（包括 baseline）之间共享，使 Tier 2 可比。</li>
+  <li>固定 seed=42，写死到 <code>splits/maple_tier2_100.json</code>。</li>
+</ul>
+
+<h3>5.2 Axis A — Plan 执行可行性（1 项 headline）</h3>
+
+<div class="metric-card">
+<h4>EVR — Execution Validity Rate <span class="tag ok">headline · Q1</span> <span class="tag warn">v1.1 revised</span></h4>
+<p><strong>判断</strong>：plan 是否真的端到端跑通 + 所有声明 CodeInterpreterTool 的 step 在 execution log 里有真实 tool 调用事件 + sandbox 成功执行（exit_code = 0、无 unhandled exception）。</p>
+<p><strong>定义</strong>（5 个 binary sub-check 的乘积，<em>等价于</em> KELE Workflow Completeness 3 子检查 + WebAgent-R1 program-exec binary reward 在含 code execution 的设定下的扩展）：</p>
+<div class="display-math">\[
+\mathrm{EVR}_r \;=\; \underbrace{\mathbb{I}[\mathrm{cov}_r] \cdot \mathbb{I}[\mathrm{loop}_r] \cdot \mathbb{I}[\mathrm{flow}_r]}_{\text{WC.a,b,c：流程完整}} \,\cdot\, \underbrace{\mathbb{I}[\mathrm{CER}_r = 1]}_{\text{所有 code step 真调 tool}} \,\cdot\, \underbrace{\mathbb{I}[\mathrm{CCR}_r \ge \tau]}_{\text{sandbox 执行成功，}\tau=1}
+\]</div>
+<p>其中 cov / loop / flow 是 KELE WC 子检查；<strong>CER</strong> 是 tool-call invocation rate（execution log 中存在 CodeInterpreterTool 调用事件，<em>纳入式</em>检测）；<strong>CCR</strong> 是 sandbox 执行成功率（exit_code = 0 且无 unhandled exception，对标 WebAgent-R1 program-exec binary reward）。报告 \(\mathrm{EVR} = \mathbb{E}_r[\mathrm{EVR}_r]\)。<strong>这是 Tier 2 的 Q1 headline</strong>。完整公式与 v1.1 修订说明见 §11.4。</p>
+<p><strong>来源</strong>：<span class="ref-pill">AgentGym</span> task success rate \citep{xi2025agentgym}；<span class="ref-pill">WebAgent-R1</span> program-exec binary reward \citep{wei2025webagentr1}；<span class="ref-pill">LRPLAN</span> final pass-rate (commonsense ∧ hard) \citep{karthikeyan2025lrplan}；<span class="ref-pill">HumanEval pass@1</span> 用于 code-step CCR \citep{chen2021codex}。论文里推荐写"Following \citet{xi2025agentgym,wei2025webagentr1}, we report task success rate (EVR)..."。</p>
+</div>
+
+<h3>5.3 Axis B — MAS 教学效果（3 项 headline，每项对应 Q2 的一个子问题）</h3>
+
+<p>这 3 项 <strong>都直接 port 自 prior art</strong>——PAS = KELE PRR、PQS = mean(KELE NDAR + SPR + IAR)、r<sub>sol</sub> = Aligning-Pedagogy。reviewer 一看就知道"这是公认指标 + cite"，可信度高。</p>
+
+<div class="metric-card">
+<h4>PAS — Personalization Alignment Score <span class="tag ok">headline · Q2.a 个性化</span></h4>
+<p><strong>判断</strong>：MAS 教学过程中，<em>教师 agent 实际说的话</em>是否反映 learner_profile 的关键字段（age / knowledge_level / learning_style / native_language / interests）。</p>
+<p><strong>定义</strong>（直接复用 KELE PRR = Personalization Reflection Rate）：对每个 teacher_output 由 LLM judge 判定与 learner profile 的对齐档位 \(p_u \in \{2, 1, 0\}\)（well-aligned / partially / not），归一到 [0,1]：</p>
+<div class="display-math">\[
+\mathrm{PAS}_r \;=\; \frac{1}{2|\mathcal{U}_r^{\mathrm{tch}}|}\sum_{u \in \mathcal{U}_r^{\mathrm{tch}}} p_u, \qquad \mathrm{PAS} \;=\; \mathbb{E}_r[\mathrm{PAS}_r] \in [0,1]
+\]</div>
+<p>\(\mathcal{U}_r^{\mathrm{tch}}\) 是 run \(r\) 中所有 teacher_output（含 learner-facing step + loop iterations）。完整公式 + judge rubric 见 §11.5。</p>
+<p><strong>来源</strong>：<span class="ref-pill">KELE</span> PRR \citep{peng2025kele} 直接 port；与 evaluator.py 现有 Check 1 (IF) 中 "符合 learner profile" 子条件协同（IF 在 appendix 作 sub-check 报告）。论文写"Following \citet{peng2025kele}, we measure the <strong>Personalization Reflection Rate (PRR)</strong>..."。</p>
+</div>
+
+<div class="metric-card">
+<h4>PQS — Pedagogical Quality Score <span class="tag ok">headline · Q2.b 教学法</span></h4>
+<p><strong>判断</strong>：MAS 教学是否遵循好教学法——(i) <em>不直接给答案</em>（鼓励学生自己想）；(ii) <em>有 scaffolding phase</em>（introduce → guide → consolidate）；(iii) <em>多用提问而非告知</em>（Socratic）。</p>
+<p><strong>定义</strong>（直接采用 KELE 3 个 pedagogical sub-metrics 的算术均值）：</p>
+<div class="display-math">\[
+\mathrm{PQS}_r \;=\; \frac{1}{3}\!\left(\, \mathrm{NDAR}_r + \mathrm{SPR}_r + \mathrm{IAR}_r \,\right), \qquad \mathrm{PQS} \;=\; \mathbb{E}_r[\mathrm{PQS}_r] \in [0,1]
+\]</div>
+<p>其中：</p>
+<ul>
+  <li><strong>NDAR (Non-Direct-Answer Rate)</strong>：teacher_output 中<em>不</em>直接 reveal accepted_answer 的比例（LLM judge 判 reveal / partial / none，归一到 [0,1]）；</li>
+  <li><strong>SPR (Scaffolding Phase Rate)</strong>：plan execution 是否依序触发 introduce / guide / consolidate 三 phase（rule-based 按 step.type 或 LLM-tagged）；</li>
+  <li><strong>IAR (Inquiry-to-Answer Ratio)</strong>：teacher utterance 中"提问"个数 / "告知"个数，clip 到 [0,1]（≥1.0 视为充分提问）。</li>
+</ul>
+<p>完整公式 + 每子指标 rubric 见 §11.5。</p>
+<p><strong>来源</strong>：<span class="ref-pill">KELE</span> NDAR/SPR/IAR \citep{peng2025kele} 3 项 metric 直接 port；与现有 evaluator.py Check 3 (IQ) + Check 4b (Guidance Trace) 协同——IQ / CCGE.Guidance 在 appendix 作 sub-check 验证。论文写"We adopt the three pedagogical sub-metrics (<strong>NDAR</strong>, <strong>SPR</strong>, <strong>IAR</strong>) from \citet{peng2025kele}, reported as their mean (PQS)..."。</p>
+</div>
+
+<div class="metric-card">
+<h4>r<sub>sol</sub> — Post-Dialog Solve Rate <span class="tag ok">headline · Q2.c 学生学会</span></h4>
+<p><strong>判断</strong>：plan 跑完后，<em>学生 agent</em>（固定 Llama-3.1-8B-Instruct）在最后一个 subtask 内独立交出的代码，是否与 accepted_answer 功能等价。<strong>这是 Tier 2 最 high-stakes 的指标——直接对应论文 abstract 里"学生真的被教会了"的论断。</strong></p>
+<p><strong>定义</strong>（直接 port from Aligning-Pedagogy 的 \(r_{\text{sol}}\)）：</p>
+<div class="display-math">\[
+r_{\mathrm{sol}} \;=\; \frac{1}{|\mathcal{R}_{\mathrm{valid}}|}\sum_{r \in \mathcal{R}_{\mathrm{valid}}} \mathbb{I}\!\left[\, \mathrm{code}_r^{\mathrm{stud,final}} \,\equiv_J\, \alpha_r \,\right]
+\]</div>
+<p>其中 \(\mathcal{R}_{\mathrm{valid}}\) 排除 "perfect_from_start" 话题盲区失败 run（用 IQ check 标记），\(\alpha_r\) 是该 run 的 accepted answer，\(\equiv_J\) 是 LLM judge (GPT-5) 判定的功能等价。论文同时报 \(|\mathcal{R}_{\mathrm{valid}}|/|\mathcal{R}|\) 防止读者误解分母。完整公式见 §11.5。</p>
+<p><strong>来源</strong>：<span class="ref-pill">Aligning-Pedagogy</span> \citep{dinucu2025aligningpedagogy} 的核心 reward \(r_{\text{sol}}\) <em>直接 port</em>（math tutoring → programming tutoring）；与现有 evaluator.py Check 4c (Final Output Correctness) 协同。论文写"Following \citet{dinucu2025aligningpedagogy}, we report the <strong>post-dialog solve rate (\(r_{\text{sol}}\))</strong>: the fraction of runs where the simulated student produces code functionally equivalent to the Stack Overflow accepted answer..."。</p>
+</div>
+
+<h3>5.4 Tier 2 → 现有 evaluator.py 的对应关系</h3>
+
+<p>4 个新 headline <em>不</em>替换现有 evaluator.py，而是在它的 4 项 sub-check 之上聚合：</p>
+
+<table>
+<thead><tr><th>新 headline (Q 类型)</th><th>聚合自 evaluator.py 的</th><th>新增开发量</th></tr></thead>
+<tbody>
+<tr><td><strong>EVR</strong> (Q1 执行)</td><td>WC.a + WC.b + WC.c + Check 2d (CER) + 新写 CCR</td><td>~50 行 (CCR 比对脚本)</td></tr>
+<tr><td><strong>PAS</strong> (Q2.a 个性化)</td><td>Check 1 (IF) 中 profile alignment 子维度 + 1 个 KELE PRR judge prompt</td><td>~80 行 (PRR judge call)</td></tr>
+<tr><td><strong>PQS</strong> (Q2.b 教学法)</td><td>Check 3 (IQ) + Check 4b (Guidance Trace) + 3 个 KELE NDAR/SPR/IAR judge prompt</td><td>~150 行 (NDAR/SPR/IAR judge)</td></tr>
+<tr><td><strong>r<sub>sol</sub></strong> (Q2.c 学会)</td><td>Check 4c (Final Output Correctness)，专用最后一个 subtask 内的学生代码</td><td>~60 行 (代码抽取 + functional eq judge)</td></tr>
+</tbody>
+</table>
+<p>所有现有 evaluator.py 输出 (IF / WC / IQ / CCGE / CER / CCR breakdown) 仍然保留，在 <strong>appendix B</strong> 作 per-sub-check 报告以便 reviewer 验证每个 headline 的内部一致性。Tier 2 新增开发量 ~340 行 Python。</p>
+
+<!-- =========================================================== -->
+<h2 id="tier3">6. Tier 3 — 学习者偏好（2 项）</h2>
+
+<div class="metric-card">
+<h4>Sati. — Profile-Conditioned Satisfaction</h4>
+<p><strong>定义</strong>：profile-conditioned LLM judge 在 candidate plan vs gold plan 之间做 pairwise 选择，<em>不告知 judge 哪个是 gold</em>。Sati. = (candidate 被偏好的比例) + 0.5 × (Tie 比例)。</p>
+<p><strong>Judge prompt 用 4 criteria（按优先级）</strong>：</p>
+<ol>
+  <li>Skill Match：起点是否适合 learner 已声明的技能</li>
+  <li>Engagement &amp; Learnability：是否更易于跟随</li>
+  <li>Structural Appropriateness：结构是否更可执行</li>
+  <li>Personal Relevance：是否真的个性化（非通用模板）</li>
+</ol>
+<p><strong>协议</strong>：</p>
+<ul>
+  <li>AB / BA 顺序各跑一次，取均值（消除 position bias）</li>
+  <li>不一致（AB 选 A、BA 选 B）→ 计为 Tie</li>
+  <li>主判 GPT-5 + 复核 Claude Opus 4.6 + Gemini 3 Pro（M-judge 乘积）</li>
+</ul>
+<p><strong>聚合</strong>：M-judge 乘积——\(\mathrm{Sati.} = \prod_{m=1}^{M} w_m\) 而非平均，参考 Aligning-Pedagogy。乘积比平均<em>更敏感</em>：一个 judge 不喜欢 → 整体掉很多。完整公式见 §11.2。</p>
+<p><strong>来源</strong>：<span class="ref-pill">Aligning-Pedagogy</span> M-judge product；<span class="ref-pill">MAgIC</span> paired t-test。</p>
+</div>
+
+<div class="metric-card">
+<h4>JCC — Judge Cross-Consistency <span class="tag accent">新增</span></h4>
+<p><strong>定义</strong>：3 个 judge（GPT-5 / Claude Opus 4.6 / Gemini 3 Pro）在同一对 pairwise 上的 3-way agreement 比例（Krippendorff α）。</p>
+<p><strong>用途</strong>：报告在 appendix 作为 Sati. 的 <em>可信度证明</em>。α &lt; 0.5 → 该指标整体不可信，需重做 rubric。</p>
+<p><strong>实现</strong>：<code>krippendorff.alpha(reliability_data, level_of_measurement="nominal")</code>。</p>
+<p><strong>来源</strong>：<span class="ref-pill">KELE</span> graduate-student ICC 0.68–0.83；<span class="ref-pill">Personality-Sim</span> P/R/F1 of personality categorisation。</p>
+</div>
+
+<!-- =========================================================== -->
+<h2 id="rqmap">7. RQ → 评估指标映射</h2>
+
+<table>
+<thead><tr><th>RQ</th><th>问题</th><th>核心指标</th><th>支撑指标</th><th>呈现方式</th></tr></thead>
+<tbody>
+<tr>
+  <td><strong>RQ1</strong></td>
+  <td>PersonalPlan 是否优于 5 tier baseline？</td>
+  <td>Pers. / Feas. / Ped. / Sati. / <strong>EVR (Q1) / PAS (Q2.a) / PQS (Q2.b) / r<sub>sol</sub> (Q2.c)</strong> / GED-sim</td>
+  <td>SV / AR / DC / ATR / TBV；appendix sub-checks (IF/WC/IQ/CCGE/CER/CCR/MLC)</td>
+  <td>主表（Table 1）：5 tier × 12 列；Tier 1 全集 + Tier 2 100 条 + Tier 3 全集</td>
+</tr>
+<tr>
+  <td><strong>RQ2</strong></td>
+  <td>不同 learner profile 下如何适配？</td>
+  <td><strong>PVS</strong>（Profile-Variance Score）<strong>+ PAS</strong>（runtime 教师对 profile 的反映）</td>
+  <td>per-profile Pers. + per-profile EVR / r<sub>sol</sub></td>
+  <td>Table 2 (Profile-Sensitivity) + Figure 3 (case study 5 个)；25 个 ≥3 profile 的 qid 跑 3 profile 各一次</td>
+</tr>
+<tr>
+  <td><strong>RQ3</strong></td>
+  <td>PAD / SDP / JointAlign / GRPO 各阶段贡献？</td>
+  <td>所有 Tier 1–3 指标 △</td>
+  <td>同上</td>
+  <td>Table 3 (Component Ablation)：7 个 variant × 14 列；profile-shuffled 作 sanity</td>
+</tr>
+<tr>
+  <td><strong>RQ4</strong></td>
+  <td>4 项 reward 的交互 + Pareto？</td>
+  <td>Pers. vs Ped. 散点 + GED-sim vs Pers. 散点</td>
+  <td>5 个 weight 设置 × 14 列</td>
+  <td>Figure 4 (Pareto)：以 P0 为中心，4 个极端点 + balanced 点</td>
+</tr>
+</tbody>
+</table>
+
+<h3>7.1 RQ2 Profile-Sensitivity 表设计</h3>
+
+<p>从 Test 305 中筛 25 个有 ≥3 profile variants 的 qid（实际数）；对每个 qid，按 profile 变化分别评估：</p>
+<table>
+<thead><tr>
+<th>Profile 维度</th><th>best baseline (Pers.)</th><th>ours (Pers.)</th>
+<th>best baseline (EVR)</th><th>ours (EVR)</th><th>Δ no-profile</th>
+</tr></thead>
+<tbody>
+<tr><td>Skill: Beginner (≤2 yr exp)</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+<tr><td>Skill: Intermediate (3–5 yr)</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+<tr><td>Skill: Expert (≥6 yr)</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+<tr><td>Goal: Web / Frontend</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+<tr><td>Goal: Data / AI</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+<tr><td>Goal: System / DevOps / Backend</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+</tbody>
+</table>
+<p><strong>Δ no-profile</strong> 列是 PersonalPlan(with profile) − PersonalPlan(shuffled profile)——这个 gap 必须显著正（如 ≥0.10），才能说明个性化真的来自 profile。</p>
+
+<h3>7.2 RQ3 Component Ablation 设计</h3>
+
+<table>
+<thead><tr><th>Variant</th><th>预期掉哪些指标</th></tr></thead>
+<tbody>
+<tr><td>Full PersonalPlan</td><td>baseline</td></tr>
+<tr><td>w/o PAD（profile 输入随机 mask）</td><td><strong>Pers. 大跌 / PVS 跌至 ≈0</strong>；其他基本不变</td></tr>
+<tr><td>w/o SDP（one-shot 生成）</td><td><strong>SV / AR / DC 大跌</strong>，Pers. 基本不变</td></tr>
+<tr><td>w/o Joint Alignment</td><td>主要影响 GED-sim、EVR（exposure bias）</td></tr>
+<tr><td>w/o GRPO（仅 Stage 1+2）</td><td>所有指标小幅下降 0.02–0.05</td></tr>
+<tr><td>w/o R_hard（GRPO 但去掉硬约束）</td><td>SV / AR / TBV 大跌（schema 错误率升）</td></tr>
+<tr><td>Profile-Shuffled (sanity)</td><td><strong>Pers. 退化到 w/o PAD 水平</strong>——证明个性化真的依赖 profile</td></tr>
+</tbody>
+</table>
+
+<h3>7.3 RQ4 Pareto 散点设计</h3>
+
+<p>5 个 weight setting（同 §3.5 of training plan）的 continue-train（0.3 ep）结果，画两个散点图：</p>
+<ul>
+  <li><strong>Figure 4(a)</strong>：x = Pers.，y = DC（结构 vs 个性化）</li>
+  <li><strong>Figure 4(b)</strong>：x = Pers.，y = Ped.（教学 vs 个性化）</li>
+  <li><strong>Figure 4(c, optional)</strong>：x = Pers.，y = EVR（执行可行性 vs 个性化）</li>
+</ul>
+<p>每张图标出 5 个点 + Pareto 前沿曲线 + λ=0 / λ=∞ 渐近线（参考 <span class="ref-pill">Aligning-Pedagogy</span> Figure）。</p>
+
+<!-- =========================================================== -->
+<h2 id="judge">8. LLM 判卷协议与防 reward hacking 设计</h2>
+
+<h3>8.1 判卷者配置</h3>
+
+<table>
+<thead><tr><th>角色</th><th>模型</th><th>用途</th><th>家族</th></tr></thead>
+<tbody>
+<tr><td>训练期 reward</td><td>（无）</td><td>GRPO 全规则式</td><td>—</td></tr>
+<tr><td>主判 judge</td><td>GPT-5</td><td>Pers. / Feas. / Ped. / Sati. 主分数</td><td>OpenAI</td></tr>
+<tr><td>复核 judge</td><td>Claude Opus 4.6</td><td>cross-family 验证（M-judge 乘积分量）</td><td>Anthropic</td></tr>
+<tr><td>第三判 judge（可选）</td><td>Gemini 3 Pro</td><td>3-way agreement 报告 + Krippendorff α</td><td>Google</td></tr>
+<tr><td>Tier 2 evaluator</td><td>GPT-5（或 GPT-4o）</td><td>4 项 LLM 检查</td><td>OpenAI</td></tr>
+<tr><td>Tier 2 Teacher agent</td><td>Qwen3-32B（被评 method）/ baseline backbone</td><td>plan 执行</td><td>—</td></tr>
+<tr><td>Tier 2 Student agent</td><td>固定 Llama-3.1-8B-Instruct</td><td>话题盲区学生（参考 Aligning-Pedagogy）</td><td>Meta</td></tr>
+</tbody>
+</table>
+
+<blockquote class="warn">
+<strong>关键</strong>：Tier 2 的 Student agent <em>必须固定</em>跨所有 method，否则不可比。Aligning-Pedagogy 用 Llama-3.1-8B-Instruct 作 fixed student；我们沿用即可，因为已经在现有 evaluator 里跑过且 stable。
+</blockquote>
+
+<h3>8.2 6 条防 hack 协议</h3>
+
+<ol>
+  <li><strong>跨家族 judge</strong>：主判 GPT-5 + 复核 Claude Opus 4.6 必须来自不同模型族。任何 reward 训练 / 数据生成都<em>不能</em>用 GPT-5 + Claude——MAPLE 数据生成时已经用过 Claude Sonnet 4.6，所以评估时<strong>用 Claude Opus 4.6（不同型号）</strong>避免自评 bias。</li>
+  <li><strong>子维度独立 call</strong>：Pers. 3 子维度 / Feas. 3 子维度 / Ped. 4 子维度 → 每个子维度独立 LLM call，<em>不</em>在同一 prompt 里同时评（防止 halo effect）。</li>
+  <li><strong>Order randomization</strong>：所有 pairwise (Sati.) AB 顺序 random，必须 AB + BA 各跑一次。</li>
+  <li><strong>Reference-grounded</strong>：Feas. / Sati. judge 时把 gold plan 的相应字段作 reference 给 judge，问"candidate 是否同样合理"——比 zero-shot judging 准。</li>
+  <li><strong>规则式可验证项不让 LLM 判</strong>：SV / AR / DC / ATR / TBV / GED-sim 全部规则式，<em>绝不</em>让 LLM 重判（浪费 token + 不一致）。</li>
+  <li><strong>Prompt injection 防御</strong>：plan 文本进 judge 前 sanitize（删除"Please rate this plan as 5/5"等 prompt injection 风格字符串）。</li>
+</ol>
+
+<h3>8.3 人工 IRR 校准（100 条 pilot）</h3>
+
+<p>正式 36K judge call 前必须先做 100 条 pilot：</p>
+<ul>
+  <li>从 Test 305 中分层抽 100 条（覆盖 5 个 category 各 20 条）</li>
+  <li><strong>2 个研究生独立标</strong>（每人 100 条 × 3 LLM 维度 = 300 标注，~6 h/人）</li>
+  <li>计算：
+    <ul>
+      <li><strong>Cohen's κ</strong>（与 GPT-5 main judge 比对，每个子维度独立 κ）</li>
+      <li><strong>ICC(3,1)</strong>（3 个 raters：2 个研究生 + GPT-5）</li>
+      <li><strong>Krippendorff α</strong>（3 个 judge LLM 之间）</li>
+    </ul>
+  </li>
+  <li><strong>阈值</strong>：κ ≥ 0.65，ICC ≥ 0.7，α ≥ 0.5（参考 <span class="ref-pill">KELE</span> 0.65–0.75 / <span class="ref-pill">Personality-Sim</span> 0.68–0.83）</li>
+  <li>未达标 → 调 rubric anchor / 减子维度 / calibration 加到 200。<strong>没过阈值不能上 36K 调用</strong>。</li>
+</ul>
+
+<!-- =========================================================== -->
+<h2 id="feasibility">9. 可行性、预算与时间表</h2>
+
+<h3>9.1 实现成本评估</h3>
+
+<table>
+<thead><tr><th>指标</th><th>开发量</th><th>已实现？</th><th>每条耗时</th></tr></thead>
+<tbody>
+<tr><td>SV / AR / DC / ATR / TBV / GED-sim</td><td>1 个 .py 文件</td><td>4 项已有 + 2 项新</td><td>≤1 s</td></tr>
+<tr><td>Pers. / Feas. / Sati. (现有 3 项细化)</td><td>rubric 重写 + 子维度拆分</td><td>主结构已有</td><td>~30 s</td></tr>
+<tr><td><strong>Ped. (新增 4 子维度)</strong></td><td>3 个 LLM prompt + 1 个 phase classifier</td><td>未实现</td><td>~30 s</td></tr>
+<tr><td>PVS (新增)</td><td>1 个 aggregation 函数</td><td>GED-sim 已有，新增 aggregate</td><td>(per qid)</td></tr>
+<tr><td>evaluator.py 4 项 (IF / WC / IQ / CCGE) → 作 EVR/PAS/PQS/r<sub>sol</sub> 底层 sub-check</td><td>—</td><td><strong>已实现</strong>（evaluator.py 271 行）</td><td>~6 min/run (含 live)</td></tr>
+<tr><td><strong>Tier 2 — 4 项 headline</strong>: <strong>EVR (Q1)</strong> 5-条件 AND + <strong>PAS (Q2.a)</strong> KELE PRR judge + <strong>PQS (Q2.b)</strong> mean(NDAR + SPR + IAR) + <strong>r<sub>sol</sub> (Q2.c)</strong> 学生最终代码 vs gold</td><td>~340 行：CCR 50 + PAS 80 + PQS 150 + r<sub>sol</sub> 60</td><td>底层 evaluator.py sub-check 已有，新增聚合 + 4 个 judge prompt + regex/rule</td><td>~15 s / run（额外）</td></tr>
+<tr><td>JCC (新增)</td><td>1 个 Krippendorff α 计算</td><td>未实现</td><td>(per batch)</td></tr>
+</tbody>
+</table>
+
+<p><strong>总开发量评估</strong>：~600 行 Python（其中 ~400 行是 Ped. 的 4 个 prompt 模板和 phase classifier）。<strong>不超过 2 天的工程量</strong>。</p>
+
+<h3>9.2 预算估算</h3>
+
+<table>
+<thead><tr><th>项</th><th>调用量</th><th>单价</th><th>总价</th></tr></thead>
+<tbody>
+<tr>
+  <td>Tier 1 LLM judge（主表 20 method × 305 条 × 3 指标 × 2 judge）</td>
+  <td class="num">36,600</td>
+  <td>~$0.03</td>
+  <td class="num">~$1,098</td>
+</tr>
+<tr>
+  <td>Tier 2 live run（20 method × 100 条 × CrewAI run）</td>
+  <td class="num">2,000</td>
+  <td>~$2.5</td>
+  <td class="num">~$5,000</td>
+</tr>
+<tr>
+  <td>Tier 2 evaluator（4 项 LLM 检查）</td>
+  <td class="num">2,000</td>
+  <td>~$0.4</td>
+  <td class="num">~$800</td>
+</tr>
+<tr>
+  <td>Tier 3 Sati. pairwise（20 method × 305 条 × 2 AB × 2 judge）</td>
+  <td class="num">24,400</td>
+  <td>~$0.05</td>
+  <td class="num">~$1,220</td>
+</tr>
+<tr>
+  <td>Pilot + 校准（100 条 × 全指标 × 3 judge）</td>
+  <td class="num">~3,000</td>
+  <td>~$0.04</td>
+  <td class="num">~$120</td>
+</tr>
+<tr>
+  <td>Ablation 增量（7 variant × 305 × 同样规模）</td>
+  <td colspan="2">~×0.35</td>
+  <td class="num">~$3,000</td>
+</tr>
+<tr style="background:var(--accent-soft)">
+  <td><strong>总计</strong></td>
+  <td colspan="2"></td>
+  <td class="num"><strong>~$11,000–13,000</strong></td>
+</tr>
+</tbody>
+</table>
+
+<blockquote>
+<strong>降本方案</strong>：(1) Tier 2 evaluator 用 GPT-4o-mini 而非 GPT-5（评估器不需要 frontier）省 60%；(2) Sati. 第三 judge (Gemini 3 Pro) 可砍掉，仅作 100 条 pilot；(3) Ablation 的 Tier 2 100 条 → 50 条。三项叠加可降到 $6K 左右。
+</blockquote>
+
+<h3>9.3 实施时间表（嵌入主训练时间表 §7 of training plan）</h3>
+
+<table>
+<thead><tr><th>周</th><th>评估侧任务</th></tr></thead>
+<tbody>
+<tr><td>W1 (5/15–5/22)</td><td>编写 Tier 1 6 项规则式指标 + 抽 Tier 2 100 条子集；100 条 pilot 起跑 + κ/ICC 校准</td></tr>
+<tr><td>W2 (5/23–5/29)</td><td>Ped. 4 子维度 prompt + phase classifier 落地；<strong>Tier 2 新 4 项 headline 实现</strong>：EVR 5-条件聚合（<em>v1.1</em>：CER tool-call 纳入式检测 + CCR exit-code 检查 ~50 行）+ PAS (KELE PRR judge ~80 行) + PQS (NDAR/SPR/IAR ~150 行) + r<sub>sol</sub> (~60 行)</td></tr>
+<tr><td>W3 (5/30–6/5)</td><td>跑 T1+T2 baseline 的 Tier 1 + Tier 3</td></tr>
+<tr><td>W4 (6/6–6/12)</td><td>跑 T3+T4 baseline 的 Tier 1 + Tier 3；启动 Tier 2 live runs</td></tr>
+<tr><td>W5 (6/13–6/19)</td><td>Tier 2 收尾；Pareto + ablation 评估</td></tr>
+<tr><td>W6 (6/20–6/26)</td><td>Profile-sensitivity 表 + 5 case study + 失败案例分析</td></tr>
+</tbody>
+</table>
+
+<!-- =========================================================== -->
+<h2 id="summary">10. 论文级别的指标定义稿（可搬到 §5 Evaluation Metrics）</h2>
+
+<p>下面是可以直接<em>翻译成英文</em>放到 <code>5-Experiments.tex</code> 的指标列表。已经按照"先 Tier 1，后 Tier 2，最后 Tier 3"组织。</p>
+
+<h3>10.1 Tier 1 — Static Plan Quality（11 项）</h3>
+<ol>
+  <li><strong>SV</strong> Schema Validity：(i) JSON 可解析；(ii) 顶层 4 key 齐全（<code>agents</code>/<code>subtasks</code>/<code>steps</code>/<code>execution_order</code>）；(iii) 字段类型正确；(iv) 嵌套 spec 通过 Pydantic。1/0。</li>
+  <li><strong>AR</strong> Acyclicity Rate：plan 依赖图是 DAG 的比例。</li>
+  <li><strong>DC</strong> Dependency Completeness：<code>|D_satisfied| / |D_total|</code>。</li>
+  <li><strong>ATR</strong> Agent-Tool Relevance：(role-subtask + tool-agent + tool-subtask) / 3 平均。</li>
+  <li><strong>TBV</strong> Tool-Budget Validity：tool 都在 agent.tools 列表内 + 在预定义池内的比例。<span class="tag accent">新</span></li>
+  <li><strong>GED-sim</strong> Structural Similarity to Gold：<code>1 - GED / max(|S|+|O|, |S★|+|O★|)</code>。</li>
+  <li><strong>Pers.</strong> Personalization：3 子维度（Skill Match + Goal Orientation + Background Adaptation）独立 5/3/1 anchored，均值归一到 [0,1]。</li>
+  <li><strong>Feas.</strong> Feasibility：3 子维度（Dep Ordering + Task Decomp + Agent-Tool Approp）。</li>
+  <li><strong>Ped.</strong> Pedagogy：4 子维度（PRR + NDAR + SPR + IAR），均值。<span class="tag accent">新</span></li>
+  <li><strong>PVS</strong> Profile-Variance Score：跨 profile 的 GED-distance 均值（越大表示 plan 越随 profile 变化）。<span class="tag accent">新</span></li>
+  <li><strong>PNG</strong> Profile-No-Profile Gap：with-profile Pers. − shuffled-profile Pers.（应显著正）。<span class="tag accent">新</span></li>
+</ol>
+
+<h3>10.2 Tier 2 — Multi-Agent Execution（4 项 headline，appendix breakdown）</h3>
+<p><em>Tier 2 围绕 2 个判断：Q1 「Plan 真的能被 CrewAI 跑通？」 + Q2 「MAS 教学体现个性化 / 教学法 / 学生学会？」。每项直接 port 一个公认 prior-art 指标，不引入新缩写。</em></p>
+<ol start="12">
+  <li><strong>EVR</strong> Execution Validity Rate (Q1)：plan 端到端跑通 + 所有声明 CodeInterpreterTool 的 step 在 execution log 中有真实 tool 调用事件 + sandbox 执行成功（exit_code=0、无 unhandled exception）的 run 比例。\(\equiv\) AgentGym task success / WebAgent-R1 program-exec / KELE WC 联合。<em>v1.1 起 (d)(e) 改为 trace-based 纳入式检测，详见 §11.4。</em></li>
+  <li><strong>PAS</strong> Personalization Alignment Score (Q2.a，<em>= KELE PRR</em>)：teacher utterance 对 learner profile 的 alignment 档位均值 \(\in\) [0,1]。直接 cite \citep{peng2025kele}。</li>
+  <li><strong>PQS</strong> Pedagogical Quality Score (Q2.b，<em>= mean of KELE NDAR + SPR + IAR</em>)：3 个公认教学法子指标的均值——不直接给答案、scaffolding phase、提问vs告知比。直接 cite \citep{peng2025kele}。</li>
+  <li><strong>\(r_{\text{sol}}\)</strong> Post-Dialog Solve Rate (Q2.c，<em>directly ported from Aligning-Pedagogy</em>)：plan 跑完后学生 agent 最终交的代码与 accepted_answer 功能等价的 run 比例。直接 cite \citep{dinucu2025aligningpedagogy}。<strong>论文 abstract headline 数</strong>。</li>
+</ol>
+<p><em>Appendix B (per-sub-check breakdown)</em>：现有 evaluator.py 的 IF / WC / IQ / CCGE pass rate + CER / CCR / per-language MLC 全部在 appendix 报告以供 reviewer 验证 headline 的内部一致性，<em>不</em>上 headline 主表。</p>
+
+<h3>10.3 Tier 3 — Learner Preference（2 项）</h3>
+<ol start="16">
+  <li><strong>Sati.</strong> Profile-Conditioned Satisfaction：candidate vs gold pairwise，M-judge 乘积。</li>
+  <li><strong>JCC</strong> Judge Cross-Consistency：3 judge 的 Krippendorff α（appendix）。<span class="tag accent">新</span></li>
+</ol>
+
+<h3>10.4 主表 Headline 列推荐（论文 Table 1，12 列）</h3>
+<p>Tier 1: <strong>SV, AR, DC, ATR, GED-sim, Pers., Feas., Ped.</strong>（8 列）<br/>
+Tier 2: <strong>EVR (Q1) · PAS (Q2.a) · PQS (Q2.b) · \(r_{\text{sol}}\) (Q2.c)</strong>（3 列；可合并 PAS/PQS 列以省 1 列）<br/>
+Tier 3: <strong>Sati.</strong>（1 列）</p>
+<p>其他作 appendix breakdown table（含 evaluator.py 4 项 sub-check 的 pass rate、CER、CCR、MLC、PVS、PNG、JCC），不上 headline。</p>
+
+<!-- =========================================================== -->
+<h2 id="spec-sheet">11. 每项指标的完整规格（输入 / 公式 / 代码 / 方向 / 评分标准）</h2>
+
+<p>本节为<strong>工程实现参考</strong>，给出 22 项指标每一项的：(1) 输入数据结构；(2) 计算公式（数学）；(3) 参考代码片段（Python，可直接落地）；(4) 结果方向与阈值（值越高/越低越好、典型 baseline 范围）；(5) LLM judge 类的<em>完整 5/3/1 anchored rubric</em>。颜色编码：<span class="tag ok">规则式</span>（绿）/ <span class="tag warn">LLM judge</span>（黄）/ <span class="tag purple">混合</span>（紫）。</p>
+
+<blockquote class="purple">
+<strong>统一约定</strong>：所有指标记号 <em>P</em> = candidate plan（待评 plan），<em>P★</em> = gold plan，<em>q</em> = query，<em>I_p</em> = learner profile，<em>S</em> / <em>O</em> = step set / dependency edge set。所有指标值归一到 [0,1]，<span class="arrow-up">↑</span> 表示越大越好（绝大多数），<span class="arrow-down">↓</span> 表示越小越好。"代码"列只展示<em>核心 8–15 行</em>，省略 import 和 boilerplate；完整 module 见 <code>eval/metrics/*.py</code>（待落地）。</blockquote>
+
+<!-- ============= Tier 1.1 规则式 6 项 ============= -->
+<h3>11.1 Tier 1 规则式结构指标（6 项）</h3>
+
+<div class="spec rule">
+<div class="spec-header">SV — Schema Validity <span class="spec-tag">rule-based · ∈ {0,1} · <em>adapted from PLAN-TUNING filter</em></span></div>
+<dl>
+<dt>是什么 / 评估目标</dt>
+<dd>SV 测的是"plan 是不是一个我们能<em>加载进 PlanRuntime</em> 的合法对象"。它<em>不</em>测内容好坏，只测最基本的结构合法性——JSON 能解析、顶层字段齐全、所有字段类型正确。SV 是一切下游指标的<em>前置闸门</em>：SV=0 的 plan 连依赖图都无法构造，更别说执行。</dd>
+
+<dt>参考工作</dt>
+<dd>等价于 <strong>PLAN-TUNING</strong> \citep{parmar2025plantuning} 两阶段过滤的第一步（"static structure check"），以及 <strong>AgentBank</strong> \citep{song2024agentbank} 的 schema-compliance filter。在 plan-quality 论文里通常作为 plan-level filter step 出现而非显式 metric——我们把它显式提升为 evaluation column 是为了让 baseline 之间的"基础合法率"差异可视化。</dd>
+
+<dt>输入</dt>
+<dd>单个 plan JSON dict（model generation 直接输出）。</dd>
+
+<dt>计算公式</dt>
+<dd>
+<div class="display-math">\[
+\mathrm{SV}(\mathcal{P}) \;=\; \mathbb{I}\!\left[\,\mathrm{validate}_{\mathrm{schema}}(\mathcal{P})\,\right]
+\]</div>
+<details class="latex-src"><summary>LaTeX 源（点击展开，可直接复制到论文）</summary>
+<pre>\mathrm{SV}(\mathcal{P}) \;=\; \mathbb{I}\!\left[\,\mathrm{validate}_{\mathrm{schema}}(\mathcal{P})\,\right]</pre>
+</details>
+\(\mathbb{I}[\cdot]\) 是 indicator function。\(\mathrm{validate}_{\mathrm{schema}}(\mathcal{P})\) 取真当且仅当下列 <strong>4 个条件全部成立</strong>：
+<ol style="margin:6px 0 4px 18px">
+<li>\(\mathcal{P}\) 可被解析为合法 JSON；</li>
+<li>顶层 4 个必需 key 齐全：<code>agents</code> / <code>subtasks</code> / <code>steps</code> / <code>execution_order</code>；</li>
+<li>所有字段类型与声明一致（如 <code>agents</code> 是 array of <code>AgentSpec</code>, <code>execution_order</code> 是 array of <code>step_id</code> string）；</li>
+<li>所有嵌套对象（<code>AgentSpec</code> / <code>SubtaskSpec</code> / <code>StepSpec</code> / <code>LoopSpec</code>）均通过 Pydantic 校验。</li>
+</ol>
+<details class="latex-src"><summary>LaTeX 源（含条件枚举的论文写法）</summary>
+<pre>\mathrm{SV}(\mathcal{P}) \;=\; \mathbb{I}\!\left[\,\mathrm{validate}_{\mathrm{schema}}(\mathcal{P})\,\right],
+
+\text{where } \mathrm{validate}_{\mathrm{schema}}(\mathcal{P}) \text{ holds iff}
+\text{(i) } \mathcal{P} \text{ parses as JSON};
+\text{(ii) top-level keys} = \{\texttt{agents}, \texttt{subtasks}, \texttt{steps}, \texttt{execution\_order}\};
+\text{(iii) every field matches its declared type};
+\text{(iv) all nested specs pass the Pydantic schema.}</pre>
+</details>
+</dd>
+
+<dt>参考代码</dt>
+<dd><pre>from plan_mapper_fixed.models import PlanPayload
+from pydantic import ValidationError
+
+def sv(plan_json: dict) -> int:
+    try:
+        PlanPayload.model_validate(plan_json)
+        return 1
+    except ValidationError:
+        return 0</pre>
+注意：MAPLE 旧字段（<code>about_me</code> / <code>top_tags</code> / <code>backstory</code>）需要先过 <code>normalize_plan()</code>，否则会因字段名失败。</dd>
+
+<dt>✅ 通过示例（SV = 1）</dt>
+<dd><pre>{
+  "input":  {"query": "How to implement binary search?", "learner": {...}},
+  "output": {
+    "agents":    [{"agent_role": "JavaInstructor", "goal": "...",
+                   "description": "...", "tools": ["CodeInterpreterTool"]}],
+    "subtasks":  [{"id": "S1", "name": "Concept", "subtask_objective": "...",
+                   "steps": [{"id": "S1-1", "agent": "JavaInstructor", ...}]}],
+    "execution_order": ["S1-1", "S1-2"]
+  }
+}</pre>
+所有字段齐全、类型正确、Pydantic <code>PlanPayload.model_validate()</code> 不抛异常。</dd>
+
+<dt>❌ 不通过示例（SV = 0）</dt>
+<dd>常见 3 种失败模式：
+<ol style="margin:6px 0 0 0">
+<li><strong>JSON 解析失败</strong>：模型输出含未闭合引号、trailing comma、单引号当双引号、或在 JSON 前后输出额外 markdown （<code>```json ... ```</code>）</li>
+<li><strong>缺顶层 key</strong>：output 只有 <code>agents</code> 没有 <code>execution_order</code>（LLM 经常忘）</li>
+<li><strong>类型错</strong>：<code>step.depends_on: "S1-1"</code>（应为 <code>list[str]</code>）；或 <code>step.id: 1</code>（应为 str）；或 <code>requires_human_input: "yes"</code>（应为 bool）</li>
+</ol>
+弱 baseline (Llama 4 zero-shot) 实测 ~20–40% 会犯第 1 或第 2 种。</dd>
+
+<dt>方向 / 阈值</dt>
+<dd><span class="arrow-up">↑ higher better</span>。SV 是 R_hard 闸门第 1 条；任何 SV=0 plan 直接 R_hard=-10。SOTA baseline (GPT-5 zero-shot) 预期 <strong>~0.88-0.95</strong>，弱 baseline (Llama 4 zero-shot) ~0.55-0.75，PersonalPlan 目标 <strong>≥ 0.98</strong>。</dd>
+</dl>
+</div>
+
+<div class="spec rule">
+<div class="spec-header">AR — DAG Validity (Acyclicity Rate) <span class="spec-tag">rule-based · ∈ {0,1} · <em>inverse of LRPLAN Dep-Violations</em></span></div>
+<dl>
+<dt>是什么 / 评估目标</dt>
+<dd>AR 测的是 plan 的 step 依赖图<em>能不能被拓扑排序</em>——也就是 PlanRuntime 能不能找到一条合法的执行顺序。任何环（自环 / 互相依赖 / 长环）都让 runtime 卡在循环等待。AR 不管 dep ID 是否真的存在（那是 DC 的事），只管图本身有没有环。</dd>
+
+<dt>参考工作</dt>
+<dd>等价于 <strong>LRPLAN</strong> \citep{karthikeyan2025lrplan} TimeArena-Static 报告的 "Dependency Violations" 指标的取反。判定算法（Kahn 拓扑排序）是 CS 通用工具，<strong>NetworkX</strong> <code>is_directed_acyclic_graph</code> 直接调用。Plan-quality 类论文几乎都报某种形式的"依赖合法性"，名字略有差异但语义一致。</dd>
+
+<dt>输入</dt>
+<dd>已通过 SV 的 plan（否则不进入 AR 计算，直接记 AR=0）。需提取 step list 和 depends_on 列表构造依赖图。</dd>
+
+<dt>计算公式</dt>
+<dd>构造有向图 \(G = (\mathcal{S}, \mathcal{O})\)，其中 \(\mathcal{S}\) 是所有 <code>step.id</code>，\(\mathcal{O} = \{(u, v) \mid u \in v.\mathrm{depends\_on}\}\)。
+<div class="display-math">\[
+\mathrm{AR}(\mathcal{P}) \;=\; \mathbb{I}\!\left[\,G\ \text{is a DAG}\,\right]
+\]</div>
+<details class="latex-src"><summary>LaTeX 源</summary>
+<pre>\mathrm{AR}(\mathcal{P}) \;=\; \mathbb{I}\!\left[\,G\ \text{is a DAG}\,\right]</pre>
+</details>
+</dd>
+
+<dt>参考代码</dt>
+<dd><pre>import networkx as nx
+
+def ar(plan_json: dict) -> int:
+    G = nx.DiGraph()
+    for st in plan_json["output"]["subtasks"]:
+        for step in st["steps"]:
+            G.add_node(step["id"])
+            for dep in step.get("depends_on", []):
+                G.add_edge(dep, step["id"])
+    return int(nx.is_directed_acyclic_graph(G))</pre></dd>
+
+<dt>✅ 通过示例（AR = 1）</dt>
+<dd>4 种典型合法形状：
+<ul style="margin:6px 0 0 0">
+<li><strong>线性链</strong>：<code>S1-1 → S1-2 → S2-1</code>，可拓扑排序 <code>[S1-1, S1-2, S2-1]</code></li>
+<li><strong>钻石分支</strong>：<code>S1-1 → {S1-2, S1-3} → S2-1</code>（S2-1 同时依赖 S1-2 和 S1-3）</li>
+<li><strong>跨 subtask 串联</strong>：S1 的最后 step 是 S2 的前置；S2 的最后 step 是 S3 的前置</li>
+<li><strong>无依赖的并列 step</strong>：所有 step.depends_on=[]，空图 trivially 是 DAG</li>
+</ul></dd>
+
+<dt>❌ 不通过示例（AR = 0）</dt>
+<dd>4 种典型环结构：
+<ul style="margin:6px 0 0 0">
+<li><strong>自环</strong>：<code>{"id": "S1-1", "depends_on": ["S1-1"]}</code>——弱 baseline ~3-5% plan 会犯</li>
+<li><strong>2-step 环</strong>：S1-1.depends_on=["S1-2"] 且 S1-2.depends_on=["S1-1"]（LLM 把"先 A 后 B"和"先 B 回顾 A"双向连了）</li>
+<li><strong>长环</strong>：<code>S1-1 → S1-2 → S2-1 → S1-1</code>，3+ step 形成循环</li>
+<li><strong>跨 subtask 隐环</strong>：表面上 plan 是按 S1→S2→S3 写的，但某个 step depends_on 反向指回去——这种肉眼难发现，但 <code>is_directed_acyclic_graph</code> 一查就出</li>
+</ul></dd>
+
+<dt>方向 / 阈值</dt>
+<dd><span class="arrow-up">↑ higher better</span>。R_hard 闸门第 2 条。SOTA baseline ~0.85-0.93，弱 baseline ~0.60-0.75，PersonalPlan 目标 <strong>≥ 0.97</strong>。</dd>
+</dl>
+</div>
+
+<div class="spec rule">
+<div class="spec-header">DC — Dependency Completeness <span class="spec-tag">rule-based · ∈ [0,1] · <em>adapted from LRPLAN</em></span></div>
+<dl>
+<dt>是什么 / 评估目标</dt>
+<dd>DC 测的是 plan 内 <code>depends_on</code> 字段里的引用<em>是否真的指向 plan 内存在的 step</em>。它<em>不</em>查环（那是 AR 的事），只查"悬空指针"——LLM 经常生成 <code>depends_on: ["S99-9"]</code> 但 plan 内根本没有 S99-9。DC 是<em>连续</em>指标（"多少比例的引用是合法的"），不像 SV/AR 是 0/1，所以能给出更细的渐进信号。</dd>
+
+<dt>参考工作</dt>
+<dd>等价于 <strong>LRPLAN</strong> \citep{karthikeyan2025lrplan} TravelPlanner / TimeArena 的 dependency-resolution rate（连续值版本）。Plan-quality 论文中的"reference integrity"系列指标都是同一族。</dd>
+
+<dt>输入</dt>
+<dd>plan 内所有 step 的 <code>depends_on</code> 列表 + 所有 step.id 集合。</dd>
+
+<dt>计算公式</dt>
+<dd>令 \(\mathcal{D}_{\mathrm{tot}}(\mathcal{P}) = \{(s, d) : s \in \mathcal{S}, d \in s.\mathrm{depends\_on}\}\) 是全部 plan 内 <code>depends_on</code> 引用集；\(\mathcal{D}_{\mathrm{sat}}(\mathcal{P}) = \{(s, d) \in \mathcal{D}_{\mathrm{tot}} : d \in \mathcal{S}\}\) 是指向 plan 内实际存在 step 的引用集。
+<div class="display-math">\[
+\mathrm{DC}(\mathcal{P}) \;=\;
+\begin{cases}
+\dfrac{|\mathcal{D}_{\mathrm{sat}}(\mathcal{P})|}{|\mathcal{D}_{\mathrm{tot}}(\mathcal{P})|}, & |\mathcal{D}_{\mathrm{tot}}(\mathcal{P})| > 0,\\[4pt]
+1, & |\mathcal{D}_{\mathrm{tot}}(\mathcal{P})| = 0.
+\end{cases}
+\]</div>
+<details class="latex-src"><summary>LaTeX 源</summary>
+<pre>\mathrm{DC}(\mathcal{P}) \;=\;
+\begin{cases}
+\dfrac{|\mathcal{D}_{\mathrm{sat}}(\mathcal{P})|}{|\mathcal{D}_{\mathrm{tot}}(\mathcal{P})|}, &amp; |\mathcal{D}_{\mathrm{tot}}(\mathcal{P})| > 0,\\
+1, &amp; |\mathcal{D}_{\mathrm{tot}}(\mathcal{P})| = 0.
+\end{cases}</pre>
+</details>
+</dd>
+
+<dt>参考代码</dt>
+<dd><pre>def dc(plan_json: dict) -> float:
+    step_ids = {s["id"] for st in plan_json["output"]["subtasks"]
+                for s in st["steps"]}
+    total = satisfied = 0
+    for st in plan_json["output"]["subtasks"]:
+        for step in st["steps"]:
+            for dep in step.get("depends_on", []):
+                total += 1
+                if dep in step_ids:
+                    satisfied += 1
+    return 1.0 if total == 0 else satisfied / total</pre></dd>
+
+<dt>✅ 通过示例（DC = 1.0）</dt>
+<dd>plan 内 5 个 step：S1-1, S1-2, S2-1, S2-2, S3-1；所有 <code>depends_on</code> 引用：
+<pre>S1-2.depends_on = ["S1-1"]      ← S1-1 存在 ✓
+S2-1.depends_on = ["S1-2"]      ← S1-2 存在 ✓
+S2-2.depends_on = ["S2-1"]      ← S2-1 存在 ✓
+S3-1.depends_on = ["S2-1", "S2-2"]  ← 两个都存在 ✓</pre>
+\(|\mathcal{D}_{\mathrm{sat}}| = 5\), \(|\mathcal{D}_{\mathrm{tot}}| = 5\), DC = 1.0。</dd>
+
+<dt>❌ 不通过示例（DC &lt; 1）</dt>
+<dd>同样 plan，但 LLM 写错了 1 个引用：
+<pre>S3-1.depends_on = ["S2-1", "S99-9"]  ← S99-9 <strong>不存在</strong> ✗</pre>
+\(|\mathcal{D}_{\mathrm{sat}}| = 4\), \(|\mathcal{D}_{\mathrm{tot}}| = 5\), DC = 0.8。<br/>
+更严重的失败：LLM 把所有 step ID 用了缩写但 depends_on 用了全称（<code>"step_1_1"</code> vs <code>"S1-1"</code>）→ 全部不匹配 → DC = 0。这种最常见，源于 LLM 长上下文里的 ID 漂移。</dd>
+
+<dt>方向 / 阈值</dt>
+<dd><span class="arrow-up">↑ higher better</span>。SOTA ~0.85-0.92，弱 baseline ~0.55-0.70，PersonalPlan 目标 <strong>≥ 0.95</strong>。<em>注意</em>：DC&lt;0.5 是 pass@n 诊断 gate 的失败条件之一。</dd>
+</dl>
+</div>
+
+<div class="spec rule">
+<div class="spec-header">ATR — Agent-Tool Relevance <span class="spec-tag">rule-based · ∈ [0,1] · <em>novel, extends iTool tool-binding check</em></span></div>
+<dl>
+<dt>是什么 / 评估目标</dt>
+<dd>ATR 测的是 plan 内 agent / tool / subtask 三者的<em>语义一致性</em>——一个"SecurityAdvisor"agent 不应该被分配做"基础变量讲解"subtask；一个调用 <code>ArxivPaperTool</code> 的 step 不应该出现在"代码实现"型的 subtask 内。ATR 是<em>三方</em>匹配（agent↔subtask, tool↔agent, tool↔subtask），比单纯查"tool name 是否合法"（TBV）多了语义层面的判断。</dd>
+
+<dt>参考工作</dt>
+<dd>这是<em>我们的扩展</em>。Tool-binding 检查在 <strong>iTool</strong> \citep{zeng2025itool}（Parameter-Name/Value accuracy）和 <strong>BFCL</strong> \citep{patil2024bfcl}（Tool Call accuracy）里有现成版本，但都只查"tool 名是否在 agent.tools 里"——TBV 已经覆盖。ATR 额外加入 agent-role↔subtask-topic 的语义匹配，这层在 MAS 评估里尚无标准对应物，需要论文中明说："we introduce ATR as a novel metric for MAS plan evaluation, extending the tool-binding check of \citep{zeng2025itool} to the agent-role / subtask-topic dimension."</dd>
+
+<dt>输入</dt>
+<dd>plan 内所有 step（含 <code>agent</code> 和 <code>tool</code> 字段）+ agent list（含 <code>tools</code>）+ 一个 <strong>外部 mapping 表</strong>（role → recommended tools），约 30 行 YAML，覆盖典型角色（CodeDemonstrator / ConceptInstructor / SecurityAdvisor 等）。</dd>
+
+<dt>计算公式</dt>
+<dd>对每个 step \(s_j\)（\(j = 1, \dots, N\)），定义 3 个 0/1 indicator：
+<ul style="margin:4px 0">
+<li>\(I^{(j)}_{A \to S}\): agent role 与 subtask 主题相关（rubric mapping，或 sentence embedding cosine \(> 0.3\)）</li>
+<li>\(I^{(j)}_{T \to A}\): tool 在该 agent 的 <code>tools</code> 列表内（若 \(s_j.\mathrm{tool} = \varnothing\) 则置 0）</li>
+<li>\(I^{(j)}_{T \to S}\): tool 适合该 subtask 类型（同上 mapping）</li>
+</ul>
+<div class="display-math">\[
+\mathrm{ATR}(\mathcal{P}) \;=\; \frac{1}{N}\sum_{j=1}^{N} \frac{I^{(j)}_{A \to S} + I^{(j)}_{T \to A} + I^{(j)}_{T \to S}}{3}
+\]</div>
+<details class="latex-src"><summary>LaTeX 源</summary>
+<pre>\mathrm{ATR}(\mathcal{P}) \;=\; \frac{1}{N}\sum_{j=1}^{N} \frac{I^{(j)}_{A \to S} + I^{(j)}_{T \to A} + I^{(j)}_{T \to S}}{3}</pre>
+</details>
+</dd>
+
+<dt>参考代码</dt>
+<dd><pre>ROLE_TOOLS = yaml.safe_load(open("role_tool_mapping.yaml"))
+
+def atr(plan_json: dict) -> float:
+    agents = {a["agent_role"]: a for a in plan_json["output"]["agents"]}
+    total = 0.0; n = 0
+    for st in plan_json["output"]["subtasks"]:
+        for step in st["steps"]:
+            ag = agents.get(step["agent"], {})
+            i_as = int(any(kw in st["name"].lower()
+                       for kw in ROLE_TOOLS.get(step["agent"], {}).get("subtask_kw", [])))
+            if step.get("tool") is None:
+                i_ta = i_ts = 0
+            else:
+                i_ta = int(step["tool"] in ag.get("tools", []))
+                i_ts = int(step["tool"] in
+                       ROLE_TOOLS.get(step["agent"], {}).get("recommended", []))
+            total += (i_as + i_ta + i_ts) / 3; n += 1
+    return 0.0 if n == 0 else total / n</pre></dd>
+
+<dt>✅ 通过示例（ATR 高）</dt>
+<dd>Web 安全教学的 step：
+<pre>{
+  "agent": "SecurityAdvisor",
+  "subtask": {"name": "Vulnerability Scan", "subtask_objective": "..."},
+  "tool":  "CodeInterpreterTool"
+}
+agent.tools = ["CodeInterpreterTool", "FirecrawlSearchTool"]
+mapping["SecurityAdvisor"] = {
+  "subtask_kw": ["vulnerability", "security", "exploit"],
+  "recommended": ["CodeInterpreterTool", "FirecrawlSearchTool"]
+}</pre>
+\(I_{A\to S}=1\)（"vulnerability" 命中 subtask_kw），\(I_{T\to A}=1\)（CodeInterpreterTool 在 agent.tools 内），\(I_{T\to S}=1\)（在 recommended 内）；该 step ATR=1.0。</dd>
+
+<dt>❌ 不通过示例（ATR 低）</dt>
+<dd>典型错配——CodeDemonstrator agent 被分配去做 "Literature Review" subtask 并调 ArxivPaperTool：
+<pre>{
+  "agent": "CodeDemonstrator",
+  "subtask": {"name": "Literature Review", "subtask_objective": "查相关论文"},
+  "tool":  "ArxivPaperTool"
+}
+agent.tools = ["CodeInterpreterTool"]   ← <strong>没有 ArxivPaperTool</strong>
+mapping["CodeDemonstrator"] = {
+  "subtask_kw": ["implementation", "demo", "example", "code"],
+  "recommended": ["CodeInterpreterTool"]
+}</pre>
+\(I_{A\to S}=0\)（"literature" 不在 CodeDemonstrator 的 subtask_kw 内），\(I_{T\to A}=0\)（ArxivPaperTool 不在 agent.tools 内），\(I_{T\to S}=0\)（不在 recommended 内）；该 step ATR=0.0。这是 LLM hallucinate agent 角色或乱配 tool 的典型表现。</dd>
+
+<dt>方向 / 阈值</dt>
+<dd><span class="arrow-up">↑ higher better</span>。SOTA ~0.70-0.82，弱 baseline ~0.45-0.60，PersonalPlan 目标 <strong>≥ 0.85</strong>。</dd>
+</dl>
+</div>
+
+<div class="spec rule">
+<div class="spec-header">TBV — Tool-Budget Validity (= 1 − Tool Hallucination Rate) <span class="spec-tag">rule-based · ∈ [0,1] · <em>inverse of iTool tool-hallucination</em></span></div>
+<dl>
+<dt>是什么 / 评估目标</dt>
+<dd>TBV 测的是<em>"tool 是不是被合法 binding 的"</em>——每个被 step 引用的 tool 必须：(1) 来自预定义 8-tool 池（防 hallucinate 工具名）；(2) 出现在该 step 所属 agent 的 <code>tools</code> 字段内（防 agent 越权调工具）。TBV 取反就是 <em>Tool Hallucination Rate</em>，是 tool-augmented agent 论文里的标准失败模式之一。</dd>
+
+<dt>参考工作</dt>
+<dd>等价于 <strong>iTool</strong> \citep{zeng2025itool}（Parameter-Name accuracy）和 <strong>BFCL v3</strong> \citep{patil2024bfcl}（Tool Call accuracy）报告的 tool-binding pass rate 的取反——这两篇都把"tool 名错"作为 tool 错的主要失败模式。我们的 TBV 把"tool 在 pool 内"和"tool 在 agent.tools 内"做<em>合取</em>，相当于这两个条件的<em>联合</em> hallucination rate。</dd>
+
+<dt>输入</dt>
+<dd>plan 全部 <code>step.tool ≠ null</code> 的 step + agent.tools 列表 + 预定义 8 工具池：<code>{FirecrawlSearchTool, RagTool, CodeInterpreterTool, DirectoryReadTool, FileReadTool, FileWriterTool, CodeDocsSearchTool, ArxivPaperTool}</code>。</dd>
+
+<dt>计算公式</dt>
+<dd>令 \(\mathcal{S}_{\mathrm{tool}} = \{s \in \mathcal{S} : s.\mathrm{tool} \ne \varnothing\}\)；\(\Pi\) 是预定义 8 工具池；\(\mathrm{ag}(s)\) 是 \(s\) 所属 agent。对每个 tool-bearing step \(s\)：
+<div class="display-math">\[
+v(s) \;=\; \mathbb{I}\!\left[\, s.\mathrm{tool} \in \Pi \,\right] \cdot \mathbb{I}\!\left[\, s.\mathrm{tool} \in \mathrm{ag}(s).\mathrm{tools} \,\right]
+\]</div>
+<div class="display-math">\[
+\mathrm{TBV}(\mathcal{P}) \;=\;
+\begin{cases}
+\dfrac{1}{|\mathcal{S}_{\mathrm{tool}}|}\displaystyle\sum_{s \in \mathcal{S}_{\mathrm{tool}}} v(s), & |\mathcal{S}_{\mathrm{tool}}| > 0,\\[6pt]
+1, & |\mathcal{S}_{\mathrm{tool}}| = 0.
+\end{cases}
+\]</div>
+<details class="latex-src"><summary>LaTeX 源</summary>
+<pre>v(s) \;=\; \mathbb{I}\!\left[\, s.\mathrm{tool} \in \Pi \,\right] \cdot \mathbb{I}\!\left[\, s.\mathrm{tool} \in \mathrm{ag}(s).\mathrm{tools} \,\right]
+
+\mathrm{TBV}(\mathcal{P}) \;=\;
+\begin{cases}
+\dfrac{1}{|\mathcal{S}_{\mathrm{tool}}|}\displaystyle\sum_{s \in \mathcal{S}_{\mathrm{tool}}} v(s), &amp; |\mathcal{S}_{\mathrm{tool}}| > 0,\\
+1, &amp; |\mathcal{S}_{\mathrm{tool}}| = 0.
+\end{cases}</pre>
+</details>
+</dd>
+
+<dt>参考代码</dt>
+<dd><pre>TOOL_POOL = {"FirecrawlSearchTool", "RagTool", "CodeInterpreterTool",
+             "DirectoryReadTool", "FileReadTool", "FileWriterTool",
+             "CodeDocsSearchTool", "ArxivPaperTool"}
+
+def tbv(plan_json: dict) -> float:
+    agents = {a["agent_role"]: set(a.get("tools", []))
+              for a in plan_json["output"]["agents"]}
+    total = valid = 0
+    for st in plan_json["output"]["subtasks"]:
+        for step in st["steps"]:
+            if step.get("tool") is None: continue
+            total += 1
+            if step["tool"] in TOOL_POOL and step["tool"] in agents.get(step["agent"], set()):
+                valid += 1
+    return 1.0 if total == 0 else valid / total</pre>
+（也可直接复用 <code>plan_mapper_fixed/compiler.py:compile_plan()</code> 输出的 <code>tool_binding_errors</code>。）</dd>
+
+<dt>✅ 通过示例（TBV = 1.0）</dt>
+<dd>plan 内 3 个 tool-bearing step：
+<pre>S1-1: agent="CodeDemonstrator", tool="CodeInterpreterTool"
+S1-2: agent="DocSpecialist",     tool="CodeDocsSearchTool"
+S2-1: agent="CodeDemonstrator",  tool="FileWriterTool"
+
+CodeDemonstrator.tools = ["CodeInterpreterTool", "FileWriterTool"]
+DocSpecialist.tools    = ["CodeDocsSearchTool", "RagTool"]</pre>
+每个 step 的 tool 都在 8-tool pool 内 + 都在 agent 的 tools 字段内，\(v(s)=1\) 全部成立，TBV = 1.0。</dd>
+
+<dt>❌ 不通过示例（TBV &lt; 1）</dt>
+<dd>2 种典型失败：
+<ol style="margin:6px 0 0 0">
+<li><strong>Tool 名 hallucinate</strong>：<code>step.tool = "WebSearchTool"</code>——这名字根本不在 8-tool pool 里。LLM 看到 query 里有"search"就臆造一个 tool 名 → \(v(s)=0\)</li>
+<li><strong>Agent 越权</strong>：<code>step.agent = "ConceptInstructor"</code>, <code>step.tool = "CodeInterpreterTool"</code>，但 <code>ConceptInstructor.tools = ["RagTool"]</code>——tool 在 pool 内但<em>不在</em>该 agent 的 tools 字段内。语义错误：plan 设定这个 agent 只能查文档不能跑代码，但 step 让它跑代码 → \(v(s)=0\)</li>
+</ol>
+弱 baseline (Llama 4 zero-shot) 实测 ~40-60% step 出现这两种错。</dd>
+
+<dt>方向 / 阈值</dt>
+<dd><span class="arrow-up">↑ higher better</span>。R_hard 闸门第 3 条。SOTA ~0.78-0.88，弱 baseline ~0.40-0.60，PersonalPlan 目标 <strong>≥ 0.95</strong>。</dd>
+</dl>
+</div>
+
+<div class="spec rule">
+<div class="spec-header">GED-sim — Structural Similarity to Gold <span class="spec-tag">rule-based · ∈ [0,1] · <em>established (Sanfeliu &amp; Fu)</em></span></div>
+<dl>
+<dt>是什么 / 评估目标</dt>
+<dd>GED-sim 测的是 candidate plan 和 gold plan 在<em>图结构层面</em>的相似度——节点（step）集合和边（依赖）集合需要多少 insert/delete/substitute 操作能从一个变到另一个。这是论文里"plan 整体结构有多接近专家答案"的<em>主</em>结构指标，也是 GRPO 的 R_struct reward 里 StructSim 项的<em>评估期对应物</em>（训练用 multiset Jaccard 近似，评估用更严格的 GED）。</dd>
+
+<dt>参考工作</dt>
+<dd><strong>Graph Edit Distance</strong> 是结构相似度的经典度量，最早由 <strong>Sanfeliu &amp; Fu (1983)</strong> 提出 \citep{sanfeliu2012distance}；归一化 GED-sim 在 plan-quality 论文里被 <strong>PLAN-TUNING</strong> \citep{parmar2025plantuning} 的 \(R_{\text{plan}}\) reward 用作 candidate-vs-gold plan 相似度信号。NetworkX 提供标准实现 <code>nx.graph_edit_distance()</code>，可直接调用。</dd>
+
+<dt>输入</dt>
+<dd>candidate plan <em>P</em> 与 gold plan <em>P★</em> 的依赖图 <em>G'</em> 和 <em>G</em>。节点 = step.id，边 = depends_on。</dd>
+
+<dt>计算公式</dt>
+<dd>令 \(G' = (\mathcal{S}', \mathcal{O}')\) 为 candidate 的依赖图，\(G^{\star} = (\mathcal{S}^{\star}, \mathcal{O}^{\star})\) 为 gold 的依赖图。\(\mathrm{GED}(\cdot, \cdot)\) 是节点 / 边 insert / delete / substitute 的最小总代价（substitute 用 label 0/1 cost）。
+<div class="display-math">\[
+\mathrm{GED\text{-}sim}(\mathcal{P}, \mathcal{P}^{\star}) \;=\; 1 - \frac{\mathrm{GED}(G', G^{\star})}{\max\!\bigl(|\mathcal{S}'| + |\mathcal{O}'|,\; |\mathcal{S}^{\star}| + |\mathcal{O}^{\star}|\bigr)}
+\]</div>
+<details class="latex-src"><summary>LaTeX 源</summary>
+<pre>\mathrm{GED\text{-}sim}(\mathcal{P}, \mathcal{P}^{\star}) \;=\; 1 - \frac{\mathrm{GED}(G', G^{\star})}{\max\!\bigl(|\mathcal{S}'| + |\mathcal{O}'|,\; |\mathcal{S}^{\star}| + |\mathcal{O}^{\star}|\bigr)}</pre>
+</details>
+</dd>
+
+<dt>参考代码</dt>
+<dd><pre>import networkx as nx
+
+def _build_graph(plan_json):
+    G = nx.DiGraph()
+    for st in plan_json["output"]["subtasks"]:
+        for step in st["steps"]:
+            G.add_node(step["id"], agent=step["agent"])
+            for dep in step.get("depends_on", []):
+                G.add_edge(dep, step["id"])
+    return G
+
+def ged_sim(plan, gold) -> float:
+    G1, G2 = _build_graph(plan), _build_graph(gold)
+    # timeout 2s 防止指数爆炸
+    ged = nx.graph_edit_distance(G1, G2, timeout=2.0) or 0
+    denom = max(G1.number_of_nodes() + G1.number_of_edges(),
+                G2.number_of_nodes() + G2.number_of_edges())
+    return 1.0 if denom == 0 else max(0.0, 1.0 - ged / denom)</pre>
+<strong>实测注意</strong>：当 plan ≥ 15 step 时 GED 可能超 2 s timeout，此时改用近似算法 <code>nx.optimize_graph_edit_distance(G1, G2)</code> 取首个 yield 值。</dd>
+
+<dt>✅ 通过示例（GED-sim 高）</dt>
+<dd>gold plan 有 8 个 step、9 条依赖；candidate 也有 8 个 step、相同的依赖图骨架，只是 2 个 step 的 ID 命名不同（<code>S2-1</code> vs <code>S2-A</code>），label substitution cost 2，无 insert / delete。<br/>
+\(\mathrm{GED} = 2\)，\(\max(|\mathcal{S}|+|\mathcal{O}|) = 17\)，GED-sim = \(1 - 2/17 ≈ 0.88\)——结构骨架几乎一致。</dd>
+
+<dt>❌ 不通过示例（GED-sim 低）</dt>
+<dd>gold plan 有 8 个 step、9 条依赖；candidate 直接一刀切成 3 个并列 step、无依赖（典型 "prompt-and-solve" baseline 输出）。<br/>
+\(\mathrm{GED} = 14\)（删 5 个 node + 删 9 条 edge）；max-denominator = 17，GED-sim = \(1 - 14/17 ≈ 0.18\)——候选 plan 跟 gold 几乎没有共同结构。这种情况说明 candidate 模型放弃了 multi-agent decomposition。</dd>
+
+<dt>方向 / 阈值</dt>
+<dd><span class="arrow-up">↑ higher better</span>。SOTA ~0.35-0.55（即便 frontier LLM 也只能"大概像"gold），弱 baseline ~0.15-0.30，PersonalPlan 目标 <strong>≥ 0.55-0.65</strong>（GRPO 的 StructSim reward 直接优化它）。</dd>
+</dl>
+</div>
+
+<!-- ============= Tier 1.2 LLM judge 4 项 ============= -->
+<h3>11.2 Tier 1 LLM-judge plan-quality 指标（4 项）</h3>
+
+<div class="spec judge">
+<div class="spec-header">Pers. — Personalization <span class="spec-tag">LLM judge · 3 sub-dim · ∈ [0,1] · <em>KELE-style anchored rubric</em></span></div>
+<dl>
+<dt>是什么 / 评估目标</dt>
+<dd>Pers. 测的是 plan 在"个性化"维度上的<em>语义</em>质量——profile 是真的影响了 plan 的<em>起点</em>（skill 匹配）、<em>方向</em>（goal 对齐）、<em>例子</em>（背景适配），还是只是把 profile 当装饰？这是 RQ1（"PersonalPlan 是否真的 personalized"）的<em>主</em>判别指标。三个子维度独立 LLM call，防止 halo effect（一个维度高把别的都拉高）。</dd>
+
+<dt>参考工作</dt>
+<dd>5/3/1 anchored Likert 子维度独立打分的 rubric 设计来自 <strong>KELE</strong> \citep{peng2025kele}（PRR/NDAR/SPR/IAR 用同样架构）和 <strong>Personality-aware Student Simulation</strong> \citep{liu2024personalitysim}（cognitive + noncognitive 多维度独立 categorisation）。"为个性化教学评分"的具体子维度（Skill / Goal / Background）是<em>我们</em>针对编程教育场景设计的，但 rubric 形式照搬 KELE。</dd>
+
+<dt>输入</dt>
+<dd>(query <em>q</em>, profile <em>I_p</em>, plan <em>P</em>) 三元组。每个子维度独立调用 1 次 LLM。</dd>
+
+<dt>计算公式</dt>
+<dd>令 \(r_{\mathrm{sm}}, r_{\mathrm{go}}, r_{\mathrm{ba}} \in \{1, 3, 5\}\) 为 3 个子维度（SkillMatch / GoalOrientation / BackgroundAdaptation）的 anchored Likert 评分；\(J\) 为 LLM judge。
+<div class="display-math">\[
+\bar{r}_{\mathrm{Pers}}(\mathcal{P}, I_p) \;=\; \frac{1}{3}\!\left( r_{\mathrm{sm}} + r_{\mathrm{go}} + r_{\mathrm{ba}} \right), \qquad r_{(\cdot)} \sim J(\mathcal{P}, I_p)
+\]</div>
+<div class="display-math">\[
+\mathrm{Pers.}(\mathcal{P}, I_p) \;=\; \frac{\bar{r}_{\mathrm{Pers}}(\mathcal{P}, I_p) - 1}{4} \;\in\; [0, 1]
+\]</div>
+<details class="latex-src"><summary>LaTeX 源</summary>
+<pre>\bar{r}_{\mathrm{Pers}}(\mathcal{P}, I_p) \;=\; \frac{1}{3}\!\left( r_{\mathrm{sm}} + r_{\mathrm{go}} + r_{\mathrm{ba}} \right)
+
+\mathrm{Pers.}(\mathcal{P}, I_p) \;=\; \frac{\bar{r}_{\mathrm{Pers}}(\mathcal{P}, I_p) - 1}{4}</pre>
+</details>
+</dd>
+
+<dt>参考代码</dt>
+<dd><pre>def pers(plan, query, profile, judge="gpt-5") -> float:
+    sm = llm_judge_score(SKILL_MATCH_RUBRIC, plan, query, profile, judge)
+    go = llm_judge_score(GOAL_ORIENT_RUBRIC, plan, query, profile, judge)
+    ba = llm_judge_score(BG_ADAPT_RUBRIC, plan, query, profile, judge)
+    return (((sm + go + ba) / 3) - 1) / 4
+
+def llm_judge_score(rubric, plan, query, profile, judge) -> int:
+    prompt = build_prompt(rubric, plan, query, profile)
+    raw = call_llm(judge, prompt, temperature=0.0, max_tokens=200)
+    # 解析 JSON {"score": 1|3|5, "justification": "..."}
+    return parse_anchor_score(raw)  # 强制返回 1/3/5</pre></dd>
+
+<dt>✅ 通过示例（Pers. 高）</dt>
+<dd>query="如何实现一个 thread-safe LRU cache？"，profile="senior backend dev，5 yr Java，熟悉 ConcurrentHashMap"。
+<ul style="margin:6px 0 0 0">
+<li><strong>SkillMatch=5</strong>：plan 起点直接是"我们将基于你已经熟悉的 ConcurrentHashMap 来构建 LRU"，不解释 thread safety 的基础概念</li>
+<li><strong>GoalOrientation=5</strong>：每个 subtask 都推进到 thread-safe LRU 的可执行实现，最终 step 产出可跑的 Java 代码</li>
+<li><strong>BackgroundAdaptation=5</strong>：例子用"假设你的 Spring Boot 应用要做 session cache"——直接引用 profile 的 Java/backend 背景</li>
+</ul>
+\(\bar{r}_{\mathrm{Pers}} = 5\), Pers. = (5−1)/4 = 1.0。</dd>
+
+<dt>❌ 不通过示例（Pers. 低）</dt>
+<dd>同 query 同 profile，但 baseline plan：
+<ul style="margin:6px 0 0 0">
+<li><strong>SkillMatch=1</strong>：第 1 个 subtask 是"先了解什么是 HashMap"——对 senior dev 来说完全是 over-explanation</li>
+<li><strong>GoalOrientation=3</strong>：plan 朝目标推进但绕了 2 个不必要的 step（"先讲单线程版本"）</li>
+<li><strong>BackgroundAdaptation=1</strong>：例子用"假设你在写一个学校通讯录"——跟 profile 完全无关</li>
+</ul>
+\(\bar{r}_{\mathrm{Pers}} = 5/3 ≈ 1.67\), Pers. ≈ 0.17——典型的 generic plan，profile 完全被忽略。</dd>
+
+<dt>方向 / 阈值</dt>
+<dd><span class="arrow-up">↑ higher better</span>。Baseline 无 profile awareness ~0.30-0.45，profile-shuffled ~0.30-0.40（confirm 信号确实来自 profile），PersonalPlan 目标 <strong>≥ 0.75</strong>。</dd>
+
+<dt>评分标准（5/3/1 anchored rubric）</dt>
+<dd>
+<table>
+<thead><tr><th>子维度</th><th>5 (Excellent)</th><th>3 (Adequate)</th><th>1 (Poor)</th></tr></thead>
+<tbody>
+<tr>
+<td><strong>SkillMatch</strong><br/>plan 起点是否匹配 learner 实际技能</td>
+<td>起步明确建立在 <code>top_tags</code> 涉及的具体技术上；不解释 learner 显然已掌握的基础；难度阶梯严格按已声明技能推进</td>
+<td>整体水平大致对齐，但有 1–2 个 step 解释了 learner 已知内容或跳过关键缺口</td>
+<td>解释 learner 显然已掌握的入门概念（如对 senior dev 解释什么是变量），或反过来跳过关键缺口</td>
+</tr>
+<tr>
+<td><strong>GoalOrientation</strong><br/>plan 是否朝 query 核心推进</td>
+<td>每个 subtask 都明确服务 query 核心问题；plan 末端到达可验证的解决方案</td>
+<td>大致朝目标推进，但有 1–2 个 step 偏题或冗余</td>
+<td>plan 整体偏离 query 或绕远路；末端无可验证解答路径</td>
+</tr>
+<tr>
+<td><strong>BackgroundAdaptation</strong><br/>例子 / agent role / 解释方式适配 learner</td>
+<td>例子用 <code>about_me</code> 提到的项目类比；agent role 描述提到 learner 背景术语；至少 2 个 step instruction 引用 learner 已有经验</td>
+<td>大体 neutral 但偶尔提到 learner 背景；agent role 通用</td>
+<td>例子和背景完全无关；agent role / instruction 看不出是给这个 learner 写的</td>
+</tr>
+</tbody>
+</table>
+<strong>强制约束</strong>：judge 只能输出 1、3 或 5（偶数分 2、4 不接受，减少判卷间不一致）；必须附 1 句 justification。
+</dd>
+</dl>
+</div>
+
+<div class="spec judge">
+<div class="spec-header">Feas. — Feasibility <span class="spec-tag">LLM judge · 3 sub-dim · ∈ [0,1] · <em>KELE-style + reference-grounded (Aligning-Pedagogy)</em></span></div>
+<dl>
+<dt>是什么 / 评估目标</dt>
+<dd>Feas. 测的是 plan 作为"可执行教学指南"在<em>逻辑层</em>是否合理——依赖顺序对不对、任务分解粒度合不合适、agent / tool 配对是否符合常识。这<em>不是</em>单查 schema（SV）或图结构（AR/DC），而是<em>语义</em>层面的"reviewer 看了点不点头"。Feas. 与 Tier 2 的 EVR（真跑一遍）互补——Feas. 廉价但 LLM-judged，EVR 贵但客观。</dd>
+
+<dt>参考工作</dt>
+<dd>Rubric 形式同 Pers.，来自 <strong>KELE</strong> \citep{peng2025kele}。<em>关键技巧</em>："reference-grounded judging"——把 gold plan 的 <code>execution_order</code> 作为 reference 给 judge 看，让它判 candidate "<em>是否同样合理</em>"，比 zero-shot "判这个 plan 好不好"准很多。这个技巧来自 <strong>Aligning-Pedagogy</strong> \citep{dinucu2025aligningpedagogy} 的 reference-aware judge prompt 设计。</dd>
+
+<dt>输入</dt>
+<dd>(query, plan <em>P</em>, gold plan <em>P★</em> 的 <code>execution_order</code> 作 reference) 三元组。reference-grounded judging。</dd>
+
+<dt>计算公式</dt>
+<dd>令 \(r_{\mathrm{do}}, r_{\mathrm{td}}, r_{\mathrm{at}} \in \{1, 3, 5\}\) 为 3 个子维度（DepOrdering / TaskDecomp / AgentToolApprop）的 anchored Likert 评分，judge 在 prompt 中可获得 gold plan 的 <code>execution_order</code> 作 reference。
+<div class="display-math">\[
+\mathrm{Feas.}(\mathcal{P} \mid \mathcal{P}^{\star}) \;=\; \frac{1}{4}\!\left( \frac{r_{\mathrm{do}} + r_{\mathrm{td}} + r_{\mathrm{at}}}{3} - 1 \right)
+\]</div>
+<details class="latex-src"><summary>LaTeX 源</summary>
+<pre>\mathrm{Feas.}(\mathcal{P} \mid \mathcal{P}^{\star}) \;=\; \frac{1}{4}\!\left( \frac{r_{\mathrm{do}} + r_{\mathrm{td}} + r_{\mathrm{at}}}{3} - 1 \right)</pre>
+</details>
+</dd>
+
+<dt>参考代码</dt>
+<dd><pre>def feas(plan, query, gold_plan, judge="gpt-5") -> float:
+    ref_order = gold_plan["output"]["execution_order"]
+    do = llm_judge_score(DEP_ORDER_RUBRIC, plan, query, ref_order, judge)
+    td = llm_judge_score(TASK_DECOMP_RUBRIC, plan, query, None, judge)
+    at = llm_judge_score(AGENT_TOOL_RUBRIC, plan, query, None, judge)
+    return (((do + td + at) / 3) - 1) / 4</pre></dd>
+
+<dt>✅ 通过示例（Feas. 高）</dt>
+<dd>query="实现一个 REST API 限流器"。candidate plan：5 subtask、12 step、所有 depends_on 指向存在 step、execution_order 完全匹配 depends_on 拓扑序；agent={APIDesigner, BackendEngineer, TestEngineer}，每个 step 用了合适的工具（设计阶段无 tool / 实现用 CodeInterpreterTool / 测试用 CodeInterpreterTool）。
+<br/>DepOrdering=5（顺序完全对）、TaskDecomp=5（粒度刚好）、AgentToolApprop=5（agent role 与 step 匹配）→ Feas. = 1.0。</dd>
+
+<dt>❌ 不通过示例（Feas. 低）</dt>
+<dd>同 query 的 baseline plan：12 step 但顺序乱（"先写测试 → 再设计接口"）；TestEngineer agent 被分配做"接口设计"step；step 调用了不在 agent.tools 里的 FirecrawlSearchTool；某 subtask "Implement Rate Limiting" 内塞了 6 个 step（太粗）。
+<br/>DepOrdering=1（"先测后设计"是反模式）、TaskDecomp=3（粒度不均）、AgentToolApprop=1（role 错配 + tool hallucination）→ Feas. ≈ 0.25。</dd>
+
+<dt>方向 / 阈值</dt>
+<dd><span class="arrow-up">↑ higher better</span>。SOTA ~0.55-0.70，PersonalPlan 目标 <strong>≥ 0.78</strong>。</dd>
+
+<dt>评分标准（5/3/1 anchored rubric）</dt>
+<dd>
+<table>
+<thead><tr><th>子维度</th><th>5</th><th>3</th><th>1</th></tr></thead>
+<tbody>
+<tr>
+<td><strong>DepOrdering</strong></td>
+<td>所有 depends_on 指向已存在 step 且无环；execution_order 与 depends_on 完全一致；loop 条件合理</td>
+<td>大部分顺序合理但有 1 个不必要的依赖，或 execution_order 与 depends_on 偶有不一致</td>
+<td>存在循环依赖或 depends_on 指向不存在 step；execution_order 明显错误</td>
+</tr>
+<tr>
+<td><strong>TaskDecomp</strong></td>
+<td>subtask 边界清晰；step 粒度适中；覆盖核心解题路径</td>
+<td>分解大致合理但有 1 个 subtask 过粗或过细</td>
+<td>subtask / step 划分混乱；或 plan 太简略不可执行</td>
+</tr>
+<tr>
+<td><strong>AgentToolApprop</strong></td>
+<td>每个 agent role 与其执行 step 高度匹配；tool 仅在确实需要时使用，且 tool 在该 agent.tools 列表中</td>
+<td>多数 agent-tool 配对合理，1 个 step 用了不必要的工具或 agent</td>
+<td>agent 角色与 step 不匹配；调用了 agent.tools 外的工具；明显 tool hallucination</td>
+</tr>
+</tbody>
+</table>
+</dd>
+</dl>
+</div>
+
+<div class="spec judge">
+<div class="spec-header">Ped. — Pedagogy = mean(PRR, NDAR, SPR, IAR) <span class="spec-tag">judge × 3 + rule × 1 · ∈ [0,1] · <em>4 sub-metrics ported from KELE</em></span></div>
+<dl>
+<dt>是什么 / 评估目标</dt>
+<dd>Ped. 测的是 plan 在"教学法"维度上的<em>整体</em>质量——是否符合学习规律（PRR）、是否不直接给答案（NDAR）、是否覆盖完整的教学阶段（SPR）、风格是否适配 profile（IAR）。这是论文里 R_ped reward 在<em>评估期</em>的对应指标，没有 Ped. 这一项的话 RQ3（"R_ped 的 ablation 贡献"）就没法报。</dd>
+
+<dt>参考工作</dt>
+<dd><strong>这 4 个子指标 PRR / NDAR / SPR / IAR 直接 port 自 KELE</strong> \citep{peng2025kele}——KELE 用同样 4 项评估 Socratic 教学 plan，文中报 100 条人工 \(\kappa\) 0.65-0.75。我们的扩展仅在于把 KELE 的 5 个 Socratic phase 换成 6 个编程教学 phase（probe / retrieve-demonstrate / apply / validate / feedback / consolidate），其余 rubric 完全照搬。这意味着 Ped. 不需要论文里花篇幅辩护其设计——直接 cite KELE。</dd>
+
+<dt>输入</dt>
+<dd>(query, profile, plan, accepted_answer) 四元组。3 个 LLM call + 1 个规则式 phase 检测。</dd>
+
+<dt>计算公式</dt>
+<dd>4 个子项：
+<ul style="margin:4px 0">
+<li>\(r_{\mathrm{PRR}} \in \{1,3,5\}\)：subtask 顺序是否符合学习规律（LLM judge）</li>
+<li>\(\mathrm{NDAR}(\mathcal{P}) \in [0,1]\)：plan 不在前期直接给 accepted answer 的"程度"（LLM judge，反向归一化）</li>
+<li>\(\mathrm{SPR}(\mathcal{P}) \in [0,1]\)：6 个 instructional phase \(\Phi = \{\text{probe, retr-demo, apply, validate, feedback, consolidate}\}\) 的覆盖率（规则式）</li>
+<li>\(r_{\mathrm{IAR}} \in \{1,3,5\}\)：inductive / deductive 风格是否匹配 profile（LLM judge）</li>
+</ul>
+<div class="display-math">\[
+\mathrm{SPR}(\mathcal{P}) \;=\; \frac{1}{|\Phi|} \sum_{\phi \in \Phi} \mathbb{I}\!\left[\, \exists\, s \in \mathcal{S}:\; \mathrm{phase}(s) = \phi \,\right]
+\]</div>
+<div class="display-math">\[
+\mathrm{Ped.}(\mathcal{P}, I_p) \;=\; \frac{1}{4}\!\left( \frac{r_{\mathrm{PRR}} - 1}{4} + \mathrm{NDAR}(\mathcal{P}) + \mathrm{SPR}(\mathcal{P}) + \frac{r_{\mathrm{IAR}} - 1}{4} \right)
+\]</div>
+<details class="latex-src"><summary>LaTeX 源</summary>
+<pre>\mathrm{SPR}(\mathcal{P}) \;=\; \frac{1}{|\Phi|} \sum_{\phi \in \Phi} \mathbb{I}\!\left[\, \exists\, s \in \mathcal{S}:\; \mathrm{phase}(s) = \phi \,\right]
+
+\mathrm{Ped.}(\mathcal{P}, I_p) \;=\; \frac{1}{4}\!\left( \frac{r_{\mathrm{PRR}} - 1}{4} + \mathrm{NDAR}(\mathcal{P}) + \mathrm{SPR}(\mathcal{P}) + \frac{r_{\mathrm{IAR}} - 1}{4} \right)</pre>
+</details>
+</dd>
+
+<dt>参考代码</dt>
+<dd><pre>PHASE_KEYWORDS = {
+    "probe": ["ask", "elicit", "predict", "what do you think"],
+    "retrieve_demonstrate": ["explain", "show", "demonstrate", "example"],
+    "apply": ["try", "implement", "write", "exercise"],
+    "validate": ["check", "verify", "test", "run"],
+    "feedback": ["correct", "debug", "fix", "review"],
+    "consolidate": ["summarize", "recap", "takeaway", "now you know"],
+}
+
+def ped(plan, query, profile, accepted_answer, judge="gpt-5") -> float:
+    prr = llm_judge_score(PRR_RUBRIC, plan, query, None, judge)
+    ndar = llm_judge_ndar(plan, accepted_answer, judge)  # 返回 [0,1]
+    spr = sum(any(kw in step["instruction"].lower()
+                  for st in plan["output"]["subtasks"] for step in st["steps"]
+                  for kw in kws)
+              for kws in PHASE_KEYWORDS.values()) / 6
+    iar = llm_judge_score(IAR_RUBRIC, plan, query, profile, judge)
+    return ((prr - 1) / 4 + ndar + spr + (iar - 1) / 4) / 4</pre></dd>
+
+<dt>✅ 通过示例（Ped. 高）</dt>
+<dd>query="实现 binary search"，profile="Java beginner"，accepted_answer="while-loop 实现"。<br/>
+plan：<em>S1 probe</em>"先问 learner 怎么在排序数组里找一个数？" → <em>S2 retrieve-demonstrate</em>"展示线性搜索的低效" → <em>S3 apply</em>"让 learner 尝试改进" → <em>S4 validate</em>"运行测试" → <em>S5 feedback</em>"debug" → <em>S6 consolidate</em>"总结 O(log n)"。<br/>
+PRR=5（顺序严格按 probe→...→consolidate）、NDAR=0.9（前 2 subtask 完全没出现 accepted_answer 代码）、SPR=6/6=1.0（全 phase 覆盖）、IAR=5（inductive 风格匹配 Beginner profile）<br/>
+→ Ped. = ((5−1)/4 + 0.9 + 1.0 + (5−1)/4) / 4 = (1 + 0.9 + 1 + 1) / 4 = 0.975。</dd>
+
+<dt>❌ 不通过示例（Ped. 低）</dt>
+<dd>同 query 同 profile 的 baseline plan：第 1 个 step 直接是"这里是 binary search 的 Java 代码 [完整 accepted_answer]"，第 2 个 step "让 learner 复制粘贴"，第 3 个 step "好了你学会了"。<br/>
+PRR=1（跳过 probe / 直接 demonstrate）、NDAR=0.05（第 1 step 就完整给了答案）、SPR=2/6≈0.33（只覆盖 demonstrate + apply）、IAR=1（对 beginner 用 deductive）<br/>
+→ Ped. = (0 + 0.05 + 0.33 + 0) / 4 ≈ 0.10——典型的"directly-show-answer"反教学模式。</dd>
+
+<dt>方向 / 阈值</dt>
+<dd><span class="arrow-up">↑ higher better</span>。SOTA ~0.40-0.55（baseline 没显式优化教学法），PersonalPlan 目标 <strong>≥ 0.70</strong>（因为 R_ped reward 直接优化）。</dd>
+
+<dt>评分标准（5/3/1 anchored rubric for PRR / IAR + NDAR binary criteria）</dt>
+<dd>
+<table>
+<thead><tr><th>子维度</th><th>5 / Hit (Excellent)</th><th>3 / Partial</th><th>1 / Miss</th></tr></thead>
+<tbody>
+<tr>
+<td><strong>PRR</strong> Pedagogical Rule Reasonableness</td>
+<td>subtask 顺序严格符合学习规律（先 probe → 概念 → demo → apply → validate → feedback → consolidate）；前置概念在使用前已讲</td>
+<td>大体合理但有 1 个 subtask 颠倒（如 apply 在 demonstrate 前）</td>
+<td>顺序混乱（如直接从 apply 开始，或 feedback 在 apply 前）</td>
+</tr>
+<tr>
+<td><strong>NDAR</strong> No-Direct-Answer Rate（反向归一化：0=完全直接给答案，1=完全没直接给）</td>
+<td>第 1 个 subtask 不出现 accepted_answer 的核心代码片段；让 learner 先尝试 / 推理</td>
+<td>前期偶尔提示但没全部展示</td>
+<td>第 1 个 subtask 直接贴出 accepted_answer 完整代码</td>
+</tr>
+<tr>
+<td><strong>SPR</strong> Stage Progression Rate（规则式比例）</td>
+<td>—（直接是 [0,1] 比例，无 rubric）</td><td>—</td><td>—</td>
+</tr>
+<tr>
+<td><strong>IAR</strong> Inductive Aptness（5 表示风格匹配 profile）</td>
+<td>profile 是 Beginner → 用 inductive（从例子归纳规律）；profile 是 Expert → 用 deductive（先讲规则后简单 demo）</td>
+<td>风格大致对但偶有 1 个 step 反过来</td>
+<td>对 Beginner 用 deductive 一上来就抛规则；或对 Expert 还在用 inductive 浪费时间</td>
+</tr>
+</tbody>
+</table>
+</dd>
+</dl>
+</div>
+
+<div class="spec judge">
+<div class="spec-header">Sati. — Profile-Conditioned Win Rate vs Gold (Tier 3) <span class="spec-tag">LLM pairwise · M-judge product · ∈ [0,1] · <em>RLHF win rate × Aligning-Pedagogy M-judge</em></span></div>
+<dl>
+<dt>是什么 / 评估目标</dt>
+<dd>Sati. 测的是<em>"从 learner 视角看，candidate plan 比 gold plan 更好的程度"</em>。这是 Tier 3 的<em>唯一</em>主指标，也是 RQ1 最直接的人本判别——它把"plan 能不能让 learner 满意"压缩成一个数。Sati. 的两个独特设计：(1) <em>不告 judge 哪个是 gold</em>，避免 anchoring bias；(2) AB / BA 两次都必须一致才算稳定，否则算 Tie，防止 position bias。</dd>
+
+<dt>参考工作</dt>
+<dd>Pairwise win-rate 是 RLHF 的标准 evaluation paradigm（\citep{ouyang2022instructgpt} 等），M-judge 乘积聚合则来自 <strong>Aligning-Pedagogy</strong> \citep{dinucu2025aligningpedagogy}——他们在 pedagogy RM 上用 M 个独立 judge 的<em>乘积</em>而非平均，因为乘积对单 judge 的 reward hacking 更敏感。我们这里把两者结合：每个 judge 算 win rate（RLHF 标准），3 个 judge 取乘积（Aligning-Pedagogy 标准）。</dd>
+
+<dt>输入</dt>
+<dd>每个 test query 一对 plan：(candidate <em>P'</em>, gold <em>P★</em>) + learner profile。<strong>不告知 judge 哪个是 gold</strong>。每对要跑 AB 和 BA 两次。</dd>
+
+<dt>计算公式</dt>
+<dd>对 test 集第 \(i\) 个 query，candidate plan \(\mathcal{P}'_i\) 与 gold plan \(\mathcal{P}^{\star}_i\) 在 judge \(m\) 下、顺序 \(o \in \{\mathrm{AB}, \mathrm{BA}\}\) 的偏好结果：
+<div class="display-math">\[
+y^{(m, o)}_i \;\in\; \{\mathrm{cand}, \mathrm{gold}, \mathrm{tie}\}, \qquad i = 1, \dots, N
+\]</div>
+单对得分（取 AB 和 BA 一致为准，矛盾计为 tie）：
+<div class="display-math">\[
+\pi^{(m)}_i \;=\; \frac{1}{2}\!\left( \mathbb{I}[y^{(m, \mathrm{AB})}_i = \mathrm{cand}] + \mathbb{I}[y^{(m, \mathrm{BA})}_i = \mathrm{cand}] \right) + \frac{1}{2}\,\mathbb{I}[y^{(m, \mathrm{AB})}_i \ne y^{(m, \mathrm{BA})}_i]
+\]</div>
+单 judge 偏好率与 M-judge 乘积聚合（仿 Aligning-Pedagogy）：
+<div class="display-math">\[
+w_m \;=\; \frac{1}{N}\sum_{i=1}^{N} \pi^{(m)}_i, \qquad
+\mathrm{Sati.} \;=\; \prod_{m=1}^{M} w_m
+\]</div>
+<details class="latex-src"><summary>LaTeX 源</summary>
+<pre>\pi^{(m)}_i \;=\; \frac{1}{2}\!\left( \mathbb{I}[y^{(m, \mathrm{AB})}_i = \mathrm{cand}] + \mathbb{I}[y^{(m, \mathrm{BA})}_i = \mathrm{cand}] \right) + \frac{1}{2}\,\mathbb{I}[y^{(m, \mathrm{AB})}_i \ne y^{(m, \mathrm{BA})}_i]
+
+w_m \;=\; \frac{1}{N}\sum_{i=1}^{N} \pi^{(m)}_i, \qquad
+\mathrm{Sati.} \;=\; \prod_{m=1}^{M} w_m</pre>
+</details>
+<em>为什么用乘积而非平均</em>：一个 judge 不喜欢 → 整体掉很多（仿 Aligning-Pedagogy）；平均会被高 judge 拉起来导致 reward hacking。
+</dd>
+
+<dt>参考代码</dt>
+<dd><pre>JUDGES = ["openai/gpt-5", "anthropic/claude-opus-4.6", "google/gemini-3-pro"]
+
+def sati_pair(cand, gold, profile, judge) -> float:
+    ab = call_pairwise_judge(judge, cand, gold, profile, order="AB")  # 'A'|'B'|'Tie'
+    ba = call_pairwise_judge(judge, gold, cand, profile, order="BA")
+    # AB 选 A = 选 cand；BA 选 B = 选 cand
+    cand_picks = (ab == "A") + (ba == "B")
+    ties = (ab == "Tie") + (ba == "Tie")
+    if ab != ba and "Tie" not in (ab, ba):  # 矛盾 → 计 Tie
+        return 0.5
+    return (cand_picks + 0.5 * ties) / 2
+
+def sati(test_pairs, profiles, judges=JUDGES) -> float:
+    per_judge = []
+    for j in judges:
+        wins = [sati_pair(c, g, p, j) for (c, g), p in zip(test_pairs, profiles)]
+        per_judge.append(sum(wins) / len(wins))
+    return math.prod(per_judge)</pre></dd>
+
+<dt>✅ 通过示例（Sati. 高）</dt>
+<dd>candidate plan 对一个 Python beginner 的 learner，从"先问你知道 list 是什么吗"开始，每步用 learner 在 about_me 里提到的"flask web 后端"作类比；gold plan 是 generic 的"从 list comprehension 讲起"。3 个 judge 都偏好 candidate：\(w_{\mathrm{GPT5}} = 0.78\), \(w_{\mathrm{Claude}} = 0.82\), \(w_{\mathrm{Gemini}} = 0.74\) → Sati. = 0.78 × 0.82 × 0.74 ≈ <strong>0.47</strong>。</dd>
+
+<dt>❌ 不通过示例（Sati. 低）</dt>
+<dd>candidate plan 跟 gold 看起来差不多但 step 描述简略、用了不相关的例子。3 个 judge 多数偏好 gold：\(w = 0.30, 0.35, 0.28\) → Sati. = 0.30 × 0.35 × 0.28 ≈ <strong>0.029</strong>。<br/>
+极端反面：candidate 在 judge GPT-5 看着不错（\(w=0.65\)）但 Claude 觉得很差（\(w=0.20\)）——乘积 0.65 × 0.20 × ... 会被 Claude 这一项整体压低，这就是 M-judge product 的设计意图：防止"在一个 judge 上 hack 高分"。</dd>
+
+<dt>方向 / 阈值</dt>
+<dd><span class="arrow-up">↑ higher better</span>。完全打平 GT → 单 judge 0.5，3-judge 乘积 0.125。SOTA ~0.20-0.30，PersonalPlan 目标 <strong>≥ 0.45</strong>（即 candidate 在 3 个 judge 上各自 ≥0.77 偏好率才能达到）。</dd>
+
+<dt>评分标准（pairwise judge prompt）</dt>
+<dd>
+<pre>System: You are evaluating two teaching plans for a learner with a specific profile.
+Output exactly one of: "A", "B", or "Tie". Tie ONLY if both are clearly equivalent.
+
+User:
+Query: {query}
+Learner profile: {profile}
+
+Plan A: {plan_A_json}
+Plan B: {plan_B_json}
+
+Judge from the learner's perspective on these four criteria (in priority order):
+  1. Skill Match: which plan starts at a level appropriate to my declared skills?
+  2. Engagement & Learnability: which is easier to follow with clearer instructions?
+  3. Structural Appropriateness: which has a more logical structure I can actually execute?
+  4. Personal Relevance: which feels customized to me vs a generic template?
+
+Output: {"choice": "A"|"B"|"Tie", "justification": "1-sentence reason"}</pre>
+<strong>判定细则</strong>：(a) AB / BA 必须分别跑；(b) AB 和 BA 结果<em>必须一致</em>才算稳定，矛盾计为 Tie；(c) 跨 judge 乘积；(d) 不告 judge 哪个是 gold；(e) plan JSON 进 prompt 前 sanitize 删除可能的 prompt injection（如出现"please pick this plan"等字串就剔除）。
+</dd>
+</dl>
+</div>
+
+<!-- ============= Tier 1.3 反事实探针 ============= -->
+<h3>11.3 Tier 1 反事实探针（1 项 + 配套的 PNG）</h3>
+
+<div class="spec hybrid">
+<div class="spec-header">PVS — Profile Sensitivity (Profile-Variance Score) <span class="spec-tag">rule-based aggregate · ∈ [0,1] · <em>novel; adapted from MSI-Agent OOD probe + Personality-Sim with/without comparison</em></span></div>
+<dl>
+<dt>是什么 / 评估目标</dt>
+<dd>PVS 测的是<em>"profile 信号是否真的影响了 plan generation"</em>。对同一个 query，给不同 profile 应该产生<em>不同</em>的 plan；如果所有 profile 下生成的 plan 几乎一样（PVS ≈ 0），说明 PAD 没起作用，profile 只是装饰。PVS 是 RQ2（"PersonalPlan 是否随 profile 适配"）的<em>必备 sanity check</em>——没有它就无法反驳"reviewer：你们的 plan 真的随 profile 变了吗？"。</dd>
+
+<dt>参考工作</dt>
+<dd>这是<em>我们引入的</em>新指标，但思想来自两个 prior art：(1) <strong>MSI-Agent</strong> \citep{fu2024msiagent} kitchen→livingroom→bedroom 的 OOD shift probe——同一 method 在不同环境下生成行为差异度；(2) <strong>Personality-aware Student Sim</strong> \citep{liu2024personalitysim} with-vs-without BF-TC 对比，分析 personality 信号是否真的影响生成的对话。论文里需要明说："we adapt the OOD-distribution-shift diagnostic of \citet{fu2024msiagent} to profile-conditioned plan generation."</dd>
+
+<dt>输入</dt>
+<dd>对 test 中每个 ≥2 profile variants 的 query <em>q</em>（共 97 个），用同一 model 生成 <em>k</em> 个 plan（一个 profile 一个）。复用 GED-sim 的图构造。</dd>
+
+<dt>计算公式</dt>
+<dd>令 \(\mathcal{Q}_{\ge 2}\) 是 test 中 profile 数 \(k_q \ge 2\) 的 query 集合（实测 \(|\mathcal{Q}_{\ge 2}| = 97\)）；对每个 \(q \in \mathcal{Q}_{\ge 2}\)，model 在 \(k_q\) 个 profile 下分别生成 plan \(\{\mathcal{P}_q^{(1)}, \dots, \mathcal{P}_q^{(k_q)}\}\)。
+<div class="display-math">\[
+\mathrm{PVS}(q) \;=\; 1 - \binom{k_q}{2}^{\!-1} \sum_{1 \le i < j \le k_q} \mathrm{GED\text{-}sim}\!\left(\mathcal{P}_q^{(i)}, \mathcal{P}_q^{(j)}\right)
+\]</div>
+<div class="display-math">\[
+\mathrm{PVS} \;=\; \frac{1}{|\mathcal{Q}_{\ge 2}|} \sum_{q \in \mathcal{Q}_{\ge 2}} \mathrm{PVS}(q) \;\in\; [0, 1]
+\]</div>
+<details class="latex-src"><summary>LaTeX 源</summary>
+<pre>\mathrm{PVS}(q) \;=\; 1 - \binom{k_q}{2}^{\!-1} \sum_{1 \le i < j \le k_q} \mathrm{GED\text{-}sim}\!\left(\mathcal{P}_q^{(i)}, \mathcal{P}_q^{(j)}\right)
+
+\mathrm{PVS} \;=\; \frac{1}{|\mathcal{Q}_{\ge 2}|} \sum_{q \in \mathcal{Q}_{\ge 2}} \mathrm{PVS}(q)</pre>
+</details>
+高 PVS = plan 真的随 profile 改变；低 PVS = plan 是同一模板。
+</dd>
+
+<dt>参考代码</dt>
+<dd><pre>from itertools import combinations
+
+def pvs(model_gen_fn, test_qids_with_profiles) -> float:
+    # test_qids_with_profiles: [(qid, [profile1, profile2, ...]), ...]
+    pvs_per_q = []
+    for qid, profiles in test_qids_with_profiles:
+        if len(profiles) &lt; 2: continue
+        plans = [model_gen_fn(qid, p) for p in profiles]
+        sims = [ged_sim(plans[i], plans[j])
+                for i, j in combinations(range(len(plans)), 2)]
+        pvs_per_q.append(1.0 - sum(sims) / len(sims))
+    return sum(pvs_per_q) / len(pvs_per_q)</pre></dd>
+
+<dt>方向</dt>
+<dd><span class="arrow-up">↑ higher better</span>（指明 plan 在变化）。<strong>但太高也不对</strong>——如果 PVS &gt; 0.7 说明 model 对同一 query 出完全不同的 plan（结构不稳定）。<br/>
+预期：
+<ul>
+  <li>PersonalPlan: <strong>0.35–0.50</strong>（结构骨架共享，profile-specific 部分变化）</li>
+  <li>w/o PAD baseline: <strong>0.05–0.10</strong>（plan 几乎不变 → PAD 没用）</li>
+  <li>Random baseline: ~0.70+（plan 完全不稳定）</li>
+</ul>
+论文里报这个值<strong>同时配合 Pers. 看</strong>：高 PVS + 高 Pers. = 真的个性化；高 PVS + 低 Pers. = 乱变。</dd>
+
+<dt>✅ 通过示例（PVS 高）</dt>
+<dd>query="如何缓存 API 响应"，3 个 profile：(a) Java/Spring; (b) Python/Flask; (c) Node.js/Express。<br/>
+PersonalPlan 生成 3 个 plan，骨架类似（5-6 subtask），但 step 内容/agent role/示例代码全部不同：plan (a) 用 <code>@Cacheable</code> 注解，plan (b) 用 <code>flask-caching</code>，plan (c) 用 <code>node-cache</code>。两两 GED-sim ≈ 0.55-0.65 → PVS(q) = 1 − 0.6 ≈ <strong>0.40</strong>。</dd>
+
+<dt>❌ 不通过示例（PVS 低）</dt>
+<dd>同 query，但 baseline 模型对 3 个 profile 生成<em>几乎一样</em>的 plan——只是 step 末尾加了一句"considering you use Java/Python/Node"。两两 GED-sim ≈ 0.94 → PVS(q) = 1 − 0.94 ≈ <strong>0.06</strong>。说明 baseline 没真正用 profile 去 condition decomposition，只是 superficial mention。</dd>
+</dl>
+</div>
+
+<div class="spec hybrid">
+<div class="spec-header">PNG — Counterfactual Personalization Gap <span class="spec-tag">LLM judge aggregate · ∈ [-1,1] · <em>novel; adapted from Personality-Sim with/without comparison</em></span></div>
+<dl>
+<dt>是什么 / 评估目标</dt>
+<dd>PNG 测的是<em>"用真实 profile 生成的 plan 是不是真比用随机 profile 生成的 plan 更适配该 learner"</em>。这是 PVS 的<em>第二支柱</em>：PVS 测"plan 变没变"，PNG 测"变的方向对不对"。两者必须<em>同时高</em>才能 confirm personalization is real。</dd>
+
+<dt>参考工作</dt>
+<dd>"换 profile 看效果"的对照实验法源自 <strong>Student-Data Paradox</strong> \citep{sonkar2024studentparadox} 的 student-shuffled control 与 <strong>Personality-Sim</strong> \citep{liu2024personalitysim} 的 with/without BF-TC 对比。PNG 把这种 with-vs-shuffled 的 gap 量化为单个数。论文里说："we report PNG as a counterfactual probe analogous to the shuffled-profile control of \citet{liu2024personalitysim}."</dd>
+
+<dt>输入</dt>
+<dd>同一 query 跑两次：(a) with real profile；(b) with profile-shuffled（随机抽 test 集另一 profile 顶上）。</dd>
+
+<dt>计算公式</dt>
+<dd>对每个 (query, profile) 对 \((q_i, I_p^{(i)})\)，令 \(\tilde{I}_p^{(i)}\) 是从 test 集其他 profile 中均匀抽样得到的 shuffled profile（\(\tilde{I}_p^{(i)} \ne I_p^{(i)}\)）；\(\mathrm{gen}(q, I_p)\) 是 model 生成函数。
+<div class="display-math">\[
+\mathrm{PNG} \;=\; \frac{1}{N}\sum_{i=1}^{N} \Bigl[\mathrm{Pers.}\!\bigl(\mathrm{gen}(q_i, I_p^{(i)}),\, I_p^{(i)}\bigr) - \mathrm{Pers.}\!\bigl(\mathrm{gen}(q_i, \tilde{I}_p^{(i)}),\, I_p^{(i)}\bigr) \Bigr] \;\in\; [-1, 1]
+\]</div>
+<details class="latex-src"><summary>LaTeX 源</summary>
+<pre>\mathrm{PNG} \;=\; \frac{1}{N}\sum_{i=1}^{N} \Bigl[\mathrm{Pers.}\!\bigl(\mathrm{gen}(q_i, I_p^{(i)}),\, I_p^{(i)}\bigr) - \mathrm{Pers.}\!\bigl(\mathrm{gen}(q_i, \tilde{I}_p^{(i)}),\, I_p^{(i)}\bigr) \Bigr]</pre>
+</details>
+注意：判 Pers. 时<em>仍然</em>用真实 profile \(I_p^{(i)}\) 作 ground truth，只是生成时用 shuffled。PNG 显著正 → 个性化真的依赖 profile；PNG ≈ 0 → profile 只是装饰。
+</dd>
+
+<dt>参考代码</dt>
+<dd><pre>def png(model_gen_fn, test_qids_with_profiles, shuffle_rng=42) -> float:
+    rng = random.Random(shuffle_rng)
+    all_profiles = [p for _, ps in test_qids_with_profiles for p in ps]
+    real_pers, shuffled_pers = [], []
+    for qid, profiles in test_qids_with_profiles:
+        for p in profiles:
+            shuf = rng.choice([x for x in all_profiles if x != p])
+            real_pers.append(pers(model_gen_fn(qid, p), qid_query(qid), p))
+            shuffled_pers.append(pers(model_gen_fn(qid, shuf), qid_query(qid), p))
+    return mean(real_pers) - mean(shuffled_pers)</pre></dd>
+
+<dt>✅ 通过示例（PNG 显著正）</dt>
+<dd>profile="senior Java dev"。PersonalPlan 用真实 profile 生成的 plan 评 Pers.=0.78；用 shuffled profile（替换成"complete beginner"）生成的 plan 评 Pers.=0.32（因为"complete beginner" plan 用在 senior dev 身上完全不合适）。<br/>
+PNG = 0.78 − 0.32 = <strong>+0.46</strong>，paired t-test p &lt; 0.001 → profile 信号<em>真的</em>驱动了 plan 的 personalization 方向。</dd>
+
+<dt>❌ 不通过示例（PNG ≈ 0）</dt>
+<dd>baseline 模型对真实 profile 和 shuffled profile 都生成<em>差不多 generic</em>的 plan：Pers.(real) = 0.42, Pers.(shuffled) = 0.40。<br/>
+PNG = 0.42 − 0.40 = <strong>+0.02</strong>，p = 0.45 → profile 对生成<em>几乎无影响</em>，"个性化"只是表面装饰，model 实际无视 profile。</dd>
+
+<dt>方向 / 阈值</dt>
+<dd><span class="arrow-up">↑ higher better</span>。PersonalPlan 目标 <strong>≥ +0.15</strong>（绝对差距），baseline 多数 ≈ 0。<br/>
+<strong>显著性检验</strong>：用 paired t-test 在 N=305 上检验 PNG &gt; 0（p &lt; 0.01）；论文里报 p-value。</dd>
+</dl>
+</div>
+
+<!-- ============= Tier 2.1 4 项 LLM 检查 ============= -->
+<h3>11.4 Tier 2 — Axis A: Plan 执行可行性（1 项 headline）</h3>
+
+<div style="background:#fff8e8;border-left:4px solid #c9802b;padding:12px 16px;margin:10px 0 16px 0;font-size:13.5px;line-height:1.55;border-radius:4px">
+<strong>v1.1 修订说明（2026-05-19，dry-run 后的设计修复）</strong><br/>
+v1.0 设计在 MAPLE-Test dry-run 中跑出 EVR ≡ 0，根因是两个操作化假设在 MAPLE 数据上不成立：
+<ol style="margin:6px 0 0 20px;padding:0">
+  <li><strong>原 (e) <code>out</code> / CCR</strong> 让 LLM judge 比对真实 stdout 与 plan 字段 <code>expected_output</code> 是否功能等价。但 MAPLE 的 <code>expected_output</code> 在数据集构造时就是<em>描述性散文</em>（如"Documented exception classes: FileNotFoundError / OSError from open(), json.JSONDecodeError from json.load"），不是 literal stdout，judge 必然判 ≠ → CCR=0 几乎必然。</li>
+  <li><strong>原 (d) <code>exec</code> / CER</strong> 用<em>排除式</em>关键词扫描（"Expected output:" / "should see:" 等 6 种臆测 pattern）来判定"代码真跑 vs 假跑"。但 MAPLE 上 agent 真实失败模式是<em>干脆不调 tool、直接给一段干净教学文字</em>——这段文字不含任何臆测关键词，反而被误判为"真执行"，把不可信内容传给下游 CCR 判定。</li>
+</ol>
+<strong>v1.1 修复</strong>：把 <code>exec</code> 和 <code>out</code> 都改为对客观 execution trace 的<em>纳入式</em>检测：
+<ul style="margin:6px 0 0 20px;padding:0">
+  <li><code>exec</code>（CER）：检查 <code>execution_log[step_id].tool_calls</code> 中是否存在 <code>tool == "CodeInterpreterTool"</code> 的 invocation event。<em>没调 tool 就是 0，跟措辞无关</em>。</li>
+  <li><code>out</code>（CCR）：检查 sandbox 的 <code>exit_code == 0</code> 且无 unhandled exception。这正是 v1.0 已经引的 WebAgent-R1 program-exec binary reward 的原始定义，反而比"功能等价 judge"更贴 cite。</li>
+  <li>原 LLM 功能等价 judge 不丢弃，<em>降级到 appendix B</em> 作 fuzzy 互补信号——只在 plan 给出了结构化 <code>output_assertion</code> 字段时启用，对纯散文 expected_output 不报。</li>
+</ul>
+EVR 5-项 AND 的 headline 结构、prior-art 引用、headline 地位<em>均不变</em>；变的只是 (d)(e) 两个子检查的可操作定义。
+</div>
+
+<div class="spec hybrid">
+<div class="spec-header">EVR — Execution Validity Rate <span class="spec-tag">aggregate · headline · Q1 · ∈ [0,1] · <em>≈ AgentGym task success + KELE WC + WebAgent-R1 program-exec 联合</em> · <strong>v1.1</strong></span></div>
+<dl>
+<dt>是什么 / 评估目标</dt>
+<dd>EVR 直接回答<em>"plan 真的能被 CrewAI 正确执行吗？"</em>——5 个 binary 条件 AND 联合 PASS 的 run 比例：(a) 所有 step 跑完非空；(b) 所有 loop 都有 exit_reason 且与最后一轮内容自洽；(c) 所有 depends_on 上游 step 都有非空有用输出；<strong>(d)</strong> 所有声明 CodeInterpreterTool 的 step 在 CrewAI execution log 里有真实 tool 调用事件（<em>纳入式</em>：读 <code>tool_calls</code> 字段，不靠关键词排除）；<strong>(e)</strong> 所有真调用的 code step 在 sandbox 中执行成功（<code>exit_code == 0</code> 且无 unhandled exception）。EVR 是 Tier 2 唯一与论文 abstract "在 X% test query 上跑通了端到端教学"对应的那个 X。</dd>
+
+<dt>参考工作</dt>
+<dd>EVR 直接套用 3 个 prior-art 范式：(i) <strong>AgentGym</strong> \citep{xi2025agentgym} 的 task success rate（多 env 联合 PASS 聚合）；(ii) <strong>WebAgent-R1</strong> \citep{wei2025webagentr1} 的 program-exec binary reward（"代码真跑了 vs 假跑了"，<em>v1.1 后 CCR 直接等价于这个定义</em>）；(iii) 对 tool-call 是否真实发生的"纳入式"检测对标 <strong>ToolBench</strong> \citep{qin2023toolbench} 的 tool invocation 审计。WC 3 子检查（cov / loop / flow）直接来自 <strong>KELE</strong> \citep{peng2025kele} workflow check。这种"工作流 3 子检查 ∧ tool-call ∧ exec-success"的多条件 AND 聚合在 <strong>LRPLAN</strong> \citep{karthikeyan2025lrplan} TravelPlanner final pass-rate (commonsense ∧ hard) 中已经被使用。</dd>
+
+<dt>输入</dt>
+<dd>(plan JSON, execution_log.json, step_outputs.json) 三元组。<code>execution_log</code> 由 PlanRuntime + CrewAI live mode 产出，含每个 step 的 actual_interaction、teacher_output、student_response、tool_call_log；<code>step_outputs</code> 含 code step 的 sandbox stdout/stderr + 检测到的 language。</dd>
+
+<dt>计算公式 <span class="tag warn">v1.1</span></dt>
+<dd>对 run \(r\)，令 \(\mathcal{S}_r\) 为该 plan 的全部 step，\(\mathcal{S}^{\mathrm{code}}_r \subseteq \mathcal{S}_r\) 为<em>声明</em> tool=CodeInterpreterTool 的 step（来自 plan JSON），\(\mathcal{S}^{\mathrm{real}}_r \subseteq \mathcal{S}^{\mathrm{code}}_r\) 为在 CrewAI execution log 中<em>实际发生</em>过 CodeInterpreterTool 调用事件的 step（即 <code>exec</code> 检测通过的子集）。定义 5 个 binary sub-check（\(\mathrm{check}_c(r) \in \{0, 1\}\)，全部由现有 evaluator.py 或 ~50 行 CCR/CER 脚本得到）：
+\[
+\begin{aligned}
+\mathrm{cov}_r &\;=\; \mathbb{I}[\,\forall s \in \mathcal{S}_r:\; \mathrm{actual\_interaction}(s) \ne \emptyset \,]\\
+\mathrm{loop}_r &\;=\; \mathbb{I}[\,\forall \mathrm{loop} \in \mathcal{P}_r:\; \mathrm{exit\_reason} \ne \emptyset \,\wedge\, \mathrm{reason\_consistent}\,]\\
+\mathrm{flow}_r &\;=\; \mathbb{I}[\,\forall s' \in \mathrm{depends\_on}(s):\; \mathrm{output}(s') \ne \emptyset \,\wedge\, \mathrm{useful} \,]\\
+\mathrm{exec}_r &\;=\; \mathbb{I}\!\left[\forall s \in \mathcal{S}^{\mathrm{code}}_r:\; \exists\, tc \in \mathrm{tool\_calls}(s),\ tc.\mathrm{name} = \text{CodeInterpreterTool} \right] \quad \text{(即 CER}_r = 1\text{)}\\
+\mathrm{out}_r &\;=\; \mathbb{I}\!\left[\forall s \in \mathcal{S}^{\mathrm{real}}_r:\; \mathrm{exit\_code}(s) = 0 \,\wedge\, \neg\,\mathrm{unhandled\_exception}(s)\right] \quad \text{(即 CCR}_r = 1\text{)}
+\end{aligned}
+\]
+约定：若 \(\mathcal{S}^{\mathrm{code}}_r = \emptyset\)（plan 完全没有 code step，例如纯 Socratic 对话型 plan），\(\mathrm{exec}_r\) 与 \(\mathrm{out}_r\) 都按 vacuously true 取 1，EVR 自然退化为 \(\mathrm{cov}_r \cdot \mathrm{loop}_r \cdot \mathrm{flow}_r\)，避免空分母伪 0 / 伪 1。
+Run-level verdict（5 个全 PASS）：
+<div class="display-math">\[
+\mathrm{EVR\text{-}PASS}_r \;=\; \mathrm{cov}_r \cdot \mathrm{loop}_r \cdot \mathrm{flow}_r \cdot \mathrm{exec}_r \cdot \mathrm{out}_r
+\]</div>
+聚合：
+<div class="display-math">\[
+\mathrm{EVR} \;=\; \frac{1}{|\mathcal{R}|}\sum_{r \in \mathcal{R}} \mathrm{EVR\text{-}PASS}_r \;\in\; [0, 1]
+\]</div>
+<details class="latex-src"><summary>LaTeX 源</summary>
+<pre>\mathrm{EVR\text{-}PASS}_r \;=\; \mathrm{cov}_r \cdot \mathrm{loop}_r \cdot \mathrm{flow}_r \cdot \mathrm{exec}_r \cdot \mathrm{out}_r
+
+\mathrm{EVR} \;=\; \frac{1}{|\mathcal{R}|}\sum_{r \in \mathcal{R}} \mathrm{EVR\text{-}PASS}_r</pre>
+</details>
+注意 \(\mathrm{EVR} \le \min(\mathrm{cov}, \mathrm{loop}, \mathrm{flow}, \mathrm{CER}, \mathrm{CCR})\)，是 Tier 2 最严的指标。
+</dd>
+
+<dt>参考代码 <span class="tag warn">v1.1</span></dt>
+<dd><pre>from plan_mapper_fixed.evaluator import evaluate_execution
+
+# v1.1: 不再需要关键词排除，也不再需要 LLM judge for headline EVR
+TOOL_NAME = "CodeInterpreterTool"
+
+def _declared_code_steps(plan):
+    """从 plan JSON 抽出声明 tool=CodeInterpreterTool 的 step。"""
+    out = []
+    for sub in plan["output"]["subtasks"]:
+        for step in sub["steps"]:
+            if step.get("tool") == TOOL_NAME:
+                out.append(step["id"])
+    return out
+
+def _tool_invoked(exec_log, step_id):
+    """v1.1 纳入式检测：execution_log 中该 step 是否真的调用了 CodeInterpreterTool。"""
+    tcs = exec_log.get(step_id, {}).get("tool_calls", [])
+    return any(tc.get("name") == TOOL_NAME for tc in tcs)
+
+def _sandbox_ok(step_outputs, step_id):
+    """v1.1 CCR：exit_code == 0 且无 unhandled exception。
+    对标 WebAgent-R1 program-exec binary reward。"""
+    so = step_outputs.get(step_id, {})
+    return so.get("exit_code") == 0 and not so.get("unhandled_exception")
+
+def evr_run(plan, exec_log, step_outputs) -> int:
+    # (a)(b)(c) 复用 KELE WC 三个子检查
+    report = evaluate_execution(plan, exec_log)
+    cov   = "Check 2a: Step Coverage" in report and "PASS" in _slice(report, "2a", "2b")
+    loop  = "Check 2b: Loop Behavior" in report and "PASS" in _slice(report, "2b", "2c")
+    flow  = "Check 2c: Information Flow" in report and "PASS" in _slice(report, "2c", "2d")
+
+    code_ids = _declared_code_steps(plan)
+    # (d) CER：所有声明 CodeInterpreterTool 的 step 都必须有 tool_call event
+    real_ids = [sid for sid in code_ids if _tool_invoked(exec_log, sid)]
+    exec_ok  = (len(real_ids) == len(code_ids))    # 没声明 code step 时 vacuously True
+
+    # (e) CCR：所有真调用的 code step sandbox 执行成功
+    out_ok   = all(_sandbox_ok(step_outputs, sid) for sid in real_ids)
+
+    return int(cov and loop and flow and exec_ok and out_ok)
+
+def evr(runs) -> float:
+    return sum(evr_run(*r) for r in runs) / len(runs)</pre>
+<p style="font-size:12.5px;color:#555;margin:6px 0 0">
+注 1：原 v1.0 的 <code>SPECULATIVE</code> 关键词列表与 <code>functional_eq</code> LLM judge 都已从 EVR 主路径移除；前者被 tool-call 纳入式检测取代，后者降级到 appendix B 的 CCGE-fuzzy 子检查（仅在 plan 提供结构化 <code>output_assertion</code> 字段时启用）。<br/>
+注 2：execution_log 的 <code>tool_calls</code> 字段由 CrewAI live mode 原生产出，无需额外 instrument。
+</p></dd>
+
+<dt>✅ 通过示例（EVR-PASS） <span class="tag warn">v1.1</span></dt>
+<dd>plan 有 10 step、1 个 max=3 loop、3 个声明 tool=CodeInterpreterTool 的 step。execution_log：(a) 10 step 全 actual_interaction 非空；(b) loop 在 iter 2 condition_met 自然退出；(c) 所有 depends_on 上游有非空输出；(d) 3 个 code step 的 <code>tool_calls</code> 字段都至少含一条 <code>{"name": "CodeInterpreterTool", ...}</code> 记录（CER=1）；(e) 3 个 sandbox 调用都返回 <code>exit_code=0</code> 且无 unhandled exception（CCR=1）。5 项 AND → EVR-PASS。</dd>
+
+<dt>❌ 不通过示例（EVR-FAIL） <span class="tag warn">v1.1</span></dt>
+<dd>常见 5 种失败（任一就 FAIL）：
+<ul style="margin:6px 0 0 0">
+<li><strong>(a) cov 失败</strong>：S2-3 在 execution_order 里但 log 是 <code>{"error": "agent timeout"}</code></li>
+<li><strong>(b) loop 失败</strong>：loop 跑 max=3 次后 exit_reason="max_iterations"，但 condition 表达式从未为真——说明 condition 字段写错</li>
+<li><strong>(c) flow 失败</strong>：S3-1 depends_on=["S2-2"]，但 S2-2 输出空串</li>
+<li><strong>(d) exec 失败（v1.1 新失败模式）</strong>：S2-2 在 plan 里声明 <code>tool: "CodeInterpreterTool"</code>，但 execution_log[S2-2].tool_calls 为空——agent 干脆没调工具、只给了一段教学文字。<em>v1.0 关键词扫描会误判通过；v1.1 纳入式检测正确判 CER=0/1</em> → EVR-FAIL</li>
+<li><strong>(e) out 失败</strong>：S2-2 调用了 CodeInterpreterTool，但 sandbox 返回 <code>exit_code=1</code> 并抛 <code>TypeError: unsupported operand type(s)</code> → CCR=0 → EVR-FAIL。<em>v1.1 起不再判定与散文 expected_output 的"功能等价"</em>，只看 sandbox 是否成功。</li>
+</ul>
+注意：单看 (a)(b)(c) 都 PASS 不算 EVR-PASS——必须 5 项<em>全部</em>过。若 plan 完全没有 code step（纯对话型），(d)(e) vacuously true，EVR 退化为 cov∧loop∧flow。</dd>
+
+<dt>方向 / 阈值</dt>
+<dd><span class="arrow-up">↑ higher better</span>。<strong>Tier 2 headline</strong>。SOTA ~0.25–0.40，PersonalPlan 目标 <strong>≥ 0.55</strong>（5 项联合 PASS 是 hard condition）。<br/>
+<strong>论文 abstract</strong>："PersonalPlan reaches X% Execution Validity Rate on MAPLE-Test, vs Y% for the strongest baseline"。X 就是这里的 EVR。</dd>
+
+<dt>评分标准（5 项 sub-check 各自的 PASS 条件）</dt>
+<dd>
+<table>
+<thead><tr><th>子检查</th><th>PASS 条件</th><th>典型 FAIL</th></tr></thead>
+<tbody>
+<tr><td><strong>(a) cov</strong></td><td>execution_order 每个 step ID 在 log 中有非空 actual_interaction</td><td>缺 step / 仅 error 信息</td></tr>
+<tr><td><strong>(b) loop</strong></td><td>每个 loop 有 entries；最后一轮含 exit_reason；reason 与内容自洽</td><td>无 exit_reason / 1 轮 condition_met 但判定无依据 / exit_reason="max_iter" 但 condition 错</td></tr>
+<tr><td><strong>(c) flow</strong></td><td>所有 depends_on 上游有非空有用输出</td><td>上游输出空 / 缺失 / 与下游完全无关</td></tr>
+<tr><td><strong>(d) exec (CER=1)</strong> <span class="tag warn">v1.1</span></td><td>所有声明 <code>tool=CodeInterpreterTool</code> 的 step，在 execution_log 中其 <code>tool_calls</code> 字段含至少一条 <code>name=CodeInterpreterTool</code> 的 invocation event（<em>纳入式</em>，从 CrewAI 原生 trace 读取，不依赖关键词扫描）</td><td>step 声明了 tool 但 execution log <code>tool_calls</code> 为空 / 只调了别的 tool</td></tr>
+<tr><td><strong>(e) out (CCR=1)</strong> <span class="tag warn">v1.1</span></td><td>所有真调用的 code step，sandbox 返回 <code>exit_code == 0</code> 且无 unhandled exception。<em>对标 WebAgent-R1 program-exec binary reward 的原始定义。</em></td><td>sandbox 抛 unhandled exception / exit_code≠0 / OOM-killed / timeout</td></tr>
+</tbody>
+</table>
+</dd>
+</dl>
+</div>
+
+<h3>11.5 Tier 2 — Axis B: MAS 教学效果（3 项 headline，每项对应 Q2 的一个子问题）</h3>
+
+<p>这 3 项<strong>都直接 port 自 prior art</strong>，论文里用公认名字 + cite，<em>不</em>引入新缩写。每项后面附 evaluator.py 现有 sub-check 的对应关系，appendix B 用 sub-check breakdown 验证 headline 的内部一致性。</p>
+
+<div class="spec judge">
+<div class="spec-header">PAS — Personalization Alignment Score <span class="spec-tag">LLM judge per utterance · headline · Q2.a · ∈ [0,1] · <em>= KELE PRR (Personalization Reflection Rate)</em></span></div>
+<dl>
+<dt>是什么 / 评估目标</dt>
+<dd>PAS 测<em>"MAS 教学过程中，教师 agent 实际说的话是否反映 learner_profile"</em>——profile 字段包括 age、knowledge_level、learning_style（visual / kinesthetic / etc.）、native_language、interests。PAS 的判定对象是<em>每条 teacher utterance</em>（不是整个 plan），因此能捕捉到"plan 写了适配 K12 学生，但 runtime 教师 agent 还是用 PhD-level 术语"这种 plan-execution 脱节。</dd>
+
+<dt>参考工作</dt>
+<dd>PAS <em>直接</em>采用 <strong>KELE</strong> \citep{peng2025kele} 的 <strong>PRR (Personalization Reflection Rate)</strong>，论文里建议直接命名为 "Personalization Reflection Rate (PRR)" + cite KELE，<em>不</em>用我们的 PAS 缩写。Profile-conditioned generation evaluation 的另一个 anchor 是 <strong>Personality-Sim</strong> \citep{liu2024personalitysim} 的 BF-TC 5/3/1 anchored Likert——我们的 PAS 用同样 3-档 score。与论文 §3.5 MAPLE 数据 profile 7 字段一致。</dd>
+
+<dt>输入</dt>
+<dd>(learner_profile JSON, execution_log) — profile 来自 plan.input.learner；execution_log 提供每个 step 的 teacher_output（含 loop iterations）。</dd>
+
+<dt>计算公式</dt>
+<dd>令 \(\mathcal{U}_r^{\mathrm{tch}}\) 为 run \(r\) 的全部 teacher utterance；对每个 \(u \in \mathcal{U}_r^{\mathrm{tch}}\)，judge \(J\) 输出 alignment score \(p_u \in \{2, 1, 0\}\)（well-aligned / partially aligned / not aligned）。归一到 [0,1]：
+<div class="display-math">\[
+\mathrm{PAS}_r \;=\; \frac{1}{2\,|\mathcal{U}_r^{\mathrm{tch}}|}\sum_{u \in \mathcal{U}_r^{\mathrm{tch}}} p_u
+\]</div>
+<div class="display-math">\[
+\mathrm{PAS} \;=\; \frac{1}{|\mathcal{R}|}\sum_{r \in \mathcal{R}} \mathrm{PAS}_r \;\in\; [0,1]
+\]</div>
+<details class="latex-src"><summary>LaTeX 源</summary>
+<pre>\mathrm{PAS}_r \;=\; \frac{1}{2\,|\mathcal{U}_r^{\mathrm{tch}}|}\sum_{u \in \mathcal{U}_r^{\mathrm{tch}}} p_u
+
+\mathrm{PAS} \;=\; \frac{1}{|\mathcal{R}|}\sum_{r \in \mathcal{R}} \mathrm{PAS}_r</pre>
+</details>
+论文里也可报<em>fraction-of-fully-aligned</em>变体 \(\mathrm{PAS}^{\star}_r = \frac{1}{|\mathcal{U}_r^{\mathrm{tch}}|}\sum_u \mathbb{I}[p_u = 2]\) 作 strict 版（更接近 reviewer 直觉）。
+</dd>
+
+<dt>参考代码</dt>
+<dd><pre>PRR_PROMPT = """You judge if a teacher utterance reflects the learner profile.
+
+Learner profile (JSON):
+{profile}
+
+Teacher utterance:
+{utterance}
+
+Rubric:
+- 2 (well-aligned): adapts vocab / examples / pace to multiple profile fields explicitly
+- 1 (partially):    reflects at least one profile field but generic in tone
+- 0 (not aligned):  ignores profile entirely / contradicts it (e.g., PhD jargon to a K12 learner)
+
+Output JSON: {{"score": 0|1|2, "evidence": "<= 25 words"}}"""
+
+def pas_run(profile, exec_log, judge="gpt-5") -> float:
+    utterances = [e["actual_interaction"]["teacher_output"]
+                  for e in exec_log if e.get("teacher_output")]
+    if not utterances: return 0.0
+    scores = [int(json.loads(call_llm(judge, PRR_PROMPT.format(profile=profile, utterance=u),
+                                       temperature=0.0))["score"])
+              for u in utterances]
+    return sum(scores) / (2 * len(scores))
+
+def pas(runs, judge="gpt-5") -> float:
+    return sum(pas_run(p, log, judge) for p, log in runs) / len(runs)</pre></dd>
+
+<dt>✅ 通过示例（PAS 高）</dt>
+<dd>learner_profile: <code>{"age": 14, "level": "beginner", "style": "visual", "L1": "Mandarin", "interests": ["games"]}</code>。<br/>
+teacher_output S1-1: <code>"想象一下你在玩《我的世界》——你要在一个 100 格长的迷宫里找钻石，但只能问'比中间格靠左还是靠右'这种问题，<em>用尽量少的次数</em>找到。你觉得最少要问几次？(画图思考)"</code><br/>
+judge: well-aligned (age-appropriate vocab + visual cue "画图" + Minecraft interest + L1 中文，<em>不</em>用 "binary search" 术语) → p=2.<br/>
+若所有 12 个 teacher utterance 都拿 2 → PAS_r = 24/(2·12) = 1.0。</dd>
+
+<dt>❌ 不通过示例（PAS 低）</dt>
+<dd>同 profile，但 teacher_output S1-1: <code>"Binary search has O(log n) complexity. The invariant is that the target lies in [low, high]. Initialize low=0, high=n-1, then while low<=high, compute mid=(low+high)>>1..."</code><br/>
+judge: not aligned (PhD/工程师级术语；忽略 age=14 / level=beginner / interests / L1)→ p=0.<br/>
+若 12 个 utterance 中 9 个 p=0、3 个 p=1 → PAS_r = (0·9 + 1·3) / (2·12) = 0.125。</dd>
+
+<dt>方向 / 阈值</dt>
+<dd><span class="arrow-up">↑ higher better</span>。<strong>Q2.a headline</strong>。SOTA ~0.40-0.55（profile-unconditioned baseline 多在 0.3-0.5），PersonalPlan 目标 <strong>≥ 0.75</strong>。<br/>
+<strong>消融</strong>：与 Tier 1 的 Pers. (plan-level personalization) 对比——若 Pers. 高但 PAS 低，说明 plan 写了 personalization instruction 但 runtime 教师不执行（plan-execution divergence）。</dd>
+
+<dt>评分标准（PRR 5/3/1 → 这里 2/1/0 同义；论文里也可用 5/3/1 normalize 到 [0,1]）</dt>
+<dd>
+<table>
+<thead><tr><th>分数</th><th>判定条件</th><th>示例</th></tr></thead>
+<tbody>
+<tr><td><strong>2 (well-aligned)</strong></td><td>显式适配 ≥2 个 profile 字段（vocab / examples / pace / language）；不使用超出 learner level 的术语</td><td>K12 + visual + Mandarin → 用图示 + 中文 + 游戏类比</td></tr>
+<tr><td><strong>1 (partially)</strong></td><td>反映 ≥1 profile 字段但 generic；或 1 字段适配但其他字段冲突</td><td>用中文但术语仍是 "PhD-level"</td></tr>
+<tr><td><strong>0 (not aligned)</strong></td><td>完全忽略 profile / 用错语言 / 与 level 严重不符</td><td>对 K12 beginner 讲 cache-oblivious algorithm</td></tr>
+</tbody>
+</table>
+</dd>
+</dl>
+</div>
+
+<div class="spec judge">
+<div class="spec-header">PQS — Pedagogical Quality Score <span class="spec-tag">aggregate of 3 KELE sub-metrics · headline · Q2.b · ∈ [0,1] · <em>= mean(KELE NDAR + SPR + IAR)</em></span></div>
+<dl>
+<dt>是什么 / 评估目标</dt>
+<dd>PQS 测<em>"MAS 教学是否遵循好教学法"</em>——3 个独立子轴：(i) NDAR — 教师不直接 reveal accepted answer 而是引导学生自己想；(ii) SPR — 教学有 scaffolding phase 结构（introduce → guide → consolidate）；(iii) IAR — 提问 vs 告知比例足够高（Socratic）。3 项算术平均。PQS<em>不是</em> reviewer 容易质疑的"我们发明的"指标——3 个 sub 都是 KELE \citep{peng2025kele} 已经发表的命名指标。</dd>
+
+<dt>参考工作</dt>
+<dd>3 个子项<em>直接 port</em> 自 <strong>KELE</strong> \citep{peng2025kele} 的 4-pedagogical-metrics 中的 3 项（NDAR / SPR / IAR；KELE 的第 4 项 PRR 已划到 PAS 里）。Scaffolding 教学理论本身可追溯到 Vygotsky / Wood et al. 1976；Socratic 教学的 IAR 量化在 <strong>Aligning-Pedagogy</strong> \citep{dinucu2025aligningpedagogy} 的 helpfulness sub-rubric 中也有出现。<strong>TreeInstruct</strong> \citep{kargupta2024treeinstruct} 把 scaffolding 拆成"identify error → ask diagnostic question → guide fix"3 stage，与 SPR 的 introduce/guide/consolidate 是同源思路。</dd>
+
+<dt>输入</dt>
+<dd>(plan JSON, execution_log) — 需要 plan 的 step.type / step.phase 元数据来判 SPR；execution_log 的 teacher_output 用于判 NDAR / IAR。</dd>
+
+<dt>计算公式</dt>
+<dd>对 run \(r\)：
+\[
+\begin{aligned}
+\mathrm{NDAR}_r &\;=\; \frac{1}{|\mathcal{U}_r^{\mathrm{tch}}|}\sum_{u \in \mathcal{U}_r^{\mathrm{tch}}} \mathbb{I}[\,\mathrm{reveal}_J(u, \alpha_r) = \mathrm{none}\,] \quad \text{(LLM judge)} \\
+\mathrm{SPR}_r &\;=\; \frac{|\{\mathrm{phase} \in \{\mathrm{intro}, \mathrm{guide}, \mathrm{consol}\} : \mathrm{phase\_present}(r, \mathrm{phase})\}|}{3} \\
+\mathrm{IAR}_r &\;=\; \min\!\left(1,\; \frac{\#\mathrm{questions}(r)}{\#\mathrm{statements}(r) + 1}\right)
+\end{aligned}
+\]
+其中 \(\mathrm{reveal}_J \in \{\mathrm{full}, \mathrm{partial}, \mathrm{none}\}\) 由 judge 判 "是否在学生 attempt 之前 reveal accepted answer"；phase_present 由 rule-based 按 step.metadata.phase 或 LLM-tag 检测；questions / statements 计数用 regex (含 ? 或 imperative-question pattern)。聚合：
+<div class="display-math">\[
+\mathrm{PQS}_r \;=\; \frac{1}{3}\!\left(\, \mathrm{NDAR}_r + \mathrm{SPR}_r + \mathrm{IAR}_r \,\right), \qquad \mathrm{PQS} \;=\; \mathbb{E}_r[\mathrm{PQS}_r]
+\]</div>
+<details class="latex-src"><summary>LaTeX 源</summary>
+<pre>\mathrm{NDAR}_r \;=\; \frac{1}{|\mathcal{U}_r^{\mathrm{tch}}|}\sum_{u} \mathbb{I}[\mathrm{reveal}_J(u, \alpha_r) = \mathrm{none}]
+
+\mathrm{SPR}_r \;=\; \frac{|\{\mathrm{phase} \in \{\mathrm{intro}, \mathrm{guide}, \mathrm{consol}\} : \mathrm{present}\}|}{3}
+
+\mathrm{IAR}_r \;=\; \min\!\left(1,\; \frac{\#\mathrm{questions}(r)}{\#\mathrm{statements}(r) + 1}\right)
+
+\mathrm{PQS}_r \;=\; \frac{1}{3}\!\left(\mathrm{NDAR}_r + \mathrm{SPR}_r + \mathrm{IAR}_r\right)</pre>
+</details>
+论文里报 PQS 平均值 + 三子项 breakdown（appendix table），便于诊断"是哪一维度差"。
+</dd>
+
+<dt>参考代码</dt>
+<dd><pre>NDAR_PROMPT = """Judge if a teacher utterance reveals the accepted answer before the student attempts.
+
+Accepted answer: {accepted}
+Teacher utterance: {utterance}
+
+Rubric:
+- "full": directly states the accepted solution
+- "partial": reveals key steps but not full solution
+- "none": only asks/guides, no answer leakage
+
+Output JSON: {{"reveal": "full"|"partial"|"none", "evidence": "<= 25 words"}}"""
+
+def ndar_run(exec_log, accepted_answer, judge="gpt-5") -> float:
+    utts = [e["actual_interaction"]["teacher_output"]
+            for e in exec_log if e.get("teacher_output")]
+    rev = [json.loads(call_llm(judge, NDAR_PROMPT.format(accepted=accepted_answer, utterance=u),
+                                temperature=0.0))["reveal"] for u in utts]
+    return sum(1 for r in rev if r == "none") / len(rev) if rev else 0.0
+
+def spr_run(plan, exec_log) -> float:
+    phases_present = set()
+    for s in plan["output"]["steps"]:
+        ph = s.get("metadata", {}).get("phase")
+        if ph in ("intro", "introduce", "guide", "consolidate", "consol"):
+            phases_present.add(_canonical(ph))
+    return len(phases_present & {"intro", "guide", "consol"}) / 3
+
+import re
+def iar_run(exec_log) -> float:
+    utts = [e["actual_interaction"]["teacher_output"]
+            for e in exec_log if e.get("teacher_output")]
+    text = " ".join(utts)
+    q = len(re.findall(r"\?", text)) + len(re.findall(r"\b(what|why|how|can you|describe)\b", text.lower()))
+    s = len(re.findall(r"[\.!]", text)) - q
+    return min(1.0, q / max(s, 1))
+
+def pqs_run(plan, exec_log, accepted_answer, judge="gpt-5") -> float:
+    return (ndar_run(exec_log, accepted_answer, judge) +
+            spr_run(plan, exec_log) +
+            iar_run(exec_log)) / 3</pre></dd>
+
+<dt>✅ 通过示例（PQS 高）</dt>
+<dd>plan 跑 12 step，10 个 teacher utterance：
+<ul style="margin:6px 0 0 0">
+<li>NDAR: 9/10 utterance 不 reveal accepted_answer（仅 step S5 在 consolidate phase 明示完整解）→ 0.9</li>
+<li>SPR: plan step.metadata.phase 覆盖 intro (S1-1) + guide (S2-2, S3-1) + consol (S4-1) → 3/3 = 1.0</li>
+<li>IAR: 10 个 utterance 含 18 个问号 + 14 个 imperative 提问，共 32 个 question marker；statements (非提问句) 25 个 → min(1, 32/(25+1)) = 1.0</li>
+</ul>
+PQS_r = (0.9 + 1.0 + 1.0) / 3 ≈ 0.97。<strong>Socratic + scaffolded + 不剧透</strong>三轴都好。</dd>
+
+<dt>❌ 不通过示例（PQS 低）</dt>
+<dd>"直接讲义"风格 baseline：
+<ul style="margin:6px 0 0 0">
+<li>NDAR: 12 个 utterance 中 8 个直接给出 accepted_answer 全代码（"Here's the answer: ```...```"）→ 4/12 = 0.33</li>
+<li>SPR: plan 全是 explain step，无 guide / consolidate phase → 1/3 = 0.33</li>
+<li>IAR: 10 个 utterance 几乎只有 statement，3 个问号 + 1 imperative，statement 35 个 → min(1, 4/36) = 0.11</li>
+</ul>
+PQS_r = (0.33 + 0.33 + 0.11) / 3 ≈ 0.26。三轴都差——典型"讲师"型而非"导师"型 agent。</dd>
+
+<dt>方向 / 阈值</dt>
+<dd><span class="arrow-up">↑ higher better</span>。<strong>Q2.b headline</strong>。SOTA ~0.40-0.55，PersonalPlan 目标 <strong>≥ 0.70</strong>。三子项中 NDAR 通常最低（baseline 倾向直接给答案）。</dd>
+
+<dt>评分标准（每子项独立 rubric）</dt>
+<dd>
+<table>
+<thead><tr><th>子项</th><th>定义</th><th>判定方式</th></tr></thead>
+<tbody>
+<tr><td><strong>NDAR</strong></td><td>不直接 reveal accepted_answer 的 utterance 比例</td><td>LLM judge 3 档：full / partial / none</td></tr>
+<tr><td><strong>SPR</strong></td><td>plan 是否依序覆盖 introduce / guide / consolidate 3 phase</td><td>规则式按 step.metadata.phase；若 plan 无 phase 元数据则用 LLM 自动 tag</td></tr>
+<tr><td><strong>IAR</strong></td><td>提问 vs 告知比例（≥1 视为充分提问）</td><td>regex 计 question marker (?) + imperative-question pattern，clip 到 [0,1]</td></tr>
+</tbody>
+</table>
+</dd>
+</dl>
+</div>
+
+<div class="spec hybrid">
+<div class="spec-header">r<sub>sol</sub> — Post-Dialog Solve Rate <span class="spec-tag">LLM judge for student final code · headline · Q2.c · ∈ [0,1] · <em>directly ported from Aligning-Pedagogy</em></span></div>
+<dl>
+<dt>是什么 / 评估目标</dt>
+<dd>r<sub>sol</sub> 测<em>"plan 跑完后，学生 agent 真的学会了吗"</em>——具体是<em>学生 agent</em>（固定 Llama-3.1-8B-Instruct）在最后一个 subtask 内独立输出的代码，是否与 accepted_answer 功能等价。<strong>这是 Tier 2 最 high-stakes 的指标</strong>——直接对应论文 abstract 里"PersonalPlan 能让学生真的学会"的论断；所有方法都为提升 r<sub>sol</sub> 服务。r<sub>sol</sub> 与 EVR 互补：EVR 测 plan 可执行性，r<sub>sol</sub> 测教学有效性——可能 EVR 高但 r<sub>sol</sub> 低（plan 跑通但学生没学会，因为 plan 内容不对症）或反之（plan 偶尔 crash 但学生在跑通的 run 内真学会了）。</dd>
+
+<dt>参考工作</dt>
+<dd>这<strong>直接 port from <span class="ref-pill">Aligning-Pedagogy</span></strong> \citep{dinucu2025aligningpedagogy} 的核心 reward \(r_{\text{sol}}\): "post-dialog solve rate"。他们的设定是 math tutoring，学生在对话后被 sample K=8 次最终答案对 gold 数学答案验证。我们 port 到编程教学：学生在 plan 执行完后的最终代码尝试，对 Stack Overflow accepted_answer 验证 functional equivalence (HumanEval pass@1 \citep{chen2021codex} 同款判定)。论文里建议直接命名为 "Post-Dialog Solve Rate (\(r_{\text{sol}}\))" + cite Aligning-Pedagogy + Chen 2021，<em>不</em>引入 LST 等新缩写。<strong>TreeInstruct</strong> \citep{kargupta2024treeinstruct} 的"学生最终 fix 与 ground-truth 同构"是 same idea 在 debug 场景的 instantiation。</dd>
+
+<dt>输入</dt>
+<dd>(plan JSON, execution_log, accepted_answer) — 从 execution_log 中提取<strong>最后一个 subtask 内学生 agent 的所有 student_response</strong>，抽出最长的 fenced code block。</dd>
+
+<dt>计算公式</dt>
+<dd>令 \(\mathcal{R}_{\mathrm{valid}} = \{r \in \mathcal{R} : \mathrm{pat}_r \ne \mathrm{perfect\_from\_start}\}\) 是排除话题盲区失败 run 后的有效集合（pattern 由现有 evaluator.py 的 IQ check 标记）；\(\mathrm{code}_r^{\mathrm{stud,final}}\) 是 run \(r\) 中最后一个 subtask 内学生 agent 输出的最长代码片段；\(\alpha_r\) 是该 run 的 accepted answer；\(\equiv_J\) 是 LLM judge \(J\) (GPT-5) 判定的功能等价（同 EVR 的 CCR）。
+<div class="display-math">\[
+r_{\mathrm{sol}} \;=\;
+\begin{cases}
+\dfrac{1}{|\mathcal{R}_{\mathrm{valid}}|}\displaystyle\sum_{r \in \mathcal{R}_{\mathrm{valid}}} \mathbb{I}\!\left[\, \mathrm{code}_r^{\mathrm{stud,final}} \,\equiv_J\, \alpha_r \,\right], & |\mathcal{R}_{\mathrm{valid}}| > 0,\\[6pt]
+\mathrm{undefined}, & \text{otherwise}.
+\end{cases}
+\]</div>
+<details class="latex-src"><summary>LaTeX 源</summary>
+<pre>r_{\mathrm{sol}} \;=\;
+\begin{cases}
+\dfrac{1}{|\mathcal{R}_{\mathrm{valid}}|}\displaystyle\sum_{r \in \mathcal{R}_{\mathrm{valid}}} \mathbb{I}\!\left[\, \mathrm{code}_r^{\mathrm{stud,final}} \,\equiv_J\, \alpha_r \,\right], &amp; |\mathcal{R}_{\mathrm{valid}}| > 0,\\
+\mathrm{undefined}, &amp; \text{otherwise}.
+\end{cases}</pre>
+</details>
+论文里同时报 \(|\mathcal{R}_{\mathrm{valid}}| / |\mathcal{R}|\)（有效 run 比例）防止读者误解分母。
+</dd>
+
+<dt>参考代码</dt>
+<dd><pre>def r_sol_run(plan, exec_log, judge="gpt-5"):
+    # 若 IQ 标 perfect_from_start，返回 None（不计入分母）
+    if _has_perfect_from_start_pattern(exec_log): return None
+    last_subtask = plan["output"]["subtasks"][-1]["id"]
+    last_resps = [e["actual_interaction"].get("student_response", "")
+                  for e in exec_log
+                  if e.get("subtask_id") == last_subtask and e.get("requires_human_input")]
+    if not last_resps: return 0
+    final_code = _extract_longest_code(last_resps)
+    if not _compiles(final_code, plan["meta"]["language"]): return 0  # hard 约束
+    return functional_eq(final_code,
+                         plan["input"]["accepted_answer"],
+                         plan["input"]["query"],
+                         plan["input"]["accepted_answer"], judge)
+
+def r_sol(runs, judge="gpt-5") -> float:
+    scores = [r_sol_run(p, log, judge) for p, log in runs]
+    valid = [s for s in scores if s is not None]
+    return sum(valid) / len(valid) if valid else 0.0</pre></dd>
+
+<dt>✅ 通过示例（r<sub>sol</sub> = 1）</dt>
+<dd>query="implement binary search in Java"，accepted_answer 是 while-loop 版。<br/>
+最后 subtask 内学生 student_response：<code>"Now I understand, here's my implementation:<br/>
+```java<br/>
+public int bsearch(int[] arr, int t) {<br/>
+&nbsp;&nbsp;int lo=0, hi=arr.length-1;<br/>
+&nbsp;&nbsp;while(lo &lt;= hi) { int mid=(lo+hi)/2; if(arr[mid]==t) return mid;<br/>
+&nbsp;&nbsp;else if(arr[mid]&lt;t) lo=mid+1; else hi=mid-1; }<br/>
+&nbsp;&nbsp;return -1;<br/>
+}<br/>
+```"</code><br/>
+extract_longest_code 抽出 → compiles → judge 判 "functionally equivalent to accepted_answer" → r<sub>sol</sub> = 1。</dd>
+
+<dt>❌ 不通过示例（r<sub>sol</sub> = 0 或 None）</dt>
+<dd>3 种典型失败：
+<ul style="margin:6px 0 0 0">
+<li><strong>学生最后还是错</strong>：交了 linear search 代码 (<code>for (i in arr) if(arr[i]==t) return i</code>) → judge=false → r<sub>sol</sub>=0</li>
+<li><strong>学生交了 buggy 代码不能编译</strong>：缺括号、漏分号 → compiles 失败 → r<sub>sol</sub>=0（hard 约束）</li>
+<li><strong>perfect_from_start</strong>（~7-10% run）：学生在 plan 第 1 个 step 就交了完美代码 → IQ 标 degenerate → <em>r<sub>sol</sub> = None，不计入分母</em>（否则会让"作弊"的 baseline 看起来反而高）</li>
+</ul></dd>
+
+<dt>方向 / 阈值</dt>
+<dd><span class="arrow-up">↑ higher better</span>。<strong>Q2.c headline，论文最 high-stakes 指标</strong>。SOTA ~0.30-0.45，PersonalPlan 目标 <strong>≥ 0.55</strong>。直接对应 Aligning-Pedagogy 报告的 r<sub>sol</sub> 量级。</dd>
+
+<dt>评分标准（functional equivalence judge，同 EVR.out 的 CCR rubric，多一个 hard 约束）</dt>
+<dd>
+<table>
+<thead><tr><th>equivalent=true 条件</th><th>equivalent=false 条件</th></tr></thead>
+<tbody>
+<tr><td>语义等价 + 可编译/解释：相同数值结果 / 数据结构 / 行为；格式差异可忽略</td><td>数值不同 / 数据类型不同 / 缺关键字段 / 不能编译 / 抛异常</td></tr>
+<tr><td>部分实现但与 accepted_answer 主线一致也算 true</td><td>明显未实现核心功能 / 完全不同算法（如交 linear search 而非 binary）</td></tr>
+</tbody>
+</table>
+<strong>额外 hard 约束</strong>：学生提交的代码<em>必须能编译 / 解释</em>，否则即便与 accepted_answer 文本相似也算 false——这点与 Aligning-Pedagogy 原文相同（他们 math 场景的 hard 约束是"必须是有效数字"）。
+</dd>
+</dl>
+</div>
+
+<h3>11.6 Tier 2 — Appendix B sub-checks（IF / WC / IQ / CCGE / CER / CCR / MLC）</h3>
+
+<blockquote class="purple">
+<strong>降级说明</strong>：旧方案的 IF / WC / IQ / CCGE / CER / CCR / MLC 7 项不丢弃，<em>降级到 appendix B</em>，作为 4 个 headline (EVR / PAS / PQS / r<sub>sol</sub>) 的底层 sub-check 报告——便于 reviewer 验证 headline 的内部一致性。具体对应关系：
+<ul style="margin:8px 0 0 0">
+<li><strong>EVR 内</strong> = (Check 2a cov) ∧ (Check 2b loop) ∧ (Check 2c flow) ∧ (CER=1) ∧ (CCR=1)</li>
+<li><strong>PAS 内</strong> 与 evaluator.py Check 1 (IF) 中 "符合 learner profile" 子维度高度相关；appendix 报 IF pass rate</li>
+<li><strong>PQS 内</strong> 与 evaluator.py Check 3 (IQ) + Check 4b (Guidance Trace) 高度相关；appendix 报 IQ pass rate + CCGE.Guidance 三档分布</li>
+<li><strong>r<sub>sol</sub> 内</strong> = evaluator.py Check 4c (Final Output Correctness)，仅看最后 subtask 的学生代码 vs accepted_answer</li>
+<li><strong>MLC</strong>（per-language CER / CCR breakdown）作 sensitivity check：验证 PersonalPlan 不仅在 Python 上好</li>
+</ul>
+完整 sub-check 公式与代码见 git 历史的旧版 §11.4-§11.5（仍保留在 <code>plan_mapper_fixed/evaluator.py</code> 的 4-check 实现里）。
+</blockquote>
+
+
+<!-- ============= Tier 3 2 项 ============= -->
+<h3>11.7 Tier 3 — 学习者偏好（2 项，Sati. 见上面 §11.2）</h3>
+
+<div class="spec rule">
+<div class="spec-header">JCC — Krippendorff's \(\alpha\) (Judge Cross-Consistency) <span class="spec-tag">established (Krippendorff 1980/2004) · ∈ [-1,1]</span></div>
+<dl>
+<dt>是什么 / 评估目标</dt>
+<dd>JCC 测的是<em>"3 个跨家族的 LLM judge 在同一对 pairwise 上的标签一致性"</em>——它<em>不评 method</em>，评的是<em>评估器本身的可信度</em>。如果 JCC = α = 0.3，说明 3 个 judge 严重分歧，那么 Sati. 这个分数本身就不可信，整个 Tier 3 的结论都要打折扣。JCC 是 Sati. 的<em>透明度指标</em>，<em>必须</em>在 appendix 里报。</dd>
+
+<dt>参考工作</dt>
+<dd><strong>Krippendorff's α</strong> 是跨学科的标准 inter-rater reliability 指标，1980 年提出 \citep{krippendorff2004content}（也常引为 Krippendorff 2018 ISBN 1506395678）；同族指标 <strong>Cohen's \(\kappa\)</strong>（两个 rater）、<strong>ICC</strong>（连续 / 多 rater）。NLP 论文用 α 评 inter-annotator agreement 是惯例：<strong>KELE</strong> \citep{peng2025kele} 报 ICC 0.68-0.83，<strong>Personality-Sim</strong> \citep{liu2024personalitysim} 报 \(\kappa\) 0.7+。我们采用 α（nominal level）因为 Sati. 标签是 3 类 categorical。</dd>
+
+<dt>输入</dt>
+<dd>3 个 judge（GPT-5 / Claude Opus 4.6 / Gemini 3 Pro）在同一对 pairwise 上的 choice 标签（"A"/"B"/"Tie"）。</dd>
+
+<dt>计算公式</dt>
+<dd>令 \(M = 3\) 个 judge、\(N\) 对 pairwise；\(y^{(m)}_i \in \{\mathrm{cand}, \mathrm{gold}, \mathrm{tie}\}\) 是 judge \(m\) 对第 \(i\) 对的标签；\(\delta(\cdot, \cdot)\) 是 nominal-level distance（不同 label 为 1，相同为 0）。
+<div class="display-math">\[
+D_o \;=\; \frac{1}{N\binom{M}{2}}\sum_{i=1}^{N}\sum_{1 \le m_1 < m_2 \le M} \delta\!\left(y^{(m_1)}_i, y^{(m_2)}_i\right)
+\]</div>
+<div class="display-math">\[
+D_e \;=\; \frac{1}{n(n-1)}\sum_{c \ne c'} n_c\, n_{c'}\, \delta(c, c'), \qquad n = NM, \quad n_c = \#\{(m, i) : y^{(m)}_i = c\}
+\]</div>
+<div class="display-math">\[
+\mathrm{JCC} \;=\; \alpha \;=\; 1 - \frac{D_o}{D_e} \;\in\; [-1, 1]
+\]</div>
+<details class="latex-src"><summary>LaTeX 源</summary>
+<pre>D_o \;=\; \frac{1}{N\binom{M}{2}}\sum_{i=1}^{N}\sum_{1 \le m_1 < m_2 \le M} \delta\!\left(y^{(m_1)}_i, y^{(m_2)}_i\right)
+
+D_e \;=\; \frac{1}{n(n-1)}\sum_{c \ne c'} n_c\, n_{c'}\, \delta(c, c'), \qquad n = NM, \quad n_c = \#\{(m, i) : y^{(m)}_i = c\}
+
+\mathrm{JCC} \;=\; \alpha \;=\; 1 - \frac{D_o}{D_e}</pre>
+</details>
+直接调 <code>krippendorff.alpha(reliability_data, level_of_measurement="nominal")</code> 即可。
+</dd>
+
+<dt>参考代码</dt>
+<dd><pre>import krippendorff
+import numpy as np
+
+def jcc(pairwise_results: dict[str, list[str]]) -> float:
+    # pairwise_results: {"gpt-5": [...], "claude": [...], "gemini": [...]}
+    label_map = {"A": 0, "B": 1, "Tie": 2}
+    matrix = np.array([[label_map[c] for c in pairwise_results[j]]
+                       for j in pairwise_results])
+    return krippendorff.alpha(reliability_data=matrix,
+                              level_of_measurement="nominal")</pre></dd>
+
+<dt>✅ 通过示例（α 高）</dt>
+<dd>100 对 pairwise：GPT-5 选 cand=72, gold=18, tie=10；Claude 选 cand=70, gold=20, tie=10；Gemini 选 cand=68, gold=22, tie=10。3 judge 之间大多数 case 一致 → α ≈ <strong>0.72</strong>（acceptable 区间），Sati. 数据可信。</dd>
+
+<dt>❌ 不通过示例（α 低）</dt>
+<dd>100 对 pairwise：GPT-5 选 cand=80（很喜欢 candidate）；Claude 选 cand=30（很喜欢 gold）；Gemini 选 cand=55（中立）。3 judge 在过半 case 上不一致 → α ≈ <strong>0.25</strong>。Sati. 数据<em>不可信</em>——可能是 rubric 模糊、prompt injection 没防干净、或 judge 真的对这个任务无共识。修复方案：检查 rubric anchor 是否清晰、加 100 条人工 calibration、考虑加第 4 个 judge。</dd>
+
+<dt>方向 / 阈值</dt>
+<dd><span class="arrow-up">↑ higher better</span>。<strong>α 是 Sati. 可信度的 proxy</strong>：
+<ul>
+  <li>α ≥ 0.8：excellent agreement（罕见）</li>
+  <li>α ≥ 0.667：acceptable for tentative conclusions（Krippendorff 推荐阈值）</li>
+  <li>α ≥ 0.5：本论文最低接受阈值</li>
+  <li>α &lt; 0.5：Sati. 数据<em>不可信</em>，需要重做 rubric 或加 calibration</li>
+</ul>
+论文里报在 appendix table；KELE 实测 ICC 0.68-0.83，我们预期 α 0.55-0.70。</dd>
+</dl>
+</div>
+
+<!-- ============= 配套：判卷 prompt 模板 ============= -->
+<h3>11.8 LLM-judge 通用 prompt 模板</h3>
+
+<p>所有 LLM-judge 的 prompt 都遵循下面 5 段式结构，便于 audit + log + 替换 judge model：</p>
+
+<pre>SYSTEM:
+You are an expert evaluator of multi-agent teaching plans. Output JSON only.
+Apply the rubric strictly. Use ONLY anchor scores 1, 3, or 5 (no 2 or 4).
+
+CONTEXT:
+  Query: {query}
+  Learner profile: {profile_json}
+  {optional: accepted_answer for ref-grounded judging}
+  {optional: gold_plan reference field for ref-grounded judging}
+
+TARGET:
+  {plan_json}
+
+RUBRIC (single dimension, e.g. SkillMatch):
+  Score 5: <anchor description from rubric table>
+  Score 3: <anchor description>
+  Score 1: <anchor description>
+
+OUTPUT FORMAT (strict JSON):
+  {"score": 1|3|5, "justification": "&lt;= 30 words"}
+</pre>
+
+<p><strong>调用配置</strong>：<code>temperature=0.0, max_tokens=200, top_p=1.0</code>。每个 prompt 必须单独跑（不串接 batch），否则会出现 anchoring bias。</p>
+
+<h3>11.9 指标速查表（含 prior-art 命名 + 复用程度）</h3>
+
+<p>下表把每个指标按"是否能直接复用公认指标"分四档：<span class="tag ok">A 复用</span>（直接照搬 + cite，可信度高）/ <span class="tag accent">B 适配</span>（核心思想现成，命名是我们的）/ <span class="tag purple">C 新</span>（我们引入的新指标，需要在 paper 里 justify）/ <span class="tag warn">D 已有 evaluator</span>（来自我们 evaluator.py）。</p>
+
+<table>
+<thead><tr>
+<th>论文里建议的名字</th><th>原始我们的简写</th><th>类型</th><th>范围</th><th>方向</th>
+<th>Headline?</th><th>SOTA</th><th>目标</th>
+<th>档位</th><th>对应公认指标 / 出处</th>
+</tr></thead>
+<tbody>
+<tr>
+  <td><strong>Schema Compliance Rate</strong></td><td>SV</td><td>规则</td><td>{0,1}</td><td>↑</td><td>✓</td><td>0.88-0.95</td><td>≥0.98</td>
+  <td><span class="tag accent">B</span></td><td>PLAN-TUNING two-stage filter step 1; AgentBank schema check</td>
+</tr>
+<tr>
+  <td><strong>DAG Validity</strong></td><td>AR</td><td>规则</td><td>{0,1}</td><td>↑</td><td>✓</td><td>0.85-0.93</td><td>≥0.97</td>
+  <td><span class="tag accent">B</span></td><td>inverse of LRPLAN Dependency-Violations</td>
+</tr>
+<tr>
+  <td><strong>Dependency Completeness</strong></td><td>DC</td><td>规则</td><td>[0,1]</td><td>↑</td><td>✓</td><td>0.85-0.92</td><td>≥0.95</td>
+  <td><span class="tag accent">B</span></td><td>LRPLAN dependency-resolution rate</td>
+</tr>
+<tr>
+  <td><strong>Agent-Tool Relevance</strong></td><td>ATR</td><td>规则</td><td>[0,1]</td><td>↑</td><td>✓</td><td>0.70-0.82</td><td>≥0.85</td>
+  <td><span class="tag purple">C</span></td><td>extends iTool tool-binding; A↔S dim is novel</td>
+</tr>
+<tr>
+  <td><strong>Tool Hallucination Rate (1−TBV)</strong></td><td>TBV</td><td>规则</td><td>[0,1]</td><td>↓ (反向)</td><td>—</td><td>0.12-0.22 (1−TBV)</td><td>≤0.05</td>
+  <td><span class="tag ok">A</span></td><td>iTool Parameter-Name accuracy; BFCL Tool Call accuracy</td>
+</tr>
+<tr>
+  <td><strong>GED-sim (Sanfeliu &amp; Fu 1983)</strong></td><td>GED-sim</td><td>规则</td><td>[0,1]</td><td>↑</td><td>✓</td><td>0.35-0.55</td><td>≥0.55</td>
+  <td><span class="tag ok">A</span></td><td>Sanfeliu &amp; Fu 1983; PLAN-TUNING R_plan</td>
+</tr>
+<tr>
+  <td><strong>Personalization Score (KELE-style)</strong></td><td>Pers.</td><td>judge×3</td><td>[0,1]</td><td>↑</td><td>✓</td><td>0.40-0.55</td><td>≥0.75</td>
+  <td><span class="tag accent">B</span></td><td>KELE 5/3/1 rubric format; Personality-Sim multi-aspect</td>
+</tr>
+<tr>
+  <td><strong>Feasibility Score (KELE-style)</strong></td><td>Feas.</td><td>judge×3</td><td>[0,1]</td><td>↑</td><td>✓</td><td>0.55-0.70</td><td>≥0.78</td>
+  <td><span class="tag accent">B</span></td><td>KELE + Aligning-Pedagogy reference-grounded</td>
+</tr>
+<tr>
+  <td><strong>Pedagogy Score = mean(PRR, NDAR, SPR, IAR)</strong></td><td>Ped.</td><td>judge×3 + rule×1</td><td>[0,1]</td><td>↑</td><td>✓</td><td>0.40-0.55</td><td>≥0.70</td>
+  <td><span class="tag ok">A</span></td><td>KELE 4 项直接 port (PRR / NDAR / SPR / IAR)</td>
+</tr>
+<tr>
+  <td><strong>Profile Sensitivity</strong></td><td>PVS</td><td>规则 aggregate</td><td>[0,1]</td><td>↑（适中）</td><td>—</td><td>0.05-0.10</td><td>0.35-0.50</td>
+  <td><span class="tag purple">C</span></td><td>adapts MSI-Agent OOD + Personality-Sim with/without</td>
+</tr>
+<tr>
+  <td><strong>Counterfactual Personalization Gap</strong></td><td>PNG</td><td>judge aggregate</td><td>[-1,1]</td><td>↑</td><td>—</td><td>~0</td><td>≥+0.15</td>
+  <td><span class="tag purple">C</span></td><td>adapts Personality-Sim shuffled control + Student-Data Paradox</td>
+</tr>
+<tr style="background:var(--accent-soft)">
+  <td colspan="10"><strong>Tier 2 (4 headline) — 围绕 Q1 (EVR) + Q2 (PAS / PQS / r<sub>sol</sub>) 重组</strong></td>
+</tr>
+<tr>
+  <td><strong>Execution Validity Rate</strong> (Q1)</td><td>EVR</td><td>aggregate (3 rule + CER + CCR)</td><td>[0,1]</td><td>↑</td><td>✓</td><td>0.25-0.40</td><td>≥0.55</td>
+  <td><span class="tag accent">B</span></td><td>AgentGym task success + KELE WC 4-check + HumanEval pass@1 联合；LRPLAN final pass-rate 同范式</td>
+</tr>
+<tr>
+  <td><strong>Personalization Reflection Rate</strong> (Q2.a)</td><td>PAS</td><td>judge per utterance</td><td>[0,1]</td><td>↑</td><td>✓</td><td>0.40-0.55</td><td>≥0.75</td>
+  <td><span class="tag ok">A</span></td><td>KELE PRR \citep{peng2025kele} 直接 port</td>
+</tr>
+<tr>
+  <td><strong>Pedagogical Quality Score</strong> (Q2.b)</td><td>PQS</td><td>mean of 3 sub-metrics</td><td>[0,1]</td><td>↑</td><td>✓</td><td>0.40-0.55</td><td>≥0.70</td>
+  <td><span class="tag ok">A</span></td><td>mean of KELE NDAR + SPR + IAR \citep{peng2025kele} 3 项直接 port</td>
+</tr>
+<tr>
+  <td><strong>Post-Dialog Solve Rate</strong> (\(r_{\text{sol}}\), Q2.c)</td><td>r<sub>sol</sub></td><td>judge functional eq.</td><td>[0,1]</td><td>↑</td><td>✓</td><td>0.30-0.45</td><td>≥0.55</td>
+  <td><span class="tag ok">A</span></td><td>Aligning-Pedagogy \(r_{\text{sol}}\) \citep{dinucu2025aligningpedagogy} 直接 port；HumanEval pass@1 \citep{chen2021codex} 同源</td>
+</tr>
+<tr style="opacity:0.6">
+  <td colspan="10"><em>Appendix B sub-checks（旧方案 7 项，全部降级，仅在 appendix 报）：IF / WC / IQ / CCGE (来自 evaluator.py 4-check) + CER / CCR (rule + judge on code step) + MLC (per-language breakdown)</em></td>
+</tr>
+<tr>
+  <td><strong>Win Rate vs Gold (Satisfaction)</strong></td><td>Sati.</td><td>pairwise × 3-judge product</td><td>[0,1]</td><td>↑</td><td>✓</td><td>0.20-0.30</td><td>≥0.45</td>
+  <td><span class="tag ok">A</span></td><td>RLHF win rate (InstructGPT etc.) × Aligning-Pedagogy M-judge product</td>
+</tr>
+<tr>
+  <td><strong>Krippendorff's \(\alpha\)</strong></td><td>JCC</td><td>α</td><td>[-1,1]</td><td>↑</td><td>—</td><td>~0.5</td><td>≥0.5</td>
+  <td><span class="tag ok">A</span></td><td>Krippendorff 1980/2004; analogous to KELE ICC, Personality-Sim \(\kappa\)</td>
+</tr>
+</tbody>
+</table>
+
+<p><strong>档位统计（重组后）</strong>：<span class="tag ok">A 复用 8 项</span>（Tool-Halluc, GED-sim, Pers., Feas., Ped., PAS, PQS, r<sub>sol</sub>, Sati., JCC 等）+ <span class="tag accent">B 适配 5 项</span>（SV, AR, DC, MLC, EVR）+ <span class="tag purple">C 新 3 项</span>（ATR, PVS, PNG）+ <span class="tag warn">D evaluator 4 项</span>（IF, WC, IQ, CCGE，<em>降级 appendix</em>）= 16 项 headline + 4 项 appendix sub-check + 2 项辅助 = 22 项体系，但<strong>论文主表只有 12 列</strong>，且<em>主表 12 列里只有 ATR 一项是 C 档（真正新引入）</em>。</p>
+
+<blockquote class="ok">
+<strong>主表 12 列推荐（Table 1 in paper，用论文里的公认名字）</strong>：<br/>
+Tier 1 (8): Schema Compliance · DAG Validity · Dep Completeness · Agent-Tool Relevance · GED-sim · Pers. (KELE) · Feas. (KELE) · Ped. (KELE 4)<br/>
+Tier 2 (3-4): <strong>Execution Validity Rate (Q1)</strong> · <strong>Personalization Reflection Rate (PRR, Q2.a)</strong> · <strong>Pedagogical Quality Score (Q2.b)</strong> · <strong>Post-Dialog Solve Rate (\(r_{\text{sol}}\), Q2.c)</strong><br/>
+Tier 3 (1): <strong>Win Rate vs Gold (Sati.)</strong><br/>
+其余项放 appendix breakdown tables（Tool-Halluc, Per-Language MLC, PVS, PNG, IF/WC/IQ/CCGE/CER/CCR sub-checks, JCC）。
+</blockquote>
+
+<blockquote class="purple">
+<strong>论文 §5 开头建议的措辞模板（直接复用公认指标的）</strong>：<br/>
+&nbsp;• "Following standard practice in code generation \citep{chen2021codex}, we report <strong>Pass@1</strong> ..."<br/>
+&nbsp;• "Following \citet{dinucu2025aligningpedagogy}, we measure the <strong>Post-Dialog Solve Rate</strong> (\(r_{\text{sol}}\)) ..."<br/>
+&nbsp;• "We directly port the four pedagogical sub-metrics (<strong>PRR, NDAR, SPR, IAR</strong>) from \citet{peng2025kele} ..."<br/>
+&nbsp;• "We follow the 5/3/1 anchored Likert protocol of \citet{peng2025kele,liu2024personalitysim} ..."<br/>
+&nbsp;• "Following \citet{xi2025agentgym,wei2025webagentr1}, we report <strong>Execution Success Rate</strong> ..."<br/>
+&nbsp;• "Following \citet{dinucu2025aligningpedagogy}, we aggregate Sati. as the <em>multiplicative</em> M-judge product ..."<br/>
+&nbsp;• "We use <strong>Krippendorff's \(\alpha\)</strong> \citep{krippendorff2004content} ..."<br/>
+这种 "<em>Following X, we report Y</em>" 比 "<em>we introduce Z</em>" 的可信度高一个数量级。
+</blockquote>
+
+<!-- =========================================================== -->
+<h2 id="closing">12. 文献映射（直接放到论文 §5 开头作 cite anchor）</h2>
+
+<table>
+<thead><tr><th>评估元素</th><th>论文里的措辞应该 cite</th></tr></thead>
+<tbody>
+<tr>
+  <td>三层评估协议</td>
+  <td><code>\citep{peng2025kele, dinucu2025aligningpedagogy, kargupta2024treeinstruct}</code></td>
+</tr>
+<tr>
+  <td>5/3/1 anchored Likert + 子维度独立</td>
+  <td><code>\citep{peng2025kele, liu2024personalitysim}</code></td>
+</tr>
+<tr>
+  <td>M-judge 乘积 / 跨模型族</td>
+  <td><code>\citep{dinucu2025aligningpedagogy}</code></td>
+</tr>
+<tr>
+  <td>GED-sim + plan-quality reward</td>
+  <td><code>\citep{parmar2025plantuning, sanfeliu2012distance}</code></td>
+</tr>
+<tr>
+  <td>规则式可验证 + LLM judge 分离</td>
+  <td><code>\citep{wei2025webagentr1, li2025rltr}</code></td>
+</tr>
+<tr>
+  <td>Pareto λ sweep</td>
+  <td><code>\citep{dinucu2025aligningpedagogy}</code></td>
+</tr>
+<tr>
+  <td>Profile-counterfactual / sensitivity</td>
+  <td><code>\citep{fu2024msi, liu2024personalitysim, sonkar2024studentparadox}</code></td>
+</tr>
+<tr>
+  <td>Code execution evaluation in agent tasks</td>
+  <td><code>\citep{xi2025agentgym, wei2025webagentr1, kargupta2024treeinstruct}</code></td>
+</tr>
+<tr>
+  <td>多 judge agreement (Krippendorff / κ / ICC)</td>
+  <td><code>\citep{peng2025kele, liu2024personalitysim}</code></td>
+</tr>
+<tr>
+  <td>"plan 喂进 env 跑通"作主评估</td>
+  <td><code>\citep{xi2025agentgym, wei2025webagentr1}</code></td>
+</tr>
+</tbody>
+</table>
+
+<hr/>
+
+<h2 id="appendix">附录 A. 现有 evaluator 与新指标的对应关系</h2>
+
+<p>下表说明<strong>现有 <code>plan_mapper_fixed/evaluator.py</code> 的 4 项检查可以直接映射到论文哪些指标</strong>，便于工程师对照实现：</p>
+
+<table>
+<thead><tr><th>现有 evaluator</th><th>对应论文指标</th><th>需要新写代码？</th></tr></thead>
+<tbody>
+<tr>
+  <td>Check 2a Step Coverage + Check 2b Loop Behavior + Check 2c Information Flow</td>
+  <td>聚合到 <strong>EVR (Q1)</strong>（3 个 binary sub-check）</td>
+  <td>否（直接聚合 verdict）</td>
+</tr>
+<tr>
+  <td>Check 2d tool_execution_uncertain rate</td>
+  <td>聚合到 <strong>EVR (Q1)</strong>（CER = 1 − uncertain_rate）</td>
+  <td>否（已有标记）</td>
+</tr>
+<tr>
+  <td>—（新增 CCR 脚本）</td>
+  <td>聚合到 <strong>EVR (Q1)</strong>（CCR = code step 输出 vs expected_output 功能等价率）</td>
+  <td>需 ~50 行 Python（GPT-5 functional eq judge）</td>
+</tr>
+<tr>
+  <td>Check 1 Instruction Fidelity（含 profile alignment 子维度）</td>
+  <td>映射到 <strong>PAS (Q2.a)</strong>，IF pass rate 在 appendix sub-check 报告</td>
+  <td>需 ~80 行 Python（KELE PRR judge per utterance）</td>
+</tr>
+<tr>
+  <td>Check 3 Interaction Quality + Check 4b Guidance Trace</td>
+  <td>映射到 <strong>PQS (Q2.b)</strong>（PQS = mean(NDAR, SPR, IAR)）；IQ / Guidance Trace 在 appendix sub-check 报告</td>
+  <td>需 ~150 行 Python（NDAR judge + SPR rule + IAR regex）</td>
+</tr>
+<tr>
+  <td>Check 4c Final Output Correctness（仅最后 subtask 内学生代码 vs accepted_answer）</td>
+  <td>映射到 <strong>r<sub>sol</sub> (Q2.c)</strong></td>
+  <td>需 ~60 行 Python（代码抽取 + functional eq judge）</td>
+</tr>
+<tr>
+  <td>Check 4a Coverage + step_outputs.json meta.language 分组</td>
+  <td>降级到 appendix B：<strong>MLC</strong> per-language CER / CCR breakdown</td>
+  <td>需 ~30 行 Python</td>
+</tr>
+<tr>
+  <td>Overall verdict (execution_verified)</td>
+  <td>不再直接对应 headline（旧 EVR 改名 + 加强为 5-条件 AND；现 headline EVR 见 §11.4）</td>
+  <td>否</td>
+</tr>
+</tbody>
+</table>
+
+<p><strong>结论</strong>：Tier 2 的 <strong>4 个 headline (EVR / PAS / PQS / r<sub>sol</sub>)</strong> 全部建立在现有 evaluator.py 的 4 项 sub-check 之上，新增开发量 ~340 行 Python（CCR 50 + PAS 80 + PQS 150 + r<sub>sol</sub> 60）。原 evaluator.py 4 项输出 + CER / MLC 全部降级到 appendix sub-check 报告。</p>
+
+<h2 id="appendix-b">附录 B. 与论文方法 (§3-§4) 的逐项对应</h2>
+
+<p>论文方法明确定义了 4 项 GRPO reward：<code>R_struct</code>、<code>R_pers</code>、<code>R_ped</code>、<code>R_hard</code>。<strong>每项 reward 应该有对应的 evaluation 指标</strong>，否则 RQ3 ablation 没法支撑。下表给出对应：</p>
+
+<table>
+<thead><tr><th>论文 reward (训练期)</th><th>评估期对应指标</th><th>说明</th></tr></thead>
+<tbody>
+<tr>
+  <td><code>R_struct</code> = 0.25·DAG + 0.25·DC + 0.20·ATR + 0.30·StructSim</td>
+  <td>AR + DC + ATR + GED-sim</td>
+  <td><strong>训练 reward 与评估指标几乎一一对应</strong>——StructSim 是训练里的 multiset Jaccard，评估用 GED-sim（更严格）</td>
+</tr>
+<tr>
+  <td><code>R_pers</code>（personalization grounded steps ratio, cap 0.8）</td>
+  <td>Pers. + PVS + PNG</td>
+  <td>R_pers 是规则式（关键词命中），Pers. 是 LLM judge——二者互补。PVS / PNG 是 sanity check。</td>
+</tr>
+<tr>
+  <td><code>R_ped</code> = 0.5·SubPrec + 0.5·PhaseCov</td>
+  <td>Ped. (PRR + NDAR + SPR + IAR)</td>
+  <td>训练 SubPrec/PhaseCov 是规则式，评估 Ped. 是 LLM judge——同名 SPR ≈ PhaseCov 直接对应；PRR/NDAR/IAR 是额外覆盖。</td>
+</tr>
+<tr>
+  <td><code>R_hard</code> = −10·I[schema_invalid ∨ has_cycle ∨ invalid_tool_call]</td>
+  <td>SV + AR + TBV</td>
+  <td>训练 hard gate 的 3 个失败条件，<em>正好</em>对应评估的 3 个 0/1 指标。</td>
+</tr>
+</tbody>
+</table>
+
+<p>这种"训练 reward ↔ 评估指标"一一对应的设计，是<span class="ref-pill">Aligning-Pedagogy</span><span class="ref-pill">PLAN-TUNING</span> 在论文里反复强调的"reward 与 metric 的解耦"——训练用的是廉价规则式，评估用的是更严格的 LLM judge，这样如果训练 reward hack 成功但评估指标没涨，就能识别出来。</p>
+
+<hr/>
+<p class="footnote">
+本设计基于 <code>multi_agent_datasets/5_14/SHC/Execution</code> 现有可跑通的 PlanRuntime + evaluator 流水线，结合 <code>related_papers/</code> 下 20 篇 ACL/EMNLP 2024–2025 的评估模式，给出三层指标体系：Tier 1 (11 项静态 plan 质量) + <strong>Tier 2 (4 项 headline — 1 执行 EVR + 3 教学 PAS/PQS/r<sub>sol</sub>，每项直接 port prior-art 指标)</strong> + Tier 3 (2 项学习者偏好) = <strong>17 项主表 + 7 项 appendix sub-check (IF/WC/IQ/CCGE/CER/CCR/MLC) = 24 项总体</strong>。Tier 2 围绕<strong>论文 abstract 的 2 个核心判断</strong>设计：(Q1) Plan 是否能被 CrewAI 正确执行 → EVR；(Q2) MAS 教学是否体现个性化 / 教学法 / 学生学会 → PAS / PQS / r<sub>sol</sub>。开发增量约 400 行 Python，预算 ~$6K–$13K。每个 RQ 都有核心可量化指标支撑；4 个 ablation 维度（PAD / SDP / JointAlign / GRPO + Hard / Soft）的影响都可单独定位。
+</p>
+
+</body>
+</html>

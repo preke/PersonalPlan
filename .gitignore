@@ -1,0 +1,67 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+dist/
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Virtual envs
+.venv/
+venv/
+.venv_*/
+env/
+
+# Secrets
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+credentials.json
+api_keys.txt
+
+# OS / editor
+.DS_Store
+Thumbs.db
+*.swp
+.idea/
+.vscode/
+
+# Logs and tmp
+*.log
+*.tmp
+*.bak
+tmp/
+
+# Large data (use HF download script instead)
+data/*.jsonl
+!data/examples/*.jsonl
+
+# Model checkpoints (use HF Hub)
+*.bin
+*.safetensors
+*.pt
+*.pth
+checkpoints/
+ckpt_*/
+
+# Experiment outputs
+runs/
+runs_*/
+wandb/
+outputs/
+results/raw/
+
+# Archives
+*.tar
+*.tar.gz
+*.zip
+
+# Notebook checkpoints
+.ipynb_checkpoints/

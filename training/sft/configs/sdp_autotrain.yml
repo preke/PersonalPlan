@@ -1,0 +1,64 @@
+# AutoTrain config for Stage 2 — SDP Supervised Fine-Tuning
+# Reproduces §4 of the paper:
+#   x_sdp = I_q ⊕ I_p ⊕ A* ⊕ T*    (conditioned on the GOLD scaffold)
+#   y_sdp = (S*, O*) — concrete steps + execution_order
+#
+# This is a SEPARATE LoRA adapter from PAD, trained on the same frozen
+# backbone. The adapter is independent and can be trained in parallel
+# with the PAD adapter.
+#
+# Run with:
+#   autotrain --config configs/sdp_autotrain.yml
+
+task: llm-sft
+
+base_model: Qwen/Qwen2.5-7B-Instruct
+project_name: maple-sdp-sft
+
+log: tensorboard
+backend: local
+
+data:
+  path: data/sdp
+  train_split: train
+  valid_split: valid
+  chat_template: tokenizer
+  column_mapping:
+    text_column: messages
+
+params:
+  trainer: sft
+  use_peft: true
+  peft_method: lora
+  lora_r: 32                     # SDP outputs are ~3x longer than PAD; slightly higher rank helps
+  lora_alpha: 64
+  lora_dropout: 0.05
+  target_modules: all-linear
+
+  block_size: 8192               # SDP assistant targets reach ~3.5K tok; allow 8K total
+  model_max_length: 8192
+
+  epochs: 3
+  batch_size: 1
+  gradient_accumulation: 16
+  lr: 2.0e-4
+  optimizer: paged_adamw_8bit
+  scheduler: cosine
+  warmup_ratio: 0.03
+  weight_decay: 0.01
+
+  mixed_precision: bf16
+  quantization: int4
+  gradient_checkpointing: true
+
+  logging_steps: 5
+  evaluation_strategy: steps
+  eval_steps: 25
+  save_strategy: steps
+  save_steps: 50
+  save_total_limit: 3
+
+  seed: 42
+
+hub:
+  push_to_hub: false

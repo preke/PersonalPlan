@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<title>Baseline 实施细节 · PersonalPlan</title>
+<style>
+  :root {
+    --bg: #ffffff;
+    --fg: #1f2937;
+    --muted: #6b7280;
+    --accent: #2563eb;
+    --code-bg: #f3f4f6;
+    --border: #e5e7eb;
+  }
+  html, body { background: var(--bg); color: var(--fg); }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue",
+                     "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+         line-height: 1.6; margin: 0; padding: 0; font-size: 15px; }
+  .layout { display: flex; min-height: 100vh; }
+  .sidebar { position: sticky; top: 0; align-self: flex-start; width: 240px;
+             border-right: 1px solid var(--border); padding: 1.25rem 1rem; height: 100vh;
+             overflow-y: auto; background: #fafafa; }
+  .sidebar h1 { font-size: 1rem; margin: 0 0 0.5rem 0; color: var(--fg); }
+  .sidebar .subtitle { font-size: 0.78rem; color: var(--muted); margin-bottom: 0.9rem; }
+  .sidebar-link { display: block; padding: 0.34rem 0.5rem; margin: 0.1rem 0;
+                  font-size: 0.86rem; color: var(--fg); text-decoration: none; border-radius: 4px; }
+  .sidebar-link:hover { background: #e5e7eb; }
+  .sidebar-link.active { background: var(--accent); color: white; }
+  .main { flex: 1; padding: 1.5rem 2.5rem; max-width: 980px; }
+  h1 { font-size: 1.55rem; margin-top: 1.6rem; padding-bottom: 0.4rem; border-bottom: 2px solid var(--border); }
+  h2 { font-size: 1.18rem; margin-top: 1.4rem; color: #111827; }
+  h3 { font-size: 1.02rem; margin-top: 1rem; color: #1f2937; }
+  p, li { line-height: 1.65; }
+  code { background: var(--code-bg); padding: 0.1rem 0.32rem; border-radius: 3px;
+         font-family: "SF Mono", Menlo, Consolas, monospace; font-size: 0.88em; }
+  pre { background: var(--code-bg); padding: 0.85rem 1rem; border-radius: 6px;
+        overflow-x: auto; font-size: 0.83rem; }
+  pre code { background: none; padding: 0; }
+  table { border-collapse: collapse; margin: 0.7rem 0; font-size: 0.9rem; }
+  th, td { border: 1px solid var(--border); padding: 0.45rem 0.7rem; text-align: left; vertical-align: top; }
+  th { background: #f9fafb; font-weight: 600; }
+  blockquote { border-left: 4px solid var(--accent); margin: 1rem 0; padding: 0.4rem 1rem;
+               background: #eff6ff; color: #1e3a8a; }
+  .baseline-card { border: 1px solid var(--border); border-radius: 8px; padding: 1.2rem 1.4rem;
+                   margin: 1.5rem 0; background: #fcfcfd; }
+  .tier-badge { display: inline-block; padding: 0.1rem 0.5rem; border-radius: 4px;
+                font-size: 0.75rem; font-weight: 600; color: white; margin-right: 0.4rem; }
+  .badge-L { background: #059669; }   /* green = bare LLM */
+  .badge-F { background: #2563eb; }   /* blue  = framework */
+  .badge-M { background: #d97706; }   /* amber = method */
+</style>
+</head>
+<body>
+<div class="layout">
+  <aside class="sidebar">
+    <h1>Baseline 实施细节</h1>
+    <div class="subtitle">PersonalPlan · 2026-05-19 · v2 lineup</div>
+
+    <a href="#preamble" class="sidebar-link" data-target="preamble">📋 总览</a>
+    <a href="#L1" class="sidebar-link" data-target="L1">L1 · GPT-5</a>
+    <a href="#L2" class="sidebar-link" data-target="L2">L2 · Claude Opus 4.6</a>
+    <a href="#L3" class="sidebar-link" data-target="L3">L3 · Qwen3-Max</a>
+    <a href="#F1" class="sidebar-link" data-target="F1">F1 · AutoGen</a>
+    <a href="#F2" class="sidebar-link" data-target="F2">F2 · AutoAgents</a>
+    <a href="#M1" class="sidebar-link" data-target="M1">M1 · AIPOM</a>
+    <a href="#M2" class="sidebar-link" data-target="M2">M2 · AFlow</a>
+    <a href="#M3" class="sidebar-link" data-target="M3">M3 · AOP</a>
+  </aside>
+
+  <main class="main">
+
+<!-- ========================================================== -->
+<section id="preamble">
+<h1>Baseline 实施细节</h1>
+
+<p>PersonalPlan v2 lineup（2026-05-19）的 8 个 active baseline。所有 baseline 都遵守同一个 contract：</p>
+<blockquote>
+<strong>输入</strong> <code>(query, learner_profile)</code> 一对 → <strong>输出</strong> 一个符合 §9 JSON schema 的多智能体 plan
+（顶层 <code>{input, output}</code>，<code>output</code> 含 <code>agents / subtasks / execution_order</code>）。
+</blockquote>
+
+<h2>命名约定</h2>
+<table>
+<thead><tr><th>代号</th><th>类别</th><th>含义</th></tr></thead>
+<tbody>
+<tr><td><span class="tier-badge badge-L">L1-L3</span></td><td>Bare LLM</td><td>闭源旗舰 LLM 单次裸调用，无任何 agent 协调</td></tr>
+<tr><td><span class="tier-badge badge-F">F1-F2</span></td><td>Framework MAS</td><td>领域通用多智能体框架（AutoGen / AutoAgents 直接给框架跑）</td></tr>
+<tr><td><span class="tier-badge badge-M">M1-M3</span></td><td>Method-specific MAS</td><td>专用 plan-generation 论文方法 port（AIPOM / AFlow / AOP）</td></tr>
+</tbody>
+</table>
+
+<p><strong>⚠ 别跟论文的 Tier 1/2/3 混了</strong>——后者是<em>评估协议</em>的三层（静态 plan / MAS 执行 / preference 评判），跟这里的 baseline 类别代号无关。</p>
+
+<h2>共用基础设施（一处提，下面每个 baseline 就不重复了）</h2>
+<ul>
+<li><strong>Backbone</strong>：L1=GPT-5、L2=Claude Opus 4.6、L3=Qwen3-Max；F* / M* 全用 Qwen3-32B（DashScope，OpenAI-兼容）</li>
+<li><strong>System prompt 前缀</strong>：所有 baseline 都用 <code>baselines.common.prompt_sections.compose_t4()</code> 拼装 <code>PREAMBLE + §5 + §9 + §12</code>（即任务陈述 + 工具池 + §9 schema + 结尾约束），约 4500 字符。§9 schema 原文 verbatim 来自 <code>../prompt_for_inference.txt</code> 第 9 章节</li>
+<li><strong>Runner</strong>：<code>baselines.common.runner.run_baseline(plan_fn, ...)</code>，断点续跑 + JSON repair + §9 strict 校验（<code>schema_validator.py</code>）</li>
+<li><strong>输出布局</strong>：<code>evaluation_results/baselines/&lt;name&gt;/{plans.jsonl, failures.jsonl, progress.json, native_outputs.jsonl}</code></li>
+<li><strong>API key</strong>：<code>.env</code> 放仓库根，含 <code>DASHSCOPE_API_KEY</code>（L3 + F* + M*）+ <code>OPENAI_PROXY_API_KEY</code>/<code>OPENAI_PROXY_BASE_URL</code>（L1 / L2）</li>
+</ul>
+
+<p>下面 8 个章节，每个 baseline 一个，结构完全一致：<strong>怎么做 / 输入 / 怎么运行 / 适配 / 运行效果</strong>。</p>
+</section>
+
+
+<!-- ========================================================== L1 -->
+<section id="L1" class="baseline-card">
+<h1><span class="tier-badge badge-L">L1</span>GPT-5（裸 LLM 单次调用）</h1>
+
+<h2>怎么做</h2>
+<p>把 <code>compose_t4()</code> 作为 system message、(query, learner) 作为 user message，单次 chat 调用，直接拿模型返回的字符串里的 JSON 当 §9 plan。没有 agent 编排、没有 retry。</p>
+
+<h2>输入（代码位置）</h2>
+<ul>
+<li>System prompt 组装：<code>baselines/t1/plan.py</code>（调用 <code>build_t1_system_message()</code>，等价于 <code>compose_t4()</code>）</li>
+<li>User message：<code>"QUERY: {query}\nLEARNER: {json}"</code>，在 <code>plan.py</code> 内拼</li>
+<li>Backend 路由：<code>baselines/common/llm_client.py</code> 的 <code>LLMClient(backend="gpt-5")</code>，走 <code>OPENAI_PROXY_BASE_URL</code></li>
+</ul>
+
+<h2>怎么运行</h2>
+<pre><code># Smoke（跑 1 条）
+python -m baselines.t1.run --backend gpt-5 --limit 1
+
+# 全量（3043 条，断点续跑）
+python -m baselines.t1.run --backend gpt-5</code></pre>
+
+<h2>做了哪些适配</h2>
+<p>无。这是 baseline 集合里最朴素的实现——目的是给"闭源旗舰 LLM 单次 prompt 能达到的上限"做基线。没引入 retry、没引入框架包装、没引入二次 prompt。</p>
+
+<h2>运行效果</h2>
+<ul>
+<li>单条耗时：~30s</li>
+<li>预期 §9 合规率：高（GPT-5 zero-shot 跟 schema 很好）</li>
+<li>典型失败：偶发输出多余 markdown fence，由 <code>json_repair.fix_json_format()</code> 兜底</li>
+<li>产物：<code>evaluation_results/baselines/t1_gpt-5/plans.jsonl</code></li>
+</ul>
+</section>
+
+
+<!-- ========================================================== L2 -->
+<section id="L2" class="baseline-card">
+<h1><span class="tier-badge badge-L">L2</span>Claude Opus 4.6（裸 LLM 单次调用）</h1>
+
+<h2>怎么做</h2>
+<p>跟 L1 完全一样的 contract，只换 backend。</p>
+
+<h2>输入（代码位置）</h2>
+<ul>
+<li>System prompt + user message 组装位置同 L1（<code>baselines/t1/plan.py</code>）</li>
+<li>Backend：<code>LLMClient(backend="claude-opus-4-6")</code>，走 <code>OPENAI_PROXY_*</code> 的 Anthropic-兼容端点</li>
+</ul>
+
+<h2>怎么运行</h2>
+<pre><code>python -m baselines.t1.run --backend claude-opus-4-6 --limit 1
+python -m baselines.t1.run --backend claude-opus-4-6</code></pre>
+
+<h2>做了哪些适配</h2>
+<p>无方法层改动。Model id 跟代理实际支持的 id 对齐——如果代理报 model 不存在，改 <code>common/llm_client.py</code> 里 <code>self.model = "claude-opus-4-6"</code> 为代理认的那个串。</p>
+
+<h2>运行效果</h2>
+<ul>
+<li>单条耗时：~30s</li>
+<li>§9 合规率：跟 L1 同档；偶发 JSON 修复需求略多于 L1</li>
+<li>产物：<code>evaluation_results/baselines/t1_claude-opus-4-6/plans.jsonl</code></li>
+</ul>
+</section>
+
+
+<!-- ========================================================== L3 -->
+<section id="L3" class="baseline-card">
+<h1><span class="tier-badge badge-L">L3</span>Qwen3-Max（裸 LLM 单次调用）</h1>
+
+<h2>怎么做</h2>
+<p>L1/L2 的开源旗舰对照点：同样的 contract，backend 换 Qwen3-Max（阿里灵积），让 reviewer 看到"闭源旗舰 vs 开源旗舰"在相同 prompt 下的差距。</p>
+
+<h2>输入（代码位置）</h2>
+<ul>
+<li>System prompt + user message 同 L1</li>
+<li>Backend：<code>LLMClient(backend="qwen3-max")</code>，走 DashScope OpenAI-兼容端点</li>
+</ul>
+
+<h2>怎么运行</h2>
+<pre><code>python -m baselines.t1.run --backend qwen3-max --limit 1
+python -m baselines.t1.run --backend qwen3-max</code></pre>
+
+<h2>做了哪些适配</h2>
+<p>无方法层改动。注意 <code>DASHSCOPE_API_KEY</code> 必须在 <code>.env</code> 里。</p>
+
+<h2>运行效果</h2>
+<ul>
+<li>单条耗时：~30s</li>
+<li>§9 合规率：低于 L1/L2（Qwen3-Max 没专门 schema-follow 训练，偶发会塞 <code>&lt;think&gt;</code> 块或额外解释）</li>
+<li>产物：<code>evaluation_results/baselines/t1_qwen3-max/plans.jsonl</code></li>
+</ul>
+</section>
+
+
+<!-- ========================================================== F1 -->
+<section id="F1" class="baseline-card">
+<h1><span class="tier-badge badge-F">F1</span>AutoGen（领域通用 MAS 框架包装）</h1>
+
+<h2>怎么做</h2>
+<p>用 Microsoft AutoGen 的 <code>AssistantAgent</code> 包装一层，system_message 跟 L* 完全一样，让 AutoGen 框架来做 chat round-trip。本质上是"通用 MAS 框架 + 1 agent + 1 round"——AutoGen 不会自动分解任务，所以对单 deliverable（一份 §9 plan）的最忠实实现就是单 agent。</p>
+
+<h2>输入（代码位置）</h2>
+<ul>
+<li>System message：<code>baselines/autogen_qwen3/plan.py:147</code> 调用 <code>build_t4_system_message()</code>（= <code>compose_t4()</code>）</li>
+<li>User message：<code>"QUERY: {query}\nLEARNER: {json}"</code>，在 <code>_user_message()</code> 拼</li>
+<li>Model client：<code>OpenAIChatCompletionClient</code>（DashScope qwen3-32b），<code>_make_autogen_client()</code></li>
+<li>Agent 实例化：每条样本新建 <code>AssistantAgent</code>（避免 <code>model_context</code> 在 3043 条间跨样本污染）</li>
+</ul>
+
+<h2>怎么运行</h2>
+<pre><code>python -m baselines.autogen_qwen3.run --limit 1
+python -m baselines.autogen_qwen3.run</code></pre>
+
+<h2>做了哪些适配</h2>
+<ul>
+<li>框架简化为单 agent（"AutoGen 多 agent 扩展"会引入超出 baseline contract 的结构选择，跳过）</li>
+<li>Backbone 从论文示例的 GPT-4 换成 qwen3-32b（v1 baseline design 统一选择）</li>
+<li>fallback 路径：如果 <code>autogen-agentchat</code> 没装，<code>_make_direct_plan_fn()</code> 直接走 <code>LLMClient.chat()</code>，架构等价</li>
+</ul>
+
+<h2>运行效果</h2>
+<ul>
+<li>单条耗时：~30s</li>
+<li>§9 合规率：跟 L3 相近（同 backbone）</li>
+<li>产物：<code>evaluation_results/baselines/autogen_qwen3/plans.jsonl</code></li>
+</ul>
+</section>
+
+
+<!-- ========================================================== F2 -->
+<section id="F2" class="baseline-card">
+<h1><span class="tier-badge badge-F">F2</span>AutoAgents（动态 role 生成 MAS）</h1>
+
+<h2>怎么做</h2>
+<p>跑论文原仓库代码 <a href="https://github.com/Link-AGI/AutoAgents">Link-AGI/AutoAgents</a>：Manager 自动生成一组 agent + plan，配合 ObserverAgents / ObserverPlans 多轮 review 修正，最后落 §9 JSON。我们的 adapter 把它当黑盒跑（子进程，独立 Python 3.10 venv）。</p>
+
+<h2>输入（代码位置）</h2>
+<ul>
+<li>Adapter 入口：<code>baselines/autoagents/plan.py</code>（主 venv）</li>
+<li>子进程脚本：<code>baselines/autoagents/upstream_runner.py</code>（跑在 <code>.venvs/autoagents_310/</code>，Python 3.10 + 245 pinned packages from <code>external/AutoAgents/requirements.txt</code>）</li>
+<li>Idea 拼装：<code>_build_idea()</code> 把 <code>compose_t4()</code> 整段 + hard-instruction "FINAL output must be §9 JSON" 一起喂给 Manager（scheme A，避免后处理 schema 翻译）</li>
+<li>上游 clone：<code>external/AutoAgents/</code>，可通过 <code>AUTOAGENTS_REPO</code> 环境变量 override</li>
+</ul>
+
+<h2>怎么运行</h2>
+<pre><code># 先建子 venv（一次性）
+python3.10 -m venv .venvs/autoagents_310
+source .venvs/autoagents_310/bin/activate
+pip install -r external/AutoAgents/requirements.txt
+deactivate
+
+# Smoke + 全量（adapter 自动 spawn 子进程）
+python -m baselines.autoagents.run --limit 1
+python -m baselines.autoagents.run</code></pre>
+
+<h2>做了哪些适配</h2>
+<ul>
+<li>Backbone 替换：LiteLLM 接 DashScope OpenAI-兼容端点跑 qwen3-32b（论文用 GPT-4）</li>
+<li>Manager hardcode 3 轮（vs explorer 的 <code>n_round=5</code>，paper 内部不一致，我们按 3 跑）</li>
+<li>Scheme A：Manager 被指示直出 §9 JSON，跳过原来的"输出 markdown 再后处理"路径——避免方法保真度被翻译 LLM 二次污染</li>
+<li>已知 leak：上游 <code>create_roles.py</code> 只认 <code>SearchAndSummarize</code> 一个工具，跟我们 8 工具池不重合 → 偶发 step.tool 不在池里，做 <code>null</code> 兜底</li>
+</ul>
+
+<h2>运行效果</h2>
+<ul>
+<li>单条耗时：<strong>~11 min</strong>（子进程跑多轮 Observer，是 8 个 baseline 里最慢的）</li>
+<li>§9 合规率：中等（Manager 偶发输出 plain text，触发 <code>json_repair</code> 兜底）</li>
+<li>产物：<code>evaluation_results/baselines/autoagents/plans.jsonl</code> + <code>native_outputs.jsonl</code>（上游 Manager 原始输出留底）</li>
+</ul>
+</section>
+
+
+<!-- ========================================================== M1 -->
+<section id="M1" class="baseline-card">
+<h1><span class="tier-badge badge-M">M1</span>AIPOM（agent-aware DAG planner）</h1>
+
+<h2>怎么做</h2>
+<p>port AIPOM 论文（Kim et al., EMNLP 2025 Demo）的 <strong>single-shot DAG planner</strong>：四条规划原则（显式 agent 分派 / 类型化 I/O 依赖 / 可检视 DAG 结构 / 无隐式协调）一字不差编进 system prompt，让 LLM 按 AIPOM 风格直出 §9。<strong>不跑</strong>论文里的 conversational + graph-editing refinement loop——那是 human-in-the-loop demo，batch 评估里没人在回路。</p>
+
+<h2>输入（代码位置）</h2>
+<ul>
+<li>System prompt：<code>baselines/aipom/meta_prompt.py</code> 的 <code>NEW_META_PROMPT</code>（compose_t4() 前缀 + AIPOM 四原则 + 输出约束）</li>
+<li>plan 入口：<code>baselines/aipom/plan.py:plan_fn(query, learner)</code></li>
+<li>User message：<code>"User query: {query}\nLearner profile: {json}\n\nOutput the JSON plan now:"</code></li>
+<li>上游 prompt 已内联，<strong>无需 clone</strong> AIPOM 仓库</li>
+</ul>
+
+<h2>怎么运行</h2>
+<pre><code>python -m baselines.aipom.run --limit 1
+python -m baselines.aipom.run</code></pre>
+
+<h2>做了哪些适配</h2>
+<ul>
+<li>跳过 refinement loop（人在回路 demo 路径不在 batch 评估范围）</li>
+<li>Backbone 换 qwen3-32b（论文 demo 用 GPT-4o）</li>
+<li>输出从 AIPOM-native (node list + edge list) 换成 §9 schema 直出——避免 post-hoc translator</li>
+</ul>
+
+<h2>运行效果</h2>
+<ul>
+<li>单条耗时：~30s（待 smoke 实测确认）</li>
+<li>§9 合规率：预期跟 AOP 同档（qwen3-32b + 强 schema 约束）</li>
+<li>Reviewer 核验关键：每个 <code>step.agent</code> 是否能在 <code>output.agents[*].agent_role</code> 里逐字找到；<code>depends_on</code> 是否对应真实数据流；execution_order 是否拓扑合理</li>
+<li>产物：<code>evaluation_results/baselines/aipom/plans.jsonl</code> + <code>native_outputs.jsonl</code>（raw + 解析后的 plan）</li>
+</ul>
+</section>
+
+
+<!-- ========================================================== M2 -->
+<section id="M2" class="baseline-card">
+<h1><span class="tier-badge badge-M">M2</span>AFlow（operator-composition planner）</h1>
+
+<h2>怎么做</h2>
+<p>port AFlow 论文（Zhang et al., ICLR 2025）的 <strong>operator-composition seed step</strong>：operator 池（Generate / Review / Revise / Ensemble / Custom）+ 四条 design rule（operator decomposition / parallelization / iterative refinement / code-style structure）一字不差编进 system prompt。<strong>不跑</strong>论文里的 MCTS 搜索循环——MCTS 是 task-class 级优化（一个 workflow 应用到一整个 benchmark），per-query 跑既不经济也是误用。</p>
+
+<h2>输入（代码位置）</h2>
+<ul>
+<li>System prompt：<code>baselines/aflow/meta_prompt.py</code> 的 <code>NEW_META_PROMPT</code>（compose_t4() 前缀 + operator 池 + 四规则）</li>
+<li>plan 入口：<code>baselines/aflow/plan.py:plan_fn(query, learner)</code></li>
+<li>User message：<code>"User query: {query}\nLearner profile: {json}\n\nOutput the workflow as JSON now:"</code></li>
+<li>上游 prompt 已内联，<strong>无需 clone</strong> MetaGPT/AFlow 仓库</li>
+</ul>
+
+<h2>怎么运行</h2>
+<pre><code>python -m baselines.aflow.run --limit 1
+python -m baselines.aflow.run</code></pre>
+
+<h2>做了哪些适配</h2>
+<ul>
+<li><strong>跳过 MCTS</strong>（论文最核心机制，但 per-query 不适用；详细论证见 <code>baselines/aflow/__init__.py</code>）</li>
+<li>Backbone 换 qwen3-32b（论文搜索 GPT-4o backed）</li>
+<li>输出从 Python workflow 代码换成 §9 schema 直出——Review/Revise 循环映射到 §9 loop block；多 candidate Ensemble 映射到多 producer 的 depends_on</li>
+</ul>
+
+<h2>运行效果</h2>
+<ul>
+<li>单条耗时：~30s（待 smoke 实测确认）</li>
+<li>§9 合规率：预期跟 M1 同档</li>
+<li>Reviewer 核验关键：step.objective 是否反映 operator 角色（Generate / Review / Revise / Ensemble / Custom）；有 Review 步时是否有 loop block；Ensemble 时 depends_on 是否列全 producer</li>
+<li>产物：<code>evaluation_results/baselines/aflow/plans.jsonl</code> + <code>native_outputs.jsonl</code></li>
+</ul>
+</section>
+
+
+<!-- ========================================================== M3 -->
+<section id="M3" class="baseline-card">
+<h1><span class="tier-badge badge-M">M3</span>AOP（meta-agent + worker pool + replan loop）</h1>
+
+<h2>怎么做</h2>
+<p>port AOP 论文（Li et al., ICLR 2025）：meta-agent 把 query 分解到 8 个 teaching worker（ConceptTutor / CodeValidator / DocsRetriever / WebResearcher / FileWriter / PaperSearcher / RagRetriever / DirectoryReader），三条 AOP 原则（solvability / completeness / non-redundancy）作内部规划纪律。然后用 LLM-as-judge 给每个 step 打 [0,1] 分，分数 &lt; 0.5 的 step 触发 replan，最多 2 轮。</p>
+
+<h2>输入（代码位置）</h2>
+<ul>
+<li>Meta-agent prompt：<code>baselines/aop/meta_prompt.py</code> 的 <code>NEW_META_PROMPT</code>（compose_t4() + 三原则 + 8-worker 池）</li>
+<li>Worker 能力描述：<code>baselines/aop/teaching_agents_descs.py</code>（8 个 worker 各自的 capability_card）</li>
+<li>plan 入口：<code>baselines/aop/plan.py:plan_fn(query, learner)</code></li>
+<li>Judge prompt：<code>baselines/aop/plan.py</code> 的 <code>_JUDGE_PROMPT</code></li>
+<li>上游 patch：<code>baselines/aop/aop_patch.py</code> 处理上游 hard-coded 路径；clone 在 <code>external/Agent-Oriented-Planning/</code></li>
+</ul>
+
+<h2>怎么运行</h2>
+<pre><code># 先 clone 上游
+cd external && git clone https://github.com/lalaliat/Agent-Oriented-Planning.git && cd ..
+
+python -m baselines.aop.run --limit 1
+python -m baselines.aop.run</code></pre>
+
+<h2>做了哪些适配</h2>
+<ul>
+<li>Worker 池从论文原 4 个（code/math/search/commonsense）扩成 8 个 teaching worker，与我们 §1 工具池一一对应</li>
+<li>Reward 信号从原 SimilarityMLP 换成 LLM-as-judge（论文 <code>MLP_high.pt</code> 未公开，最大方法偏离，需诚实标注）</li>
+<li>Batch replan：一次 LLM 调用修正整个 weak step 集合（论文是 single subtask per call，节省调用）</li>
+<li>没 port <code>planner.py:96-189</code> 的 <code>plan_in_detail</code> 分支</li>
+</ul>
+
+<h2>运行效果</h2>
+<ul>
+<li>单条耗时：~40s（含 judge 调用 + 偶发 replan）</li>
+<li>§9 合规率：高（最早就跑通的 baseline，schema 容错最稳）</li>
+<li>触发 replan 时 stdout 打 <code>[aop] LLM-as-judge replanning loop fired for this plan.</code></li>
+<li>Reviewer 核验关键：<code>step.agent</code> 必须是 8 个 worker 里的一个（roster 写死）；<code>tool</code> 字段跟 worker capability 对齐</li>
+<li>产物：<code>evaluation_results/baselines/aop/plans.jsonl</code> + <code>native_outputs.jsonl</code>（initial plan + replan rounds + final plan）</li>
+</ul>
+</section>
+
+  </main>
+</div>
+
+<script>
+const links = document.querySelectorAll('.sidebar-link');
+const targets = Array.from(new Set(Array.from(links).map(a => a.dataset.target)))
+  .map(id => document.getElementById(id))
+  .filter(Boolean);
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(e => {
+    if (e.isIntersecting) {
+      const id = e.target.id;
+      links.forEach(a => a.classList.toggle('active', a.dataset.target === id));
+    }
+  });
+}, { rootMargin: '0px 0px -70% 0px' });
+targets.forEach(t => observer.observe(t));
+</script>
+</body>
+</html>

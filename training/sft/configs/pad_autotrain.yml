@@ -1,0 +1,65 @@
+# AutoTrain config for Stage 1 — PAD Supervised Fine-Tuning
+# Reproduces §4 of the paper:
+#   x_pad = I_q ⊕ I_p
+#   y_pad = (T*, A*) — high-level subtasks + agents (no steps)
+#
+# Run with:
+#   autotrain --config configs/pad_autotrain.yml
+#
+# Edit base_model / batch sizes / lr to match your hardware.
+# Tested with autotrain-advanced >= 0.8.
+
+task: llm-sft
+
+base_model: Qwen/Qwen2.5-7B-Instruct
+project_name: maple-pad-sft
+
+log: tensorboard
+backend: local
+
+data:
+  path: data/pad
+  train_split: train
+  valid_split: valid
+  chat_template: tokenizer        # apply the base model's native chat template
+  column_mapping:
+    text_column: messages
+
+params:
+  trainer: sft
+  use_peft: true
+  peft_method: lora
+  lora_r: 16
+  lora_alpha: 32
+  lora_dropout: 0.05
+  target_modules: all-linear      # LoRA on all linear projections (paper §4: single adapter)
+
+  block_size: 4096                # PAD targets are < 1500 tokens; 4K leaves room for instructions
+  model_max_length: 4096
+
+  epochs: 3
+  batch_size: 1
+  gradient_accumulation: 16
+  lr: 2.0e-4
+  optimizer: paged_adamw_8bit
+  scheduler: cosine
+  warmup_ratio: 0.03
+  weight_decay: 0.01
+
+  mixed_precision: bf16
+  quantization: int4              # QLoRA — drop to "none" if you have full bf16 budget
+  gradient_checkpointing: true
+
+  logging_steps: 5
+  evaluation_strategy: steps
+  eval_steps: 25
+  save_strategy: steps
+  save_steps: 50
+  save_total_limit: 3
+
+  seed: 42
+
+hub:
+  push_to_hub: false
+  # username: your-hf-username
+  # token: hf_xxx
