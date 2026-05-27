@@ -1,4 +1,4 @@
-"""Build a prompt-only dataset from MAPLE for GRPO.
+"""Build a prompt-only dataset from MAP-PPL for GRPO.
 
 Each row contains the *prompt* (chat-template-rendered) plus side-channel
 fields that the reward function needs:
@@ -6,7 +6,7 @@ fields that the reward function needs:
   prompt        — rendered prompt string (chat-template applied) OR a
                   list of {role, content} messages (the trainer can render
                   if you set `processing_class`)
-  question_id   — MAPLE id; used to look up cf_cache + precedence pairs
+  question_id   — MAP-PPL id; used to look up cf_cache + precedence pairs
   profile_index — sub-id for same-question multi-profile rows
   gold_plan     — serialized ground-truth plan JSON (string)
                   parsed back to dict inside the reward function

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Upload the MAPLE dataset to Hugging Face Hub.
+# Upload the MAP-PPL dataset to Hugging Face Hub.
 #
 # Prerequisites:
 #   1. pip install -U huggingface_hub
@@ -44,7 +44,7 @@ huggingface-cli repo create "${HF_REPO_ID}" --type dataset --yes || true
 
 huggingface-cli upload "${HF_REPO_ID}" "${HF_STAGING}" . \
   --repo-type=dataset \
-  --commit-message "Initial MAPLE v15 release: 3,043 plans, stratified 80/10/10 split"
+  --commit-message "Initial MAP-PPL v15 release: 3,043 plans, stratified 80/10/10 split"
 
 echo ""
 echo "Done. View the dataset at: https://huggingface.co/datasets/${HF_REPO_ID}"

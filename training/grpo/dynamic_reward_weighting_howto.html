@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<title>MAPLE GRPO — Hypervolume-Guided Dynamic Reward Weighting 实施指南</title>
+<title>MAP-PPL GRPO — Hypervolume-Guided Dynamic Reward Weighting 实施指南</title>
 <style>
   :root {
     --fg: #1a1a1a;
@@ -114,7 +114,7 @@
 <body>
 
 <h1>Hypervolume-Guided Dynamic Reward Weighting<br>
-<small style="font-size: 0.55em; color: var(--muted);">MAPLE GRPO v1 → v1.5 改造指南</small></h1>
+<small style="font-size: 0.55em; color: var(--muted);">MAP-PPL GRPO v1 → v1.5 改造指南</small></h1>
 
 <div class="note">
 <b>目标</b>：把现在 <code>compose_reward</code> 里的固定权重 <code>(w_struct, w_pers, w_ped) = (0.55, 0.25, 0.20)</code>
@@ -626,7 +626,7 @@ print('final weights:', rw.weights)
   <li><b>不和 TRL callback 集成</b> —— 现在权重日志只 print + tsv，没接 wandb / tensorboard。
       要接入：把 <code>_update_weights</code> 末尾的权重写到 <code>trainer.state.log_history</code>。</li>
   <li><b>reference 是绝对值，不是 Pareto 前沿点</b> —— 真正的多目标做法是维护一个动态 Pareto archive。
-      这版简化为"固定参考点"，足够 MAPLE 的 3 维场景，但更高维时需要换成 archive-based。</li>
+      这版简化为"固定参考点"，足够 MAP-PPL 的 3 维场景，但更高维时需要换成 archive-based。</li>
   <li><b>和 segment-wise credit 正交</b> —— 这个改动不冲突，将来上 SPO-chain 时，
       reweighter 只需要在 segment-level reward 上观察均值即可。</li>
 </ol>
@@ -639,7 +639,7 @@ print('final weights:', rw.weights)
 
 <hr>
 <p style="color: var(--muted); font-size: 0.85em; text-align: center; margin-top: 3rem;">
-MAPLE GRPO v1.5 · Hypervolume-Guided Dynamic Reward Weighting · 2026-05-17
+MAP-PPL GRPO v1.5 · Hypervolume-Guided Dynamic Reward Weighting · 2026-05-17
 </p>
 
 </body>

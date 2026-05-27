@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>Qwen-32B MAPLE SFT 与 Joint Alignment 训练报告</title>
+<title>Qwen-32B MAP-PPL SFT 与 Joint Alignment 训练报告</title>
 <style>
 :root{--ink:#172033;--muted:#647083;--line:#dce3ed;--soft:#f6f8fb;--blue:#2563eb;--green:#059669;--orange:#d97706;--red:#dc2626;--purple:#7c3aed;}
 *{box-sizing:border-box} body{margin:0;font-family:Inter,"Segoe UI",Arial,"Microsoft YaHei",sans-serif;color:var(--ink);background:#fff;line-height:1.58} header{padding:42px 48px 30px;border-bottom:1px solid var(--line);background:linear-gradient(180deg,#f8fbff,#fff)} h1{margin:0 0 10px;font-size:30px;letter-spacing:0}.subtitle{max-width:1040px;color:var(--muted);font-size:15px}main{padding:30px 48px 56px;max-width:1280px;margin:auto}h2{margin:34px 0 14px;font-size:22px}h3{margin:22px 0 10px;font-size:17px}.grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}.card{border:1px solid var(--line);border-radius:8px;padding:16px;background:#fff}.card .label{color:var(--muted);font-size:13px;margin-bottom:6px}.card .value{font-size:24px;font-weight:750;margin-bottom:8px}.card .note{color:var(--muted);font-size:13px}table{width:100%;border-collapse:collapse;border:1px solid var(--line);background:#fff}th,td{padding:10px 12px;border-bottom:1px solid var(--line);vertical-align:top;text-align:left;font-size:14px}th{background:var(--soft);font-size:13px;color:#344054}.ok{border-left:4px solid var(--green);padding:10px 12px;background:#effaf5}.warn{border-left:4px solid var(--orange);padding:10px 12px;background:#fff8ed}.charts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}.chart{border:1px solid var(--line);border-radius:8px;padding:12px;background:#fff}.chart-title{font-weight:700;margin-bottom:6px}.gridline{stroke:#e8edf5}.axis{stroke:#94a3b8;stroke-width:1}.tick,.axislabel{fill:#64748b;font-size:11px}.legend{display:flex;gap:12px;flex-wrap:wrap;color:var(--muted);font-size:12px}.legend i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px;vertical-align:-1px}code{background:#f1f5f9;border:1px solid #e2e8f0;border-radius:4px;padding:1px 4px}ul{margin-top:8px}li{margin:6px 0}footer{margin-top:40px;color:var(--muted);font-size:12px}@media(max-width:900px){.grid,.charts{grid-template-columns:1fr}header,main{padding-left:22px;padding-right:22px}}
@@ -11,7 +11,7 @@
 </head>
 <body>
 <header>
-<h1>Qwen-32B MAPLE SFT 与 Joint Alignment 训练报告</h1>
+<h1>Qwen-32B MAP-PPL SFT 与 Joint Alignment 训练报告</h1>
 <div class="subtitle">基于 <code>training logs/</code> 中的 <code>sft5v</code> 训练日志生成。报告结构沿用 8B 版本：Stage 1 PAD/SDP SFT、Phase A PAD DPO、Phase B SDP on-policy SFT，并补充 32B 的关键指标、数据生成结果、运行耗时与后续检查项。</div>
 </header>
 <main>

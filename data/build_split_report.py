@@ -141,7 +141,7 @@ def main():
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8" />
-<title>MAPLE 数据划分报告 — 2026-05-15</title>
+<title>MAP-PPL 数据划分报告 — 2026-05-15</title>
 <style>
   :root {{
     --fg:#1f2328; --muted:#57606a; --bg:#fff; --bg-soft:#f6f8fa; --border:#d0d7de;
@@ -187,8 +187,8 @@ def main():
 </head>
 <body>
 
-<h1>MAPLE 数据划分报告</h1>
-<p class="subtitle">PersonalPlan / MAPLE 实验方案 v2 — 训练/开发/测试集冻结结果</p>
+<h1>MAP-PPL 数据划分报告</h1>
+<p class="subtitle">PersonalPlan / MAP-PPL 实验方案 v2 — 训练/开发/测试集冻结结果</p>
 <p class="meta">
   日期：2026-05-15　·　源文件：<code>{stats['src_file']}</code><br/>
   划分键：<code>question_id</code>　·　分层键：<em>每个 qid 拥有的 profile 数</em>　·　seed = <code>{stats['seed']}</code>　·　比例 = 80 / 10 / 10<br/>

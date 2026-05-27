@@ -1,8 +1,8 @@
-# MAPLE: Multi-Agent Personalized Learning Plans
+# MAP-PPL: Multi-Agent Personalized Learning Plans
 
-> 📄 Paper: TBD &nbsp;|&nbsp; 🤗 Dataset: `wenzhy7/maple` &nbsp;|&nbsp; 🇨🇳 [中文版 README](README.zh.md)
+> 📄 Paper: TBD &nbsp;|&nbsp; 🤗 Dataset: `wenzhy7/MAP-PPL` &nbsp;|&nbsp; 🇨🇳 [中文版 README](README.zh.md)
 
-MAPLE is a dataset and a full training/evaluation pipeline for **multi-agent
+MAP-PPL is a dataset and a full training/evaluation pipeline for **multi-agent
 personalized teaching plans**. Each plan turns a real Stack Overflow question
 into a multi-agent CrewAI workflow tailored to a specific learner profile,
 filtered by a static structural check and an execution-feasibility check.
@@ -61,7 +61,7 @@ figure-by-figure command list.
 
 ## Dataset
 
-The full MAPLE dataset is hosted on Hugging Face: **`wenzhy7/maple`** (link will
+The full MAP-PPL dataset is hosted on Hugging Face: **`wenzhy7/MAP-PPL`** (link will
 be added at release). It is licensed under **CC BY-SA 4.0** (inherited from
 Stack Overflow). Its dataset card is in [`data/DATASET_CARD.md`](data/DATASET_CARD.md).
 
@@ -87,7 +87,7 @@ ShareAlike under Stack Overflow's terms.
 
 ```bibtex
 @article{maple2026,
-  title   = {MAPLE: Multi-Agent Personalized Learning Plans},
+  title   = {MAP-PPL: Multi-Agent Personalized Learning Plans},
   author  = {TBD},
   year    = {2026}
 }

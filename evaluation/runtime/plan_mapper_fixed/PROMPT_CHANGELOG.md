@@ -8,7 +8,7 @@
 
 ## 2026-05-22 — 鼓励 teacher agent 在代码题里真编译 / 真跑
 
-**动机**：老师提到「代码编译部分可以再鼓励一下」。MAPLE 里 Java/C++/Kotlin 等编译型语言占比不低，旧 prompt 只有一句 `Use this tool when needed.`，"when needed" 给了 teacher 跳过编译的口子；TOOL_ARG_HINTS[CodeInterpreterTool] 里那句 `ALWAYS call this tool with real code` 是 tool-input 层面的提示，不够强势。希望 teacher 在编译型语言上**真去 compile**（拿到真 compile error），并禁止用 "Expected output:" 这种 speculative 话术。
+**动机**：老师提到「代码编译部分可以再鼓励一下」。MAP-PPL 里 Java/C++/Kotlin 等编译型语言占比不低，旧 prompt 只有一句 `Use this tool when needed.`，"when needed" 给了 teacher 跳过编译的口子；TOOL_ARG_HINTS[CodeInterpreterTool] 里那句 `ALWAYS call this tool with real code` 是 tool-input 层面的提示，不够强势。希望 teacher 在编译型语言上**真去 compile**（拿到真 compile error），并禁止用 "Expected output:" 这种 speculative 话术。
 
 **影响范围**：仅 `step.tool == "CodeInterpreterTool"` 的 step；其他 tool 的 prompt 维持不变。
 

@@ -103,7 +103,7 @@ HTML = f"""<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8" />
-<title>MAPLE 数据集 · 全面统计分析报告 (Claude analysis)</title>
+<title>MAP-PPL 数据集 · 全面统计分析报告 (Claude analysis)</title>
 <style>
 :root {{
   --fg: #1f2328;
@@ -176,7 +176,7 @@ hr {{ border: none; border-top: 1px solid var(--border); margin: 28px 0; }}
 </head>
 <body>
 
-<h1>MAPLE 数据集 · 全面统计分析报告</h1>
+<h1>MAP-PPL 数据集 · 全面统计分析报告</h1>
 <p class="subtitle">
   数据集：<code>MAPLE_Construction/multi_agent_dataset_filtered_qap.jsonl</code><br/>
   对齐文档：<code>EXPERIMENT_PLAN_2026-05-15.html</code> (RQ1-RQ4 / Ped × PVS × PNG × Skill-Match)
@@ -417,7 +417,7 @@ diagnostic_assessment (60.2%) 与 worked_example (48.3%) 是选用项。</div></
 <div class="fig"><img src="claude_analysis/figures/E3_scaffolding_skeleton.png" alt="E3"/>
 <div class="cap">E3 · Activate ({fmt_pct(E['skeleton_breakdown']['activate'])}) → Apply
 ({fmt_pct(E['skeleton_breakdown']['apply'])}) → Consolidate ({fmt_pct(E['skeleton_breakdown']['consolidate'])})
-完整三段同时出现的 plan 占 {fmt_pct(E['skeleton_full_triple_pct'])}。这是 MAPLE 教学骨架的核心可量化证据。</div></div>
+完整三段同时出现的 plan 占 {fmt_pct(E['skeleton_full_triple_pct'])}。这是 MAP-PPL 教学骨架的核心可量化证据。</div></div>
 
 <h3>E.4 教学策略两两共现</h3>
 <div class="fig"><img src="claude_analysis/figures/E4_pedagogy_cooccurrence.png" alt="E4"/>

@@ -480,7 +480,7 @@ def main():
     sub = ap.add_subparsers(dest="cmd", required=True)
 
     common_args = lambda p: (
-        p.add_argument("--src", required=True, help="MAPLE JSONL (training records)."),
+        p.add_argument("--src", required=True, help="MAP-PPL JSONL (training records)."),
         p.add_argument("--base-model", required=True),
         p.add_argument("--device", default="auto"),
         p.add_argument("--temperature", type=float, default=0.8),

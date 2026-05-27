@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# Download the MAPLE dataset from Hugging Face into ./data/
+# Download the MAP-PPL dataset from Hugging Face into ./data/
 # Usage:
 #   bash scripts/download_data.sh             # full dataset
 #   bash scripts/download_data.sh --sample    # 100-row sample only
 
 set -euo pipefail
 
-REPO_ID="${MAPLE_HF_REPO:-wenzhy7/maple}"   # set MAPLE_HF_REPO to override
+REPO_ID="${MAPLE_HF_REPO:-wenzhy7/MAP-PPL}"   # set MAPLE_HF_REPO to override
 DATA_DIR="$(cd "$(dirname "$0")/.." && pwd)/data"
 mkdir -p "$DATA_DIR"
 
@@ -25,7 +25,7 @@ if [[ "${1:-}" == "--sample" ]]; then
     --local-dir-use-symlinks False
   echo "Sample saved to ${DATA_DIR}/sample.jsonl"
 else
-  echo "Downloading full MAPLE dataset from ${REPO_ID}..."
+  echo "Downloading full MAP-PPL dataset from ${REPO_ID}..."
   huggingface-cli download "${REPO_ID}" \
     --repo-type dataset \
     --local-dir "${DATA_DIR}" \

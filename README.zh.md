@@ -1,8 +1,8 @@
-# MAPLE：多智能体个性化教学规划数据集与训练流水线
+# MAP-PPL：多智能体个性化教学规划数据集与训练流水线
 
 ## 📌 项目概览
 
-**MAPLE** 是一套面向**多智能体个性化教学规划**场景的数据集与完整训练/评估流水线。仓库内容覆盖：
+**MAP-PPL** 是一套面向**多智能体个性化教学规划**场景的数据集与完整训练/评估流水线。仓库内容覆盖：
 
 1. **数据集构造**：以 StackOverflow duplicate-question 簇 + 提问者画像为来源，由 Claude Sonnet 4.6 生成多智能体教学规划方案，经"结构静态检查 + 执行有效性校验"两阶段验证后入选；
 2. **数据划分**：在 `question_id` 粒度按 profile 数分层做 80/10/10 划分，避免同问题不同 profile 跨 split 泄漏；
@@ -284,7 +284,7 @@ PAD / SDP 是同一 base 上的两个独立 LoRA adapter；推理时串行调用
 | T2 | 开源 LLM 直跑 | 暂留 |
 | T3 | 单 agent + 工具链 | — |
 | T4 | 通用多智能体框架 MAS | AutoGen、CAMEL |
-| T5 | 教育领域 MAS | 保留论文 topology + 后处理翻译为 MAPLE schema |
+| T5 | 教育领域 MAS | 保留论文 topology + 后处理翻译为 MAP-PPL schema |
 
 ---
 
@@ -355,7 +355,7 @@ multi_agent_datasets/
 │   ├── notes/2026-05-08-prompt-rewrite-and-validation.md
 │   ├── 5_14/GP/                                 ← 数据生成 / Baseline / Prompt 修改进展
 │   ├── 5_14/SHC/                                ← GRPO 训练 + Stage 3 Execution Pipeline
-│   ├── 5_14/ben/                                ← MAPLE 训练首轮迭代（LoRA 选型）
+│   ├── 5_14/ben/                                ← MAP-PPL 训练首轮迭代（LoRA 选型）
 │   └── 5_14/lyx/                                ← Feasibility / Personalization / Satisfaction 评估
 │
 ├── 流程图/                                       ← 数据构造与训练流程图

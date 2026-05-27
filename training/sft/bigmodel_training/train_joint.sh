@@ -38,7 +38,7 @@ cd "$HERE"
 : "${BASE_MODEL:?set BASE_MODEL}"
 : "${PAD_ADAPTER:?set PAD_ADAPTER}"
 : "${SDP_ADAPTER:?set SDP_ADAPTER}"
-: "${SRC:?set SRC (path to MAPLE JSONL)}"
+: "${SRC:?set SRC (path to MAP-PPL JSONL)}"
 K="${K:-1}"
 
 PAD_CURRENT="$PAD_ADAPTER"

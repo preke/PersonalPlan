@@ -129,7 +129,7 @@ R<sup>struct</sup><sub>i</sub> = w<sub>1</sub>·𝕀[DAG(G<sub>i</sub>)] + w<sub
 GED-sim<sub>proxy</sub>(P, P*) = (1/5) · Σ<sub>k=1..5</sub> Jaccard(F<sub>k</sub>(P), F<sub>k</sub>(P*))
 </div>
 
-<p>我们在 MAPLE 30-节点级 plan 上手工抽样 50 对 (plan, gold) 计算严格 GED 和这个 proxy，得到 <strong>Spearman ρ ≈ 0.85</strong>；速度提升约 <strong>1000×</strong>。</p>
+<p>我们在 MAP-PPL 30-节点级 plan 上手工抽样 50 对 (plan, gold) 计算严格 GED 和这个 proxy，得到 <strong>Spearman ρ ≈ 0.85</strong>；速度提升约 <strong>1000×</strong>。</p>
 
 <h3>理论支撑</h3>
 <ul>
@@ -178,7 +178,7 @@ R<sup>pers</sup><sub>i</sub> = sim(P<sub>i</sub><sup>(p)</sup>, P*<sub>(p)</sub>
 
 <h3>简化方案：R<sub>pers,lite</sub> — 步骤级 2nd-person × profile 信号共现</h3>
 
-<p>动机：MAPLE 金标 plan 中的<strong>真个性化</strong>，其文本模式是稳定的：</p>
+<p>动机：MAP-PPL 金标 plan 中的<strong>真个性化</strong>，其文本模式是稳定的：</p>
 <blockquote>
   "Ask the learner: 'You said the error appeared after you added the orderby clause...'"<br>
   "Frame this using a real-world analogy from the learner's project work..."<br>
@@ -249,7 +249,7 @@ for plan in MAPLE_gold:
 <p>训练时：每条生成 plan 计算"(subtask_a, subtask_b) ∈ 先后关系集 / 总 subtask 对数"。位置：<code>plan_utils.mine_subtask_precedence</code> + <code>plan_utils.prerequisite_compatibility</code>。</p>
 
 <h4>(B) PhaseCoverage — 替代 LLM judge ensemble</h4>
-<p>核心观察：MAPLE 金标 plan 的 step.instruction 自然呈现 6 个<strong>典型教学阶段</strong>（probe → retrieve_demonstrate → apply → validate → feedback → consolidate），每个阶段都有稳定的 lexical signature。直接关键词检测即可：</p>
+<p>核心观察：MAP-PPL 金标 plan 的 step.instruction 自然呈现 6 个<strong>典型教学阶段</strong>（probe → retrieve_demonstrate → apply → validate → feedback → consolidate），每个阶段都有稳定的 lexical signature。直接关键词检测即可：</p>
 
 <table>
   <tr><th>Phase</th><th>Keywords (节选)</th></tr>
@@ -348,7 +348,7 @@ for plan in MAPLE_gold:
   <tr><td>KL anchor</td><td>钉死 π<sub>SFT</sub>（不是 π<sub>old</sub>）</td><td><span class="citation">[Agarwal et al., 2024]</span>；防止 RL 阶段忘掉 SFT 学到的个性化</td></tr>
   <tr><td>Rollout 后端</td><td>vLLM colocated</td><td>TRL 0.13+ 原生支持；rollout 提速 5-10×</td></tr>
   <tr><td>参数效率</td><td>LoRA r=16 (target_modules=all-linear)</td><td>标准 PEFT-RL 配置 <span class="citation">[Hu et al., 2022]</span></td></tr>
-  <tr><td>Token 范围</td><td>max_completion_length=3500</td><td>MAPLE plan JSON 中位 ~12K 字符 ≈ 3K token</td></tr>
+  <tr><td>Token 范围</td><td>max_completion_length=3500</td><td>MAP-PPL plan JSON 中位 ~12K 字符 ≈ 3K token</td></tr>
 </table>
 
 <h3>未实现的论文设计（明确列出）</h3>
@@ -375,7 +375,7 @@ for plan in MAPLE_gold:
 
 <table>
   <tr><th>论文表述</th><th>实现状态</th><th>差距说明</th></tr>
-  <tr><td>R<sup>struct</sup> = w<sub>1</sub>·DAG + w<sub>2</sub>·DC + w<sub>3</sub>·ATR + w<sub>4</sub>·GED-sim</td><td>✅ 实现</td><td>GED-sim 用 5 项 Jaccard fingerprint 平均代替；MAPLE 上 ρ ≈ 0.85</td></tr>
+  <tr><td>R<sup>struct</sup> = w<sub>1</sub>·DAG + w<sub>2</sub>·DC + w<sub>3</sub>·ATR + w<sub>4</sub>·GED-sim</td><td>✅ 实现</td><td>GED-sim 用 5 项 Jaccard fingerprint 平均代替；MAP-PPL 上 ρ ≈ 0.85</td></tr>
   <tr><td>R<sup>pers</sup> = sim(P, P*) − sim(P, P<sup>cf</sup>)</td><td>⚠️ 用 R<sub>pers,lite</sub> 替代（counterfactual 仍作为 toggle 保留）</td><td>不需要在线 rollout，但失去严格反事实的统计保证；通过 composition 与 R<sub>struct</sub> 组合恢复判别力</td></tr>
   <tr><td>R<sup>ped</sup> = λ·R<sup>ped,hard</sup> + (1−λ)·R<sup>ped,soft</sup></td><td>⚠️ 用 R<sub>ped,lite</sub> = 0.5·precedence + 0.5·phase_coverage 替代</td><td>concept graph K → subtask-name 共现；LLM judge → phase 关键词检测；λ 与 lambda_ped 字段对齐保留</td></tr>
   <tr><td>R<sup>hard</sup> = −η · 𝕀[Invalid]</td><td>✅ 原样实现</td><td>无</td></tr>

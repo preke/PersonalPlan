@@ -1,4 +1,4 @@
-"""Reward functions for GRPO training of the MAPLE planner.
+"""Reward functions for GRPO training of the MAP-PPL planner.
 
 Paper §4.2 specifies four components:
 
@@ -131,10 +131,10 @@ def reward_personalization(
 #
 # Why a per-step co-occurrence signal?
 #
-#   - Gold plans in MAPLE personalize STRUCTURALLY: bridges, analogies,
+#   - Gold plans in MAP-PPL personalize STRUCTURALLY: bridges, analogies,
 #     2nd-person addressing inside step.instruction text. They do NOT
 #     stuff skill keywords into agent backstories.
-#   - Empirical check on MAPLE: gold instructions contain "you" / "the
+#   - Empirical check on MAP-PPL: gold instructions contain "you" / "the
 #     learner" + profile-context phrases roughly 60-90% of the time;
 #     query-only generic plans contain neither.
 #   - Anti-hacking: requires CO-OCCURRENCE within a sentence and

@@ -1,4 +1,4 @@
-"""Re-render the three MAPLE figures used in the EMNLP main paper.
+"""Re-render the three MAP-PPL figures used in the EMNLP main paper.
 
 Goal: on-page font size comparable to 10pt body. The three figures are
 embedded at ~0.30--0.33 \\textwidth of a two-column 11pt acl.sty page,

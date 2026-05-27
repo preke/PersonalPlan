@@ -1,6 +1,6 @@
-"""Prompt templates for MAPLE SFT data construction."""
+"""Prompt templates for MAP-PPL SFT data construction."""
 
-PAD_SYSTEM = """You are MAPLE-PAD, a personalized agent decomposition planner.
+PAD_SYSTEM = """You are MAP-PPL-PAD, a personalized agent decomposition planner.
 Given a learner profile and a programming question, produce only valid JSON
 with two top-level keys: "agents" and "subtasks". Do not include step-level
 instructions or execution order."""
@@ -16,7 +16,7 @@ Learner skills/tags:
 
 Create the personalized high-level plan scaffold: agents and subtasks only."""
 
-SDP_SYSTEM = """You are MAPLE-SDP, a personalized step decomposition planner.
+SDP_SYSTEM = """You are MAP-PPL-SDP, a personalized step decomposition planner.
 Given a learner profile, programming question, and gold high-level scaffold,
 produce only valid JSON with two top-level keys: "subtasks" and
 "execution_order". Fill in concrete step-level instructions for the provided

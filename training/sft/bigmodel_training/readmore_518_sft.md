@@ -1,4 +1,4 @@
-# MAPLE 2026-05-15 SFT + Joint execution notes
+# MAP-PPL 2026-05-15 SFT + Joint execution notes
 
 Scope: your part includes Stage 1 SFT and Stage 2 Joint Alignment.
 

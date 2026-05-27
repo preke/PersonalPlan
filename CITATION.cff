@@ -1,6 +1,6 @@
 cff-version: 1.2.0
-title: "MAPLE: Multi-Agent Personalized Learning Plans"
-message: "If you use MAPLE in your research, please cite the paper below."
+title: "MAP-PPL: Multi-Agent Personalized Learning Plans"
+message: "If you use MAP-PPL in your research, please cite the paper below."
 type: software
 authors:
   - family-names: "TBD"
@@ -8,7 +8,7 @@ authors:
     affiliation: "TBD"
     # orcid: "https://orcid.org/0000-0000-0000-0000"
 abstract: >-
-  MAPLE is a dataset and training/evaluation pipeline for multi-agent
+  MAP-PPL is a dataset and training/evaluation pipeline for multi-agent
   personalized teaching plans. It pairs Stack Overflow duplicate-question
   clusters with learner profiles, generates multi-agent plans with Claude
   Sonnet 4.6, and validates them via static structural checks and execution
@@ -31,7 +31,7 @@ url: "https://github.com/preke/PersonalPlan"
 # Once the paper is on arXiv / accepted, fill in `preferred-citation`:
 # preferred-citation:
 #   type: article
-#   title: "MAPLE: ..."
+#   title: "MAP-PPL: ..."
 #   authors:
 #     - family-names: "TBD"
 #       given-names: "TBD"

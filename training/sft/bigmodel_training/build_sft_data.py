@@ -1,4 +1,4 @@
-"""Build PAD/SDP SFT datasets from the frozen MAPLE question_id split.
+"""Build PAD/SDP SFT datasets from the frozen MAP-PPL question_id split.
 
 This script does not create a new split. It reads the already-frozen
 ``maple_split_v1.json`` from EXPERIMENT_PLAN_2026-05-15 and materializes:
@@ -31,7 +31,7 @@ HERE = Path(__file__).resolve().parent
 
 
 def extract_learner(lrn: dict[str, Any]) -> tuple[str, list[str]]:
-    """Normalize the learner schema variants used by MAPLE."""
+    """Normalize the learner schema variants used by MAP-PPL."""
     desc = lrn.get("self_description") or lrn.get("about_me") or ""
     skills = lrn.get("skills") or lrn.get("top_tags") or []
     return desc.strip(), list(skills)
@@ -198,7 +198,7 @@ def main() -> None:
     ap.add_argument(
         "--input",
         default=str(HERE / "multi_agent_dataset_filtered_qap.jsonl"),
-        help="Source MAPLE JSONL. Default: full 2026-05-15 dataset.",
+        help="Source MAP-PPL JSONL. Default: full 2026-05-15 dataset.",
     )
     ap.add_argument(
         "--split-file",

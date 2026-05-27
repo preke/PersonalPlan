@@ -1,4 +1,4 @@
-"""GRPO training for the MAPLE planner — LoRA + TRL + (optionally) vLLM.
+"""GRPO training for the MAP-PPL planner — LoRA + TRL + (optionally) vLLM.
 
 Paper §4.2 Reinforcement Optimization with Verifiable and Counterfactual
 Rewards. v1 implementation (see README for the staged plan).

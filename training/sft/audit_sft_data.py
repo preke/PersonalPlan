@@ -1,4 +1,4 @@
-"""Audit MAPLE SFT data for design problems that algorithmic SFT loss
+"""Audit MAP-PPL SFT data for design problems that algorithmic SFT loss
 cannot catch.
 
 Run this BEFORE relying on SFT-trained adapters. SFT directly fits gold
@@ -341,7 +341,7 @@ def main():
     ap.add_argument(
         "--src",
         default="../multi_agent_dataset_filtered_qap.jsonl",
-        help="Full MAPLE dataset (used for SFT in practice)",
+        help="Full MAP-PPL dataset (used for SFT in practice)",
     )
     ap.add_argument("--out-json", default="audit_results.json")
     args = ap.parse_args()

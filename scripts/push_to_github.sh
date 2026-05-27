@@ -13,7 +13,7 @@ set -euo pipefail
 
 GH_REPO_NAME="${GH_REPO_NAME:-maple}"
 GH_VISIBILITY="${GH_VISIBILITY:-public}"
-GH_DESCRIPTION="${GH_DESCRIPTION:-MAPLE: Multi-Agent Personalized Learning Plans — dataset and training/evaluation pipeline}"
+GH_DESCRIPTION="${GH_DESCRIPTION:-MAP-PPL: Multi-Agent Personalized Learning Plans — dataset and training/evaluation pipeline}"
 
 REPO_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 cd "${REPO_DIR}"

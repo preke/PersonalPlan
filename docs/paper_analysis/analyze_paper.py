@@ -1,5 +1,5 @@
 """
-Paper-grade analysis of MAPLE final dataset (3043 records, 1730 unique qids).
+Paper-grade analysis of MAP-PPL final dataset (3043 records, 1730 unique qids).
 
 Sections:
   A) Overview

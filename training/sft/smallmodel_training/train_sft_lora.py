@@ -1,4 +1,4 @@
-"""Train MAPLE Stage-1 LoRA adapters with TRL SFTTrainer.
+"""Train MAP-PPL Stage-1 LoRA adapters with TRL SFTTrainer.
 
 AutoTrain 0.8.36 pins transformers==4.48.0, which cannot load Qwen3
 (`model_type: qwen3`). This script keeps the existing YAML configs and data

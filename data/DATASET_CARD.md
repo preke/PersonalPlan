@@ -2,7 +2,7 @@
 language:
   - en
 license: cc-by-sa-4.0
-pretty_name: "MAPLE: Multi-Agent Personalized Learning Plans"
+pretty_name: "MAP-PPL: Multi-Agent Personalized Learning Plans"
 size_categories:
   - 1K<n<10K
 task_categories:
@@ -25,7 +25,7 @@ configs:
         path: test.jsonl
 ---
 
-# MAPLE: Multi-Agent Personalized Learning Plans
+# MAP-PPL: Multi-Agent Personalized Learning Plans
 
 > Use this file as the dataset card on Hugging Face Hub. The `data_files` block
 > above assumes you upload `train.jsonl`, `dev.jsonl`, `test.jsonl` (built by
@@ -34,7 +34,7 @@ configs:
 
 ## Summary
 
-MAPLE pairs Stack Overflow duplicate-question clusters with synthetic learner
+MAP-PPL pairs Stack Overflow duplicate-question clusters with synthetic learner
 profiles, then asks Claude Sonnet 4.6 to draft a **multi-agent teaching
 plan**. Plans pass through a two-stage filter — static structural validation
 and CrewAI execution feasibility — before entering the release set.
@@ -87,12 +87,12 @@ mapping and `splits/split_stats.json` for per-bucket statistics.
 
 ```python
 from datasets import load_dataset
-ds = load_dataset("wenzhy7/maple")
+ds = load_dataset("wenzhy7/MAP-PPL")
 print(ds)
 print(ds["train"][0])
 ```
 
-## How MAPLE was built
+## How MAP-PPL was built
 
 1. **Query selection** — Stack Overflow duplicate-question clusters filtered to
    programming questions answerable by the 8-tool agent pool.
@@ -118,7 +118,7 @@ repo for details.
 
 ```bibtex
 @article{maple2026,
-  title   = {MAPLE: Multi-Agent Personalized Learning Plans},
+  title   = {MAP-PPL: Multi-Agent Personalized Learning Plans},
   author  = {TBD},
   year    = {2026},
   journal = {TBD}

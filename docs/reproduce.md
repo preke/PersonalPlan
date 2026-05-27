@@ -1,4 +1,4 @@
-# Reproducing MAPLE paper results
+# Reproducing MAP-PPL paper results
 
 > **Status:** placeholders — fill the exact commands once each component is
 > smoke-tested end-to-end from a fresh clone.

@@ -34,7 +34,7 @@ from pathlib import Path
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--src", required=True, help="MAPLE JSONL (the GRPO source).")
+    ap.add_argument("--src", required=True, help="MAP-PPL JSONL (the GRPO source).")
     ap.add_argument("--base-model", required=True)
     ap.add_argument("--sft-adapter", default=None,
                     help="Optional SFT LoRA adapter to load on top of base_model.")

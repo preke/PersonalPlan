@@ -1,4 +1,4 @@
-"""Build Train/Dev/Test splits for MAPLE and materialize them for SFT + GRPO.
+"""Build Train/Dev/Test splits for MAP-PPL and materialize them for SFT + GRPO.
 
 Implements §2.2 of EXPERIMENT_PLAN_2026-05-15.html:
 

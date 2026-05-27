@@ -1,6 +1,6 @@
 # Stage 3 执行层配置说明
 
-Stage 3 是 MAPLE 评估流水线的**plan 执行层**，基于 CrewAI 框架，驱动 Teacher（GPT-4o）+ Student（GPT-4o-mini）Socratic 对话来运行多智能体教学规划。
+Stage 3 是 MAP-PPL 评估流水线的**plan 执行层**，基于 CrewAI 框架，驱动 Teacher（GPT-4o）+ Student（GPT-4o-mini）Socratic 对话来运行多智能体教学规划。
 
 ---
 

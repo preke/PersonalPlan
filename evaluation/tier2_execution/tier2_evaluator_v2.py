@@ -14,7 +14,7 @@ Four headline metrics:
   r_sol  — §11.5   student final code vs accepted_answer + HARD compile gate
 
 Data-layer adapters (necessary because the dataset stores empty accepted_answer):
-  - accepted_answer loaded from MAPLE construction sources (profiles_answers[pidx].answer)
+  - accepted_answer loaded from MAP-PPL construction sources (profiles_answers[pidx].answer)
     — plan.input.accepted_answer is empty in 100% of records.
 
 Usage:
@@ -865,7 +865,7 @@ def evr_run(
 ) -> dict:
     """EVR = 4 sub-checks AND联合 (cov, loop, flow, exec).
 
-    `out` (CCR functional equivalence) 已从 EVR 中移除——MAPLE plan 的
+    `out` (CCR functional equivalence) 已从 EVR 中移除——MAP-PPL plan 的
     expected_output 是描述性 prose（"prints the connection string"），不是
     sandbox 可比的 stdout 规范，让 LLM 判等价导致大批 false-fail。
 
@@ -1163,7 +1163,7 @@ def pqs_run(plan: dict, exec_log: list[dict], accepted_answer: str,
 # r_sol — Comprehension Demonstration Rate (重设计版)
 # ---------------------------------------------------------------------------
 # 原始设计（HTML §11.5）：抽学生最后 subtask 的 fenced code，跟 accepted_answer
-# 判 functional equivalent。在 MAPLE 数据上不成立——最后 subtask 是 consolidate
+# 判 functional equivalent。在 MAP-PPL 数据上不成立——最后 subtask 是 consolidate
 # phase，学生用自然语言反思，不交 fenced code。
 #
 # 重设计：判 INTERACTION PROCESS——学生在 consolidate phase 是否展现出对核心概念
@@ -1345,7 +1345,7 @@ def evaluate_run(
     work_dir: Path | str | None = None,
     verbose: bool = False,
 ) -> dict:
-    """Evaluate a single MAPLE run on Tier 2 metrics.
+    """Evaluate a single MAP-PPL run on Tier 2 metrics.
 
     Args:
         plan: parsed plan dict (with .input.{query,learner} + .output.{subtasks,agents,execution_order})
@@ -1405,7 +1405,7 @@ def evaluate_run_dir(
     Args:
         run_dir: directory with execution_log.json + step_outputs.json
         plan: plan dict, OR path to plan json, OR None (auto-resolve from dataset by run_id)
-        accepted_answer: gold reference; if None, auto-resolve from MAPLE construction sources
+        accepted_answer: gold reference; if None, auto-resolve from MAP-PPL construction sources
         ...others same as evaluate_run
     """
     rd = Path(run_dir)
@@ -1459,7 +1459,7 @@ def evaluate_batch(
     work_dir: Path | str | None = None,
     verbose: bool = False,
 ) -> dict:
-    """Evaluate a batch of (qid, profile_index) pairs from the MAPLE stage3 dataset.
+    """Evaluate a batch of (qid, profile_index) pairs from the MAP-PPL stage3 dataset.
 
     Each tuple should be (qid: str | int, profile_index: int).
     Returns dict with aggregated metrics + per-run results.

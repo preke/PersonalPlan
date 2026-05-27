@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<title>MAPLE Joint Alignment 设计与实现文档</title>
+<title>MAP-PPL Joint Alignment 设计与实现文档</title>
 <script>
   MathJax = { tex: {inlineMath: [['$','$'], ['\\(','\\)']]} };
 </script>
@@ -44,7 +44,7 @@
 </head>
 <body>
 
-<h1>MAPLE Joint Alignment 设计与实现</h1>
+<h1>MAP-PPL Joint Alignment 设计与实现</h1>
 <p style="color:#475569;font-size:0.95em">
   <span class="pill">SFT Stage 2 / Stage 3</span>
   <span class="pill green">K = 1</span>
@@ -53,7 +53,7 @@
   <span class="pill">backbone: Qwen3-32B-Instruct</span>
 </p>
 
-<p>本文档综合 <code>SFT/README.md</code>、<code>SFT/bigmodel_training/EXPERIMENT_PLAN_2026-05-15.html §3.2</code>、<code>readmore_518_sft.md</code>、训练报告 <code>MAPLE_Qwen_32B_training_report_2026-05-20.html</code> 以及 Python 代码（<code>joint_alignment_data.py</code> / <code>train_dpo_lora.py</code> / <code>train_sft_lora.py</code> / <code>train_joint.sh</code>），系统介绍 MAPLE 第三阶段 "Joint Alignment" 的<strong>设计动机、参考工作、数学公式、实现切片</strong>。</p>
+<p>本文档综合 <code>SFT/README.md</code>、<code>SFT/bigmodel_training/EXPERIMENT_PLAN_2026-05-15.html §3.2</code>、<code>readmore_518_sft.md</code>、训练报告 <code>MAPLE_Qwen_32B_training_report_2026-05-20.html</code> 以及 Python 代码（<code>joint_alignment_data.py</code> / <code>train_dpo_lora.py</code> / <code>train_sft_lora.py</code> / <code>train_joint.sh</code>），系统介绍 MAP-PPL 第三阶段 "Joint Alignment" 的<strong>设计动机、参考工作、数学公式、实现切片</strong>。</p>
 
 <div class="toc">
 <strong>目录</strong>
@@ -73,8 +73,8 @@
 <!-- ============================================ -->
 <h2 id="sec-1">1. 为什么需要 Joint Alignment</h2>
 
-<h3>1.1 MAPLE 的双 adapter 分解</h3>
-<p>MAPLE 把"为学习者生成多智能体计划"这个任务拆成两个串行的子任务，每个由一个 LoRA adapter 承载：</p>
+<h3>1.1 MAP-PPL 的双 adapter 分解</h3>
+<p>MAP-PPL 把"为学习者生成多智能体计划"这个任务拆成两个串行的子任务，每个由一个 LoRA adapter 承载：</p>
 
 <table>
 <thead><tr><th>Adapter</th><th>输入</th><th>输出（loss target）</th><th>论文符号</th></tr></thead>
@@ -110,7 +110,7 @@ $$ \mathbb{E}_{(\mathcal{A}^\star,\mathcal{T}^\star)\sim p_{\text{gold}}}[\mathc
 <h2 id="sec-2">2. 参考工作 (Related Work)</h2>
 
 <table>
-<thead><tr><th>方向</th><th>参考</th><th>对 MAPLE 的影响</th></tr></thead>
+<thead><tr><th>方向</th><th>参考</th><th>对 MAP-PPL 的影响</th></tr></thead>
 <tbody>
 <tr><td>Exposure bias / Scheduled Sampling</td>
     <td>Bengio et al. NeurIPS'15；Ranzato et al. ICLR'16 (MIXER)</td>
@@ -129,7 +129,7 @@ $$ \mathbb{E}_{(\mathcal{A}^\star,\mathcal{T}^\star)\sim p_{\text{gold}}}[\mathc
     <td>支持"用结构 Jaccard 等廉价规则信号代替 reward model"的做法；β 选 0.1 也参考了 PlanTuning 的取值</td></tr>
 <tr><td>Iterative DPO / outer-loop alternation</td>
     <td>Iterative DPO (Xu 2023)；SPIN (Chen 2024)</td>
-    <td>支持外循环 K ∈ {1, 2} 的可行性；MAPLE 论文 §4 锁定 K=1 已经足够</td></tr>
+    <td>支持外循环 K ∈ {1, 2} 的可行性；MAP-PPL 论文 §4 锁定 K=1 已经足够</td></tr>
 <tr><td>LoRA + QLoRA</td>
     <td>Hu et al. ICLR'22；Dettmers 2023</td>
     <td>所有 adapter 用 LoRA r=16/α=32，PAD↔SDP 两个独立 adapter 挂同一 base</td></tr>

@@ -1,6 +1,6 @@
-# MAPLE Qwen3-8B SFT + Joint Alignment
+# MAP-PPL Qwen3-8B SFT + Joint Alignment
 
-This repository contains the current MAPLE training workflow used for the
+This repository contains the current MAP-PPL training workflow used for the
 Qwen3-8B experiment. The authoritative runbook is:
 
 - `readmore_518_sft.md`

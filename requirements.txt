@@ -1,4 +1,4 @@
-# MAPLE — pinned dependency floor for the public release.
+# MAP-PPL — pinned dependency floor for the public release.
 # Tested with Python 3.10+. Pin exact versions in your own environment
 # if you need full reproducibility (`pip freeze > requirements.lock.txt`).
 

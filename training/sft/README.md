@@ -1,4 +1,4 @@
-# SFT — 三阶段微调 MAPLE 多智能体规划器
+# SFT — 三阶段微调 MAP-PPL 多智能体规划器
 
 本目录实现论文 §4 的 hierarchical SFT + Joint Alignment 流程，使用
 HuggingFace AutoTrain 作为训练后端。

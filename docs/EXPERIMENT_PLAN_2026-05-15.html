@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8" />
-<title>PersonalPlan / MAPLE 实验方案 v2 — 2026-05-15</title>
+<title>PersonalPlan / MAP-PPL 实验方案 v2 — 2026-05-15</title>
 <style>
   :root {
     --fg: #1f2328;
@@ -74,7 +74,7 @@
 </head>
 <body>
 
-<h1>PersonalPlan / MAPLE 实验方案 v2（final）</h1>
+<h1>PersonalPlan / MAP-PPL 实验方案 v2（final）</h1>
 <p class="subtitle">对齐 IPM 投稿 <code>main.pdf</code> §5 + 整合 10 篇近期 SFT/GRPO 实践证据 + 数据集真实形态</p>
 <p class="meta">
   日期：2026-05-15　·　版本：v2（取代 v1）<br/>
@@ -302,7 +302,7 @@ json.dump({"train_qids": train_q, "dev_qids": dev_q, "test_qids": test_q},
 <blockquote>
 <strong>§2.3 符号说明</strong>
 <ul style="margin:6px 0 0 0">
-<li><code>★</code>（上标星号）= "gold" / "ground-truth" / "标准答案"。例如 <code>agents★</code> 指 MAPLE 数据集里 <code>plan.output.agents</code> 字段那个真实标签；模型在 SFT 阶段被监督去复现这个 <code>★</code> 版本。</li>
+<li><code>★</code>（上标星号）= "gold" / "ground-truth" / "标准答案"。例如 <code>agents★</code> 指 MAP-PPL 数据集里 <code>plan.output.agents</code> 字段那个真实标签；模型在 SFT 阶段被监督去复现这个 <code>★</code> 版本。</li>
 <li><code>(query, profile)</code> = 输入元组，分别对应 <code>plan.input.query</code> 和 <code>plan.input.learner</code>（含 about_me + top_tags）。</li>
 <li><code>(agents★, subtasks★, steps★, execution_order★)</code> = gold plan 的四个组成部分；按论文方法分成 <em>scaffold</em>（agents+subtasks，由 PAD 学）和 <em>execution</em>（steps+execution_order，由 SDP 学）。</li>
 <li><code>K</code> = Joint Alignment 的 outer iteration 次数（论文 §4 设 K∈{1,2}，我们用 K=1）。</li>

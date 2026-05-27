@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8" />
-<title>PersonalPlan / MAPLE 评估方法重新设计 — 2026-05-15</title>
+<title>PersonalPlan / MAP-PPL 评估方法重新设计 — 2026-05-15</title>
 <script>
   window.MathJax = {
     tex: {
@@ -123,7 +123,7 @@
 </head>
 <body>
 
-<h1>PersonalPlan / MAPLE 评估方法重新设计</h1>
+<h1>PersonalPlan / MAP-PPL 评估方法重新设计</h1>
 <p class="subtitle">基于 20 篇 ACL/EMNLP 2024–2025 论文 + 现有 Stage&nbsp;3 多智能体执行流水线的可落地评估方案</p>
 <p class="meta">
   日期：2026-05-15　·　版本：Eval&nbsp;v1<br/>
@@ -188,7 +188,7 @@
 <tr>
   <td>编程专属</td>
   <td><span class="tag bad">缺</span></td>
-  <td>MAPLE 全是编程查询，但评估里<strong>没有任何代码相关指标</strong>。SafeCodeInterpreterTool 已经能跑 14 种语言、能拿到真实 stdout/stderr——这些信号没进评估。需补 <em>Code Execution Rate</em>、<em>Code Correctness Rate</em>、<em>Learner Solve Transition</em>。</td>
+  <td>MAP-PPL 全是编程查询，但评估里<strong>没有任何代码相关指标</strong>。SafeCodeInterpreterTool 已经能跑 14 种语言、能拿到真实 stdout/stderr——这些信号没进评估。需补 <em>Code Execution Rate</em>、<em>Code Correctness Rate</em>、<em>Learner Solve Transition</em>。</td>
 </tr>
 <tr>
   <td>对话级评估</td>
@@ -713,7 +713,7 @@ r_{\mathrm{sol}} \;=\; \frac{1}{|\mathcal{R}_{\mathrm{valid}}|}\sum_{r \in \math
 <h3>8.2 6 条防 hack 协议</h3>
 
 <ol>
-  <li><strong>跨家族 judge</strong>：主判 GPT-5 + 复核 Claude Opus 4.6 必须来自不同模型族。任何 reward 训练 / 数据生成都<em>不能</em>用 GPT-5 + Claude——MAPLE 数据生成时已经用过 Claude Sonnet 4.6，所以评估时<strong>用 Claude Opus 4.6（不同型号）</strong>避免自评 bias。</li>
+  <li><strong>跨家族 judge</strong>：主判 GPT-5 + 复核 Claude Opus 4.6 必须来自不同模型族。任何 reward 训练 / 数据生成都<em>不能</em>用 GPT-5 + Claude——MAP-PPL 数据生成时已经用过 Claude Sonnet 4.6，所以评估时<strong>用 Claude Opus 4.6（不同型号）</strong>避免自评 bias。</li>
   <li><strong>子维度独立 call</strong>：Pers. 3 子维度 / Feas. 3 子维度 / Ped. 4 子维度 → 每个子维度独立 LLM call，<em>不</em>在同一 prompt 里同时评（防止 halo effect）。</li>
   <li><strong>Order randomization</strong>：所有 pairwise (Sati.) AB 顺序 random，必须 AB + BA 各跑一次。</li>
   <li><strong>Reference-grounded</strong>：Feas. / Sati. judge 时把 gold plan 的相应字段作 reference 给 judge，问"candidate 是否同样合理"——比 zero-shot judging 准。</li>
@@ -925,7 +925,7 @@ def sv(plan_json: dict) -> int:
         return 1
     except ValidationError:
         return 0</pre>
-注意：MAPLE 旧字段（<code>about_me</code> / <code>top_tags</code> / <code>backstory</code>）需要先过 <code>normalize_plan()</code>，否则会因字段名失败。</dd>
+注意：MAP-PPL 旧字段（<code>about_me</code> / <code>top_tags</code> / <code>backstory</code>）需要先过 <code>normalize_plan()</code>，否则会因字段名失败。</dd>
 
 <dt>✅ 通过示例（SV = 1）</dt>
 <dd><pre>{
@@ -1756,10 +1756,10 @@ PNG = 0.42 − 0.40 = <strong>+0.02</strong>，p = 0.45 → profile 对生成<em
 
 <div style="background:#fff8e8;border-left:4px solid #c9802b;padding:12px 16px;margin:10px 0 16px 0;font-size:13.5px;line-height:1.55;border-radius:4px">
 <strong>v1.1 修订说明（2026-05-19，dry-run 后的设计修复）</strong><br/>
-v1.0 设计在 MAPLE-Test dry-run 中跑出 EVR ≡ 0，根因是两个操作化假设在 MAPLE 数据上不成立：
+v1.0 设计在 MAP-PPL-Test dry-run 中跑出 EVR ≡ 0，根因是两个操作化假设在 MAP-PPL 数据上不成立：
 <ol style="margin:6px 0 0 20px;padding:0">
-  <li><strong>原 (e) <code>out</code> / CCR</strong> 让 LLM judge 比对真实 stdout 与 plan 字段 <code>expected_output</code> 是否功能等价。但 MAPLE 的 <code>expected_output</code> 在数据集构造时就是<em>描述性散文</em>（如"Documented exception classes: FileNotFoundError / OSError from open(), json.JSONDecodeError from json.load"），不是 literal stdout，judge 必然判 ≠ → CCR=0 几乎必然。</li>
-  <li><strong>原 (d) <code>exec</code> / CER</strong> 用<em>排除式</em>关键词扫描（"Expected output:" / "should see:" 等 6 种臆测 pattern）来判定"代码真跑 vs 假跑"。但 MAPLE 上 agent 真实失败模式是<em>干脆不调 tool、直接给一段干净教学文字</em>——这段文字不含任何臆测关键词，反而被误判为"真执行"，把不可信内容传给下游 CCR 判定。</li>
+  <li><strong>原 (e) <code>out</code> / CCR</strong> 让 LLM judge 比对真实 stdout 与 plan 字段 <code>expected_output</code> 是否功能等价。但 MAP-PPL 的 <code>expected_output</code> 在数据集构造时就是<em>描述性散文</em>（如"Documented exception classes: FileNotFoundError / OSError from open(), json.JSONDecodeError from json.load"），不是 literal stdout，judge 必然判 ≠ → CCR=0 几乎必然。</li>
+  <li><strong>原 (d) <code>exec</code> / CER</strong> 用<em>排除式</em>关键词扫描（"Expected output:" / "should see:" 等 6 种臆测 pattern）来判定"代码真跑 vs 假跑"。但 MAP-PPL 上 agent 真实失败模式是<em>干脆不调 tool、直接给一段干净教学文字</em>——这段文字不含任何臆测关键词，反而被误判为"真执行"，把不可信内容传给下游 CCR 判定。</li>
 </ol>
 <strong>v1.1 修复</strong>：把 <code>exec</code> 和 <code>out</code> 都改为对客观 execution trace 的<em>纳入式</em>检测：
 <ul style="margin:6px 0 0 20px;padding:0">
@@ -1876,7 +1876,7 @@ def evr(runs) -> float:
 
 <dt>方向 / 阈值</dt>
 <dd><span class="arrow-up">↑ higher better</span>。<strong>Tier 2 headline</strong>。SOTA ~0.25–0.40，PersonalPlan 目标 <strong>≥ 0.55</strong>（5 项联合 PASS 是 hard condition）。<br/>
-<strong>论文 abstract</strong>："PersonalPlan reaches X% Execution Validity Rate on MAPLE-Test, vs Y% for the strongest baseline"。X 就是这里的 EVR。</dd>
+<strong>论文 abstract</strong>："PersonalPlan reaches X% Execution Validity Rate on MAP-PPL-Test, vs Y% for the strongest baseline"。X 就是这里的 EVR。</dd>
 
 <dt>评分标准（5 项 sub-check 各自的 PASS 条件）</dt>
 <dd>
@@ -1905,7 +1905,7 @@ def evr(runs) -> float:
 <dd>PAS 测<em>"MAS 教学过程中，教师 agent 实际说的话是否反映 learner_profile"</em>——profile 字段包括 age、knowledge_level、learning_style（visual / kinesthetic / etc.）、native_language、interests。PAS 的判定对象是<em>每条 teacher utterance</em>（不是整个 plan），因此能捕捉到"plan 写了适配 K12 学生，但 runtime 教师 agent 还是用 PhD-level 术语"这种 plan-execution 脱节。</dd>
 
 <dt>参考工作</dt>
-<dd>PAS <em>直接</em>采用 <strong>KELE</strong> \citep{peng2025kele} 的 <strong>PRR (Personalization Reflection Rate)</strong>，论文里建议直接命名为 "Personalization Reflection Rate (PRR)" + cite KELE，<em>不</em>用我们的 PAS 缩写。Profile-conditioned generation evaluation 的另一个 anchor 是 <strong>Personality-Sim</strong> \citep{liu2024personalitysim} 的 BF-TC 5/3/1 anchored Likert——我们的 PAS 用同样 3-档 score。与论文 §3.5 MAPLE 数据 profile 7 字段一致。</dd>
+<dd>PAS <em>直接</em>采用 <strong>KELE</strong> \citep{peng2025kele} 的 <strong>PRR (Personalization Reflection Rate)</strong>，论文里建议直接命名为 "Personalization Reflection Rate (PRR)" + cite KELE，<em>不</em>用我们的 PAS 缩写。Profile-conditioned generation evaluation 的另一个 anchor 是 <strong>Personality-Sim</strong> \citep{liu2024personalitysim} 的 BF-TC 5/3/1 anchored Likert——我们的 PAS 用同样 3-档 score。与论文 §3.5 MAP-PPL 数据 profile 7 字段一致。</dd>
 
 <dt>输入</dt>
 <dd>(learner_profile JSON, execution_log) — profile 来自 plan.input.learner；execution_log 提供每个 step 的 teacher_output（含 loop iterations）。</dd>

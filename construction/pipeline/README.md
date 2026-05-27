@@ -1,4 +1,4 @@
-# Construction of MAPLE Dataset
+# Construction of MAP-PPL Dataset
 
 ## 📌 一. 建立 canonical_question_pair 数据集 (output_qap.jsonl)
 - 目的：获取更精简的数据集以方便分析

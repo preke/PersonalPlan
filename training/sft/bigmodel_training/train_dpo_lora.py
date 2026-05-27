@@ -1,4 +1,4 @@
-"""Train MAPLE Stage-2 PAD DPO with TRL DPOTrainer.
+"""Train MAP-PPL Stage-2 PAD DPO with TRL DPOTrainer.
 Uses precompute_ref_log_probs=True with ref_model=None so that TRL
 computes reference log-probs from the policy model at init time
 (before any training, policy == ref). Only ONE model on GPU at any time.

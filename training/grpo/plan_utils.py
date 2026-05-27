@@ -12,7 +12,7 @@ the generated JSON. Here we centralize:
 Design note: we deliberately avoid `networkx.graph_edit_distance` —
 it is NP-hard and prohibitive at training time. The fingerprint Jaccard
 similarity below has correlation ~0.85 with full GED on plans of 10-30
-nodes (we benchmarked offline on MAPLE) at 1000x lower cost.
+nodes (we benchmarked offline on MAP-PPL) at 1000x lower cost.
 """
 from __future__ import annotations
 
@@ -293,7 +293,7 @@ def agent_tool_relevance(plan: dict | None) -> float:
 # Prerequisite graph helpers (R_ped,hard) — kept tiny for the v1 reward.
 # We do NOT implement a full concept mapper c(·); instead we use the
 # union of subtask-name → subtask-name precedence pairs mined from the
-# gold MAPLE plans for the same domain. This sidesteps the need for a
+# gold MAP-PPL plans for the same domain. This sidesteps the need for a
 # global concept ontology while still rewarding plans whose subtask
 # ordering matches expert orderings.
 # ----------------------------------------------------------------------
