@@ -87,7 +87,7 @@ mapping and `splits/split_stats.json` for per-bucket statistics.
 
 ```python
 from datasets import load_dataset
-ds = load_dataset("TBD/maple")
+ds = load_dataset("preke/maple")
 print(ds)
 print(ds["train"][0])
 ```
