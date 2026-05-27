@@ -1,6 +1,6 @@
 # MAPLE: Multi-Agent Personalized Learning Plans
 
-> 📄 Paper: TBD &nbsp;|&nbsp; 🤗 Dataset: `preke/maple` &nbsp;|&nbsp; 🇨🇳 [中文版 README](README.zh.md)
+> 📄 Paper: TBD &nbsp;|&nbsp; 🤗 Dataset: `wenzhy7/maple` &nbsp;|&nbsp; 🇨🇳 [中文版 README](README.zh.md)
 
 MAPLE is a dataset and a full training/evaluation pipeline for **multi-agent
 personalized teaching plans**. Each plan turns a real Stack Overflow question
@@ -61,7 +61,7 @@ figure-by-figure command list.
 
 ## Dataset
 
-The full MAPLE dataset is hosted on Hugging Face: **`preke/maple`** (link will
+The full MAPLE dataset is hosted on Hugging Face: **`wenzhy7/maple`** (link will
 be added at release). It is licensed under **CC BY-SA 4.0** (inherited from
 Stack Overflow). Its dataset card is in [`data/DATASET_CARD.md`](data/DATASET_CARD.md).
 

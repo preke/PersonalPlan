@@ -6,7 +6,7 @@
 
 set -euo pipefail
 
-REPO_ID="${MAPLE_HF_REPO:-preke/maple}"   # set MAPLE_HF_REPO to override
+REPO_ID="${MAPLE_HF_REPO:-wenzhy7/maple}"   # set MAPLE_HF_REPO to override
 DATA_DIR="$(cd "$(dirname "$0")/.." && pwd)/data"
 mkdir -p "$DATA_DIR"
 
