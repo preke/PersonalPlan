@@ -25,20 +25,19 @@ plans.
 | Dataset construction | [`construction/`](construction/) | Build the dataset from Stack Overflow + learner profiles |
 | Hierarchical SFT | [`training/sft/`](training/sft/) | PAD / SDP / Joint Alignment (paper §4) |
 | GRPO | [`training/grpo/`](training/grpo/) | 4-reward GRPO (paper §4.2) |
-| Plan execution runtime | [`evaluation/runtime/`](evaluation/runtime/) | CrewAI Teacher (GPT-4o) + Student (GPT-4o-mini) |
-| Tier 1 (static) | [`evaluation/tier1_static/`](evaluation/tier1_static/) | Structural validity + counterfactual checks |
-| Tier 2 (execution) | [`evaluation/tier2_execution/`](evaluation/tier2_execution/) | Feasibility scoring on real runs |
-| Tier 3 (outcome) | [`evaluation/tier3_outcome/`](evaluation/tier3_outcome/) | Cross-method pairwise judge (Sati. / JCC) |
 | Baselines | [`baselines/`](baselines/) | 8 baseline methods (AutoGen, AFlow, AutoAgents, EduPlanner, GenMentor, AOP, AIPoM, plus shared utils) |
 | Prompts | [`prompts/`](prompts/) | All LLM prompts used in generation and scoring |
-| Docs | [`docs/`](docs/) | Design HTMLs, paper-analysis code, workflow figure |
 | Data examples | [`data/examples/`](data/examples/) | 8 representative plans + a 100-row sample |
+
+> The plan-execution runtime, three-tier evaluation suite (static / execution
+> / outcome), and the full design/analysis docs are still being verified and
+> will be released in a follow-up update.
 
 ## Quick start
 
 ```bash
 git clone https://github.com/preke/PersonalPlan.git
-cd maple
+cd PersonalPlan
 
 # Python ≥ 3.10 recommended
 python -m venv .venv && source .venv/bin/activate
@@ -56,8 +55,8 @@ subdirectory.
 
 ## Reproducing paper results
 
-See [`docs/reproduce.md`](docs/reproduce.md) for the table-by-table and
-figure-by-figure command list.
+A table-by-table / figure-by-figure reproduction recipe will ship together
+with the evaluation suite in the follow-up release.
 
 ## Dataset
 

@@ -65,3 +65,10 @@ results/raw/
 
 # Notebook checkpoints
 .ipynb_checkpoints/
+
+# Held back from public release pending verification (kept locally, not on GitHub)
+evaluation/runtime/
+evaluation/tier1_static/
+evaluation/tier2_execution/
+evaluation/tier3_outcome/
+docs/
