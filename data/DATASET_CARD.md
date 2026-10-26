@@ -34,10 +34,11 @@ configs:
 
 ## Summary
 
-MAP-PPL pairs Stack Overflow duplicate-question clusters with synthetic learner
-profiles, then asks Claude Sonnet 4.6 to draft a **multi-agent teaching
-plan**. Plans pass through a two-stage filter — static structural validation
-and CrewAI execution feasibility — before entering the release set.
+MAP-PPL pairs Stack Overflow duplicate-question clusters with learner profiles
+derived from real Stack Overflow users' public profile information, then asks
+Claude Sonnet 4.6 to draft a **multi-agent teaching plan**. Plans pass through a
+two-stage filter — static structural validation and CrewAI execution feasibility
+— before entering the release set.
 
 - **3,043** plans (v15)
 - **1,730** unique canonical questions
@@ -96,9 +97,9 @@ print(ds["train"][0])
 
 1. **Query selection** — Stack Overflow duplicate-question clusters filtered to
    programming questions answerable by the 8-tool agent pool.
-2. **Profile pairing** — synthetic learner profiles (skills + about-me) matched
-   to each canonical question; multi-profile questions form the
-   personalization axis.
+2. **Profile pairing** — learner profiles (skills + about-me) collected from
+   real Stack Overflow users and associated with each canonical question;
+   multi-profile questions form the personalization axis.
 3. **Plan generation** — Claude Sonnet 4.6 with the prompt in
    `prompts/plan_generation_prompt.txt`.
 4. **Static filter** — structural validity check (agent definitions, subtask
@@ -129,7 +130,8 @@ repo for details.
 
 - Plans are model-generated and not pedagogically validated by human experts;
   use as a research artifact, not as production curriculum.
-- Learner profiles are synthetic and do not represent real users.
+- Learner profiles come from real Stack Overflow users. Profile text and skill
+  tags may be incomplete or may not fully reflect a user's current knowledge.
 - Stack Overflow content may contain outdated APIs; verify before deploying
   any plan in a teaching setting.
 
